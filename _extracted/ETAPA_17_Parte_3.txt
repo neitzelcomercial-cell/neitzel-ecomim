@@ -1,0 +1,4 @@
+﻿
+ETAPA 17 - Parte 3
+Inclui: Monitoramento, Saúde do Sistema, Backup, Disaster Recovery, Alta Disponibilidade, Banco de Dados, Cache, Filas, Armazenamento.
+

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Cacador de Contatos ECOMIM</title>
+<style>
+body { font-family:'Segoe UI',system-ui,sans-serif; width:300px; padding:14px; background:#0f1730; color:#e8edf7; margin:0; }
+h1 { font-size:14px; margin:0 0 10px; display:flex; align-items:center; gap:8px; }
+h1 span { font-size:18px; }
+.status { font-size:12px; color:#8b96b5; margin-bottom:12px; }
+.status b { color:#22c55e; }
+button { width:100%; padding:10px; border:none; border-radius:8px; background:#3b82f6; color:#fff; font-weight:700; cursor:pointer; margin-bottom:8px; font-family:inherit; font-size:13px; }
+button:hover { filter:brightness(1.1); }
+button.secondary { background:#182240; border:1px solid #243154; }
+#resultado { margin-top:10px; font-size:12px; color:#8b96b5; white-space:pre-wrap; }
+</style>
+</head>
+<body>
+<h1><span>🎯</span> Cacador de Contatos ECOMIM</h1>
+<div class="status">Status: <b id="status">verificando...</b></div>
+<button id="btnColetar">📋 Coletar contatos das abas abertas</button>
+<button class="secondary" id="btnAbas">🖥 Ver minhas abas</button>
+<div id="resultado"></div>
+<script src="popup.js"></script>
+</body>
+</html>

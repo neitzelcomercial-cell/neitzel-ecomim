@@ -1,0 +1,4 @@
+﻿
+ETAPA 17 - Parte 2
+Inclui: Gestão de Usuários, Sessões, Perfis, Permissões, Segurança, MFA, Política de Senhas, Logs, Auditoria.
+

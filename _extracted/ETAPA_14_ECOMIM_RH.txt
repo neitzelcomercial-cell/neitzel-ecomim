@@ -1,0 +1,163 @@
+ETAPA 14
+ECOMIM RH
+Recursos Humanos, Pessoas, Equipes e Desempenho
+Documentacao tecnica e funcional do modulo ECOMIM.
+Documento gerado automaticamente - ECOMIM
+ECOMIM - Documentacao de Modulos Pagina 2
+Objetivo
+Criar um modulo completo de Gestao de Pessoas, permitindo administrar colaboradores, equipes, cargos,
+recrutamento, desempenho, treinamentos, metas, comissoes, beneficios, documentos e desenvolvimento
+profissional.
+O objetivo e transformar o ECOMIM em um ERP empresarial completo, onde toda a gestao de pessoas
+acontece dentro da propria plataforma.
+Problemas que o Modulo Resolve
+Hoje as empresas utilizam diversas plataformas:
+* Gupy
+* Solides
+* Convenia
+* Factorial
+* BambooHR
+* Deel
+* Excel
+* Google Sheets
+No ECOMIM tudo ficara centralizado.
+Estrutura Geral
+Central de Colaboradores
+Cada colaborador possui um perfil completo com os seguintes dados:
+* Nome, Foto, CPF, RG, CNH
+* Endereco e Contatos
+* Cargo, Departamento, Gestor, Equipe
+* Data de admissao, Salario, Tipo de contrato, Jornada
+* Beneficios, Banco, PIX
+* Dependentes, Documentos, Certificados, Historico
+Organograma
+Visualizacao completa e interativa da empresa:
+Documento gerado automaticamente - ECOMIM
+ECOMIM - Documentacao de Modulos Pagina 3
+* Empresa -> Diretoria -> Gerencia -> Coordenacao -> Supervisao -> Equipes -> Colaboradores
+Departamentos
+Cadastro de departamentos personalizados, incluindo: Comercial, Marketing, Financeiro, RH, Suporte,
+Customer Success, Projetos, Tecnologia, Juridico e Operacoes.
+Cargos
+Cadastro completo com descricao, competencias, faixa salarial, requisitos e plano de carreira.
+Recrutamento
+Controle de vagas com etapas estruturadas:
+* Divulgacao -> Inscricoes -> Triagem -> Entrevista -> Teste -> Proposta -> Contratacao -> Onboarding
+Banco de Talentos
+* Cadastro de candidatos
+* Curriculos e portfolio
+* Entrevistas, notas, feedbacks e historico
+Onboarding de Colaboradores
+Fluxo automatico de integracao:
+* Contratacao -> Documentacao -> Assinaturas -> Entrega de equipamentos -> Treinamentos ->
+Integracoes -> Acesso a sistemas -> Primeiro dia -> Periodo de experiencia -> Conclusao
+Controle de Jornada
+Registro completo de:
+* Entrada, Saida, Intervalo, Horas extras, Banco de horas, Escalas, Home Office, Hibrido, Presencial
+Ferias
+* Solicitacao, Aprovacao, Calendario, Saldo, Historico, Notificacoes
+Ausencias
+* Faltas, Atestados, Licencas, Afastamentos, Folgas, Compensacoes
+Beneficios
+* Vale alimentacao, Vale transporte, Plano de saude, Plano odontologico
+Documento gerado automaticamente - ECOMIM
+ECOMIM - Documentacao de Modulos Pagina 4
+* Seguro, Auxilio, Beneficios personalizados
+Avaliacao de Desempenho
+Modelos disponiveis:
+* 90 graus, 180 graus, 360 graus
+* Autoavaliacao, Gestor, Equipe, Cliente
+* Competencias, Metas, Feedbacks, Plano de desenvolvimento
+Metas
+* Individuais, Equipe, Departamento, Empresa
+* Mensais, Trimestrais, Anuais
+Plano de Desenvolvimento (PDI)
+* Competencias, Cursos, Objetivos, Mentorias, Avaliacoes, Evolucao
+Treinamentos
+* Cursos, Videos, PDF, Provas, Certificados, Trilhas, Reciclagens, Obrigatorios
+Certificados
+* Controle de validade, Renovacao, Alertas, Historico
+Comissoes
+Regras por cargo, equipe, venda, meta, produto, servico e campanha, com pagamento automatico.
+Bonificacoes
+* Premios, Campanhas, Gamificacao, Reconhecimento
+Equipamentos
+* Notebook, Celular, Veiculo, Uniforme, Licencas, Materiais, Historico
+Documentos do Colaborador
+* Contrato, Admissao, Rescisao, Certificados, CNH, Exames, Politicas, Assinaturas
+Comunicacao Interna
+* Murais, Avisos, Eventos, Aniversarios, Comunicados, Enquetes
+Documento gerado automaticamente - ECOMIM
+ECOMIM - Documentacao de Modulos Pagina 5
+IA para RH
+Agentes especializados:
+* Agente Recrutador
+* Agente RH
+* Agente Avaliacao
+* Agente Onboarding
+* Agente Treinamentos
+* Agente Desenvolvimento
+* Agente Departamento Pessoal
+A IA consegue:
+* Analisar curriculos e classificar candidatos
+* Gerar entrevistas e criar avaliacoes
+* Montar PDIs e identificar talentos
+* Detectar risco de desligamento e sugerir promocoes
+* Criar treinamentos, gerar feedbacks e responder duvidas internas
+Automacoes
+Fluxo automatico para novo colaborador:
+* Novo colaborador -> Criar usuario -> Enviar documentos -> Solicitar assinaturas -> Criar agenda ->
+Cadastrar equipamentos -> Liberar acessos -> Agendar treinamentos -> Notificar gestor -> Finalizar
+onboarding
+Dashboard
+Indicadores principais:
+* Colaboradores, Admissoes, Desligamentos, Turnover
+* Absenteismo, Horas extras, Banco de horas
+* Avaliacoes, Metas, Treinamentos, Comissoes, Produtividade
+Relatorios
+* RH, Admissoes, Desligamentos, Treinamentos, Avaliacoes
+Documento gerado automaticamente - ECOMIM
+ECOMIM - Documentacao de Modulos Pagina 6
+* Metas, Jornada, Horas, Equipamentos, Beneficios, Comissoes
+Banco de Dados
+Principais tabelas:
+* colaboradores, departamentos, cargos, equipes
+* vagas, candidatos, entrevistas, onboarding_colaboradores
+* jornadas, ponto, banco_horas, ferias, ausencias
+* beneficios, avaliacoes, metas_rh, treinamentos, cursos, certificados
+* equipamentos, documentos_colaboradores, comissoes_rh
+* feedbacks, pdi, historico_rh
+APIs e Integracoes
+* Google Workspace, Microsoft 365, LinkedIn, Indeed
+* Gupy (migracao), Calendarios, Assinatura eletronica
+* REST API, Webhooks, OpenAI, Claude, Gemini
+Permissoes
+* Administrador, Diretor, RH, Departamento Pessoal
+* Gestor, Lider, Colaborador, Financeiro, Visualizador
+Seguranca
+* LGPD, Criptografia, MFA, Logs, Auditoria, Backups, Controle de acesso, Versionamento
+Integracao com Outros Modulos
+* CRM, Comercial, Projetos, Agenda, Financeiro, Documentos, Atendimento, Clientes, BI, IA,
+Automacoes
+Documento gerado automaticamente - ECOMIM
+ECOMIM - Documentacao de Modulos Pagina 7
+Diferenciais do ECOMIM
+* Perfil 360 graus do colaborador, reunindo informacoes pessoais, profissionais, treinamentos, metas,
+documentos e desempenho em uma unica tela.
+* Recrutamento ao onboarding totalmente integrado, permitindo que um candidato aprovado seja
+automaticamente transformado em colaborador, com criacao de usuario, acessos e cronograma de
+integracao.
+* IA especializada em RH, capaz de apoiar recrutamento, avaliacoes, planos de desenvolvimento e
+retencao de talentos.
+* Gamificacao e reconhecimento, incentivando produtividade, aprendizado e alcance de metas.
+* Gestao integrada de equipamentos, beneficios e documentos, reduzindo controles paralelos.
+* Dashboards estrategicos, com indicadores de turnover, produtividade, treinamentos e desempenho.
+* Integracao nativa com todo o ecossistema ECOMIM, conectando RH as areas Comercial, Projetos,
+Financeiro, BI e Agenda.
+Evolucao Estrategica do ECOMIM
+Com a conclusao da Etapa 14, o ECOMIM passa a abranger praticamente toda a operacao interna da
+empresa:
+* CRM, IA, Comercial, Comunicacao, Automacoes
+* Agenda, Marketing, Atendimento, Clientes
+* Financeiro, BI, Documentos, Projetos, RH
+Documento gerado automaticamente - ECOMIM

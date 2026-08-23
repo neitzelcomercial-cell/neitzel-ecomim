@@ -1,0 +1,107 @@
+﻿
+
+DESENVOLVER / EVOLUIR O CAÇADOR DE LEADS DO ECOMIM
+Você está trabalhando no projeto ECOMIM, um sistema/ecossistema comercial que possui um módulo de Caçador de Leads.
+O sistema já possui uma parte funcional para encontrar empresas/comércios.
+Quero evoluir esse sistema para uma arquitetura de caça de leads baseada em fontes independentes, adicionando também um módulo de Pessoas.
+REGRA PRINCIPAL
+ANTES DE ALTERAR QUALQUER COISA:
+1. Analise completamente a estrutura atual do projeto.2. Identifique frontend, backend, banco de dados, APIs, serviços, componentes e integrações existentes.3. Descubra como o atual Caçador de Empresas funciona.4. Descubra quais partes podem ser reutilizadas.5. Não reescreva funcionalidades que já funcionam.6. Não altere o Caçador de Empresas sem necessidade.7. Não faça mudanças visuais desnecessárias.8. Não crie imagens.9. Não instale dependências novas se não forem realmente necessárias.10. Priorize funcionalidade, estabilidade e economia de recursos.
+Antes de implementar, faça uma análise curta da arquitetura atual e defina o plano de implementação.
+OBJETIVO
+Transformar o Caçador de Leads em uma arquitetura modular:
+CAÇADOR DE LEADS├── EMPRESAS└── PESSOAS
+Cada fonte de pesquisa deve funcionar como um motor independente.
+A ideia é:
+Fonte → Pesquisa → Coleta → Normalização → Validação → Deduplicação → Enriquecimento → Score → Base central de leads
+PARTE 1 — CAÇADOR DE EMPRESAS
+O módulo atual de empresas já funciona.
+NÃO recrie.NÃO substitua.NÃO refatore sem necessidade.
+Apenas organize a arquitetura, se necessário, para permitir que novas fontes sejam adicionadas futuramente sem quebrar o sistema atual.
+As fontes podem incluir:- Google Maps- Google Search- Instagram- Facebook- LinkedIn- Sites- Bases empresariais públicas- Diretórios comerciais- Guias locais
+Cada fonte deve ser independente.
+PARTE 2 — CAÇADOR DE PESSOAS
+Criar um novo módulo chamado Caçador de Pessoas.
+Objetivo: encontrar pessoas físicas, profissionais, autônomos, prestadores de serviço, especialistas e outros perfis que tenham informações publicamente disponíveis.
+FONTES DO CAÇADOR DE PESSOAS
+GOOGLEPesquisar pessoas e profissionais através de pesquisas públicas, incluindo operadores quando apropriado.
+GOOGLE MAPSPesquisar profissionais e prestadores de serviço públicos. Coletar, quando publicamente disponível:- nome- categoria- cidade- estado- telefone público- site- endereço comercial público- URL- avaliações- links públicos
+Não tentar obter endereço residencial privado.
+INSTAGRAMPesquisar apenas informações públicas:- palavra-chave- perfis públicos- hashtags- localização- resultados encontrados no Google
+Coletar quando disponível:- nome- username- URL- bio- profissão- categoria- cidade- site- email público- telefone publicamente informado
+Não acessar contas privadas.
+LINKEDINPesquisar perfis públicos e coletar quando disponível:- nome- cargo- profissão- empresa- cidade- estado- segmento- URL- descrição profissional- informações de contato públicas
+FACEBOOKPesquisar informações públicas:- nome- categoria- cidade- profissão- empresa- telefone público- email público- site- URL
+SITESPesquisar sites públicos, priorizando páginas:- Contato- Sobre- Equipe- Profissionais- Quem somos- Perfil- Autor
+Extrair:- nome- profissão- empresa- telefone- email- cidade- estado- Instagram- Facebook- LinkedIn- site
+DIRETÓRIOSCriar suporte para diretórios profissionais públicos. A arquitetura precisa permitir adicionar novas fontes facilmente.
+MODELO DE DADOS
+Criar ou adaptar uma entidade central Lead, ou utilizar a entidade existente caso o projeto já possua uma.
+Diferenciar:- lead_type = company- lead_type = person
+Para pessoas, armazenar quando disponível:- id- name- profession- job_title- company- segment- city- state- country- ddd- phone- email- website- instagram- facebook- linkedin- description- score- quality- created_at- updated_at
+Também registrar a origem através de uma estrutura LeadSource:- lead_id- source_type- source_url- found_at- data
+Um mesmo lead pode possuir várias fontes.
+NORMALIZAÇÃO
+Normalizar:- telefones- emails- URLs- nomes- cidades- estados- profissões
+DEDUPLICAÇÃO
+Criar sistema inteligente para evitar duplicados usando combinação de:- telefone- email- URL- username- nome- cidade- profissão- empresa
+Não simplesmente comparar nomes.
+ENRIQUECIMENTO
+Depois de encontrar um lead, procurar informações complementares em outras fontes públicas e consolidar tudo em um único registro. Registrar de onde veio cada informação.
+VALIDAÇÃO
+Criar validações para:- telefone- email- URL- cidade- DDD- estado- duplicidade
+Não inventar informações. Se um dado não for encontrado, usar null.
+SCORE
+Criar Score de 0 a 100.
+Sugestão:- Telefone público = +20- Email = +20- Instagram = +10- LinkedIn = +10- Facebook = +5- Site = +10- Cidade = +5- Profissão = +10- Empresa = +5- Múltiplas fontes = +5
+Limitar a 100.
+Classificação:- 80-100 = Excelente- 60-79 = Bom- 40-59 = Médio- 0-39 = Baixo
+SISTEMA DE PESQUISA
+Criar interface de busca com:- Tipo: Pessoa / Empresa- Cidade- Estado- DDD- Profissão- Cargo- Segmento- Empresa- Palavra-chave- Fontes- Quantidade
+FONTES INDEPENDENTES
+Não criar um único scraper gigante.
+Cada fonte deve ser um módulo independente.
+A interface deve conseguir:- ativar fonte- desativar fonte- executar fonte- ver resultados da fonte- ver erros da fonte
+Se uma fonte falhar, a pesquisa deve continuar.
+FILA DE PESQUISA
+Se já existir infraestrutura de jobs/filas no projeto, reutilizar.
+Cada pesquisa deve possuir:- search_id- status- started_at- finished_at- sources- results_count- errors
+PROGRESSO
+Mostrar progresso da pesquisa:- fonte concluída- fonte em andamento- leads encontrados- normalização- deduplicação- enriquecimento- finalização
+ORGANIZAÇÃO
+Permitir agrupar por:- Cidade- Estado- DDD- Profissão- Segmento- Score- Fonte
+LISTA DE LEADS
+Mostrar:- Nome- Profissão- Cidade- Telefone- Email- Instagram- LinkedIn- Empresa- Score- Fontes
+Ações:- Ver- Salvar- Exportar- Enviar para CRM
+EXPORTAÇÃO
+Permitir:- CSV- XLSX- JSON
+Permitir escolher os campos.
+HISTÓRICO
+Salvar pesquisas realizadas com:- pesquisa- data- localização- profissão- fontes- quantidade encontrada- quantidade válida- score médio
+INTEGRAÇÃO COM CRM
+Se o ECOMIM já possui CRM, NÃO criar outro CRM.
+Utilizar o CRM existente.
+Permitir:- Salvar lead- Adicionar à lista- Enviar para CRM- Adicionar campanha
+SEGURANÇA E CONFORMIDADE
+O sistema deve trabalhar somente com informações públicas e métodos permitidos pelas respectivas fontes.
+NÃO implementar:- geração aleatória de números;- descoberta automatizada de contas privadas;- tentativa de descobrir quais números possuem WhatsApp;- coleta de endereço residencial privado;- bypass de CAPTCHA;- bypass de login;- bypass de mecanismos anti-bot;- criação de contas falsas;- acesso a informações privadas.
+Para integrações que exigem autenticação ou API oficial, estruturar o sistema para utilizar a API/autorização adequada.
+PERFORMANCE
+Priorizar:- pesquisas assíncronas;- processamento em lotes;- cache;- deduplicação antes de salvar;- evitar consultas repetidas;- logs;- tratamento individual de erros.
+ECONOMIA DE RECURSOS
+Muito importante:- reutilize código existente;- reutilize componentes;- reutilize APIs;- reutilize banco;- reutilize serviços;- não altere o layout sem necessidade;- não crie imagens;- não crie animações;- não adicione bibliotecas desnecessárias;- não faça refatorações cosméticas;- não mexa em funcionalidades que já funcionam.
+PROCESSO DE DESENVOLVIMENTO
+FASE 1 — ANÁLISEAnalise o projeto, descubra arquitetura, frontend, backend, banco, APIs, Caçador de Empresas e componentes reutilizáveis. Não faça alterações ainda. Apresente um resumo curto e o plano.
+FASE 2 — ARQUITETURACriar a estrutura modular das fontes.
+FASE 3 — PESSOASImplementar o Caçador de Pessoas.
+FASE 4 — NORMALIZAÇÃOImplementar normalização e deduplicação.
+FASE 5 — ENRIQUECIMENTOImplementar cruzamento de fontes.
+FASE 6 — SCOREImplementar classificação.
+FASE 7 — INTERFACEIntegrar com a interface existente.
+FASE 8 — TESTESTestar pesquisa, fontes, deduplicação, enriquecimento, score, filtros, exportação, CRM, erros e regressão do módulo Empresas.
+REGRA FINAL
+Não fique apenas descrevendo o que deveria ser feito.
+Depois da análise inicial, IMPLEMENTE.
+Se encontrar algum problema ou limitação técnica:1. identifique;2. procure uma solução dentro da arquitetura existente;3. escolha a alternativa mais simples;4. implemente;5. teste.
+PRIORIDADES
+1. Não quebrar o que já funciona.2. Fazer o Caçador de Pessoas funcionar.3. Manter fontes independentes.4. Reutilizar a infraestrutura existente.5. Economizar recursos e tokens.6. Manter o código simples e expansível.

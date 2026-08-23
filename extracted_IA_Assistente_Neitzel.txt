@@ -1,0 +1,505 @@
+IA ASSISTENTE INTELIGENTE \227 NEITZEL SISTEMA
+EMPRESARIAL
+OBJETIVO PRINCIPAL
+Criar dentro do Neitzel \226 Sistema Empresarial uma Intelig\352ncia Artificial assistente, respons\341vel por
+ajudar o usu\341rio a entender, navegar e utilizar todo o sistema de maneira simples, humana e intuitiva.
+A IA N\303O deve ser apenas um chatbot de perguntas e respostas.
+Ela deve funcionar como uma esp\351cie de 
+especialista humano que conhece profundamente o
+Neitzel
+, entende o contexto da tela atual, interpreta perguntas feitas de maneira informal e orienta o
+usu\341rio sobre o que fazer.
+O objetivo \351 fazer com que uma pessoa consiga utilizar o sistema mesmo sem conhecer previamente
+sua estrutura.
+1. BAL\303O FLUTUANTE DE IA
+Adicionar um bot\343o flutuante fixo no canto inferior direito da aplica\347\343o.
+Visual:
+1
+pequeno bot\343o circular ou arredondado;
+1
+\355cone de IA/assistente;
+1
+apar\352ncia premium e discreta;
+1
+n\343o deve atrapalhar os elementos da interface;
+1
+permanecer dispon\355vel durante toda a navega\347\343o;
+1
+possuir uma pequena anima\347\343o sutil apenas quando necess\341rio;
+1
+tooltip:
+"Precisa de ajuda?"
+Ao clicar, abrir um painel de conversa.
+O painel deve parecer parte nativa do Neitzel, e n\343o um site externo.
+2. CHAT DA IA
+O painel deve conter:
+T\355tulo:
+"Assistente Neitzel"
+Subt\355tulo:
+"Estou aqui para ajudar voc\352 a entender e usar o sistema."
+Campo de mensagem:
+"Digite sua d\372vida..."
+Sugest\365es r\341pidas:
+1
+"O que posso fazer aqui?"
+1
+"Como fa\347o isso?"
+1
+"O que significa essa tela?"
+1
+"Qual \351 o pr\363ximo passo?"
+1
+"Me explique de forma simples."
+A interface deve ser limpa, moderna e responsiva.
+3. PERSONALIDADE DA IA
+A IA deve conversar como um 
+especialista humano prestativo
+, n\343o como um manual t\351cnico.
+Ela deve:
+1
+falar portugu\352s brasileiro;
+1
+utilizar linguagem simples;
+1
+evitar termos t\351cnicos desnecess\341rios;
+1
+explicar conceitos de maneira pr\341tica;
+1
+entender perguntas incompletas;
+1
+interpretar erros de digita\347\343o;
+1
+entender linguagem informal;
+1
+n\343o exigir que o usu\341rio conhe\347a o nome correto da fun\347\343o;
+1
+perceber a inten\347\343o por tr\341s da pergunta;
+1
+ser objetiva;
+1
+evitar respostas gigantes quando uma explica\347\343o curta resolver;
+1
+demonstrar iniciativa quando perceber que o usu\341rio est\341 perdido.
+Exemplo:
+Usu\341rio:
+"onde eu vejo os clientes?"
+N\343o responder:
+"Voc\352 pode acessar o m\363dulo CRM atrav\351s do menu Clientes."
+Preferir:
+"Claro. Voc\352 pode encontrar seus clientes na \341rea 
+Clientes
+. Se quiser, posso te mostrar o caminho
+passo a passo."
+4. INTERPRETA\307\303O HUMANA
+A IA deve interpretar a inten\347\343o do usu\341rio.
+Exemplo:
+Usu\341rio:
+"quero colocar um cliente aqui"
+A IA deve entender que provavelmente o usu\341rio quer cadastrar um cliente na tela atual.
+Usu\341rio:
+"isso serve pra qu\352?"
+A IA deve analisar qual elemento/tela est\341 sendo visualizado e explicar aquela fun\347\343o.
+Usu\341rio:
+"n\343o entendi"
+A IA deve perceber que precisa simplificar a explica\347\343o anterior.
+Usu\341rio:
+"como fa\347o pra vender mais?"
+A IA deve entender que isso pode envolver CRM, leads, comercial, follow-up, automa\347\365es ou outros
+recursos do sistema, e orientar o usu\341rio.
+Usu\341rio:
+"o que eu fa\347o agora?"
+A IA deve analisar o contexto atual e sugerir o pr\363ximo passo mais relevante.
+5. IA COM CONTEXTO DA TELA
+A IA deve receber e utilizar informa\347\365es do contexto atual do usu\341rio.
+Sempre que poss\355vel, conhecer:
+1
+p\341gina atual;
+1
+m\363dulo atual;
+1
+se\347\343o atual;
+1
+elemento selecionado;
+1
+bot\365es dispon\355veis;
+1
+a\347\365es poss\355veis;
+1
+dados relevantes da tela;
+1
+status do usu\341rio;
+1
+permiss\365es;
+1
+processos relacionados.
+Exemplo:
+Se o usu\341rio estiver em:
+/leads
+E perguntar:
+"o que fa\347o aqui?"
+A IA deve responder considerando que ele est\341 na \341rea de Leads.
+N\303O responder de forma gen\351rica.
+6. IA COMO GUIA DO SISTEMA
+A IA deve conseguir explicar:
+1
+para que serve cada m\363dulo;
+1
+para que serve cada bot\343o;
+1
+como executar tarefas;
+1
+como cadastrar informa\347\365es;
+1
+como encontrar informa\347\365es;
+1
+como utilizar os recursos;
+1
+como interpretar indicadores;
+1
+o significado dos status;
+1
+o funcionamento dos processos;
+1
+o que fazer depois de determinada a\347\343o.
+Sempre que poss\355vel, explicar em formato:
+1
+O que \351
+2
+Para que serve
+3
+O que fazer agora
+7. MODO PASSO A PASSO
+Quando o usu\341rio pedir ajuda para executar alguma tarefa, a IA deve fornecer orienta\347\343o progressiva.
+Exemplo:
+Usu\341rio:
+"como cadastro um cliente?"
+Resposta:
+"Claro. Vamos fazer juntos.
+1
+Abra 
+Clientes
+.
+2
+Clique em 
+Novo cliente
+.
+3
+Preencha os dados.
+4
+Clique em 
+Salvar
+.
+Se quiser, posso te acompanhar durante o processo."
+Quando tecnicamente poss\355vel, permitir que a IA leve o usu\341rio diretamente para a tela ou destaque o
+elemento correto.
+8. MODO "O QUE DEVO FAZER AGORA?"
+Criar uma capacidade especial para a IA analisar o contexto e sugerir o pr\363ximo passo.
+Exemplo:
+Usu\341rio:
+"O que eu deveria fazer agora?"
+A IA deve analisar:
+1
+onde o usu\341rio est\341;
+1
+o que j\341 foi feito;
+1
+o que ainda falta;
+1
+informa\347\365es dispon\355veis;
+1
+poss\355veis pend\352ncias;
+1
+oportunidades.
+E responder de maneira pr\341tica.
+Exemplo:
+"Voc\352 j\341 cadastrou seus clientes, mas ainda n\343o possui nenhum acompanhamento registrado.
+Eu recomendo come\347ar criando uma tarefa de follow-up para os clientes que precisam de retorno.
+Posso te levar at\351 essa \341rea."
+9. IA PARA USU\301RIO PERDIDO
+Se a IA perceber que o usu\341rio n\343o sabe o que fazer, n\343o deve simplesmente repetir informa\347\365es.
+Ela deve assumir uma postura de orienta\347\343o.
+Exemplo:
+Usu\341rio:
+"n\343o sei o que fazer aqui"
+Resposta:
+"Sem problema. Vou te explicar.
+Voc\352 est\341 na \341rea de Leads. Essa parte serve para encontrar e organizar potenciais clientes.
+Se voc\352 est\341 come\347ando agora, recomendo:
+1
+Encontrar novos leads.
+2
+Organizar os melhores.
+3
+Fazer o primeiro contato.
+4
+Registrar o resultado.
+Se quiser, podemos come\347ar pelo primeiro passo."
+10. IA EXPLICANDO O SISTEMA INTEIRO
+Criar uma base de conhecimento interna do Neitzel.
+A IA deve conhecer a arquitetura e funcionalidades reais da aplica\347\343o.
+Mapear automaticamente ou estruturar informa\347\365es sobre:
+1
+Dashboard;
+1
+Clientes;
+1
+Leads;
+1
+CRM;
+1
+Comercial;
+1
+tarefas;
+1
+oportunidades;
+1
+comunica\347\343o;
+1
+automa\347\365es;
+1
+relat\363rios;
+1
+configura\347\365es;
+1
+usu\341rios;
+1
+permiss\365es;
+1
+integra\347\365es;
+1
+agentes de IA;
+1
+demais m\363dulos existentes.
+IMPORTANTE:
+A IA N\303O deve inventar funcionalidades.
+Se uma fun\347\343o n\343o existir, responder honestamente:
+"Essa fun\347\343o ainda n\343o est\341 dispon\355vel no Neitzel."
+Nunca afirmar que uma a\347\343o existe quando ela n\343o existe.
+11. IA COM CAPACIDADE DE A\307\303O
+Sempre que a arquitetura permitir, a IA deve poder executar ou iniciar a\347\365es dentro do sistema.
+Exemplos:
+1
+abrir uma p\341gina;
+1
+abrir um cadastro;
+1
+filtrar leads;
+1
+localizar clientes;
+1
+iniciar uma busca;
+1
+abrir configura\347\365es;
+1
+criar uma tarefa;
+1
+iniciar um processo;
+1
+destacar um bot\343o;
+1
+navegar para determinada \341rea.
+Antes de a\347\365es potencialmente destrutivas, solicitar confirma\347\343o.
+Exemplo:
+"Posso excluir este registro?"
+Confirmar antes de executar.
+12. DETEC\307\303O DE ERROS E PROBLEMAS
+A IA tamb\351m deve funcionar como uma camada de suporte.
+Quando poss\355vel, detectar:
+1
+erros;
+1
+p\341ginas sem dados;
+1
+integra\347\365es desconectadas;
+1
+campos incompletos;
+1
+processos que falharam;
+1
+a\347\365es que n\343o foram conclu\355das.
+Exemplo:
+"Percebi que essa integra\347\343o n\343o est\341 conectada. Por isso essa fun\347\343o pode n\343o estar
+funcionando."
+Depois:
+"Quer que eu te mostre onde configurar?"
+13. N\303O SOBRECARREGAR O USU\301RIO
+A IA n\343o deve transformar toda pergunta em um texto enorme.
+Pergunta simples:
+"Pra que serve isso?"
+Resposta curta.
+Pergunta complexa:
+"Como funciona todo o CRM?"
+Resposta estruturada e mais detalhada.
+A quantidade de informa\347\343o deve acompanhar a complexidade da pergunta.
+14. MEM\323RIA DE CONTEXTO DA CONVERSA
+Durante a conversa atual, a IA deve lembrar do que o usu\341rio acabou de perguntar.
+Exemplo:
+Usu\341rio:
+"como cadastro cliente?"
+IA explica.
+Usu\341rio:
+"e depois?"
+A IA deve entender que "depois" se refere ao processo de cadastro do cliente.
+N\343o pedir para o usu\341rio repetir tudo.
+15. RESPOSTAS MAIS HUMANAS
+Evitar frases rob\363ticas como:
+"N\343o compreendi sua solicita\347\343o."
+Preferir:
+"N\343o consegui entender exatamente o que voc\352 quer fazer. Se voc\352 me disser o objetivo, eu te
+ajudo."
+Evitar:
+"Fun\347\343o inv\341lida."
+Preferir:
+"Essa a\347\343o n\343o est\341 dispon\355vel aqui."
+Evitar:
+"Erro de entrada."
+Preferir:
+"Alguma informa\347\343o parece estar faltando. Vamos conferir juntos."
+16. SUGEST\325ES INTELIGENTES
+Quando apropriado, a IA pode oferecer bot\365es de a\347\343o.
+Exemplo:
+"Posso ajudar voc\352 com isso."
+[Ver como funciona]
+[Ir para Clientes]
+[Mostrar passo a passo]
+[Voltar]
+Esses bot\365es devem ser contextuais.
+N\343o criar dezenas de bot\365es desnecess\341rios.
+17. AJUDA CONTEXTUAL NOS ELEMENTOS
+Quando poss\355vel, adicionar pequenos \355cones de ajuda em \341reas importantes.
+Ao clicar:
+"
+n
+ Explicar com IA"
+A IA deve explicar especificamente aquele elemento.
+Exemplo:
+"Este indicador mostra quantos leads est\343o aguardando atendimento."
+18. DESIGN
+O assistente deve seguir exatamente a identidade visual atual do Neitzel.
+N\343o criar uma interface visual completamente diferente.
+Priorizar:
+1
+apar\352ncia premium;
+1
+limpeza;
+1
+boa hierarquia visual;
+1
+anima\347\365es discretas;
+1
+excelente responsividade;
+1
+funcionamento perfeito em desktop;
+1
+funcionamento adequado em mobile.
+N\343o utilizar imagens desnecess\341rias.
+N\343o adicionar elementos decorativos que n\343o tenham fun\347\343o.
+19. PERFORMANCE
+IMPORTANTE:
+N\343o deixar o assistente pesado.
+A implementa\347\343o deve:
+1
+carregar de maneira eficiente;
+1
+evitar chamadas desnecess\341rias;
+1
+n\343o executar IA continuamente sem necessidade;
+1
+n\343o consumir cr\351ditos sem motivo;
+1
+utilizar contexto apenas quando necess\341rio;
+1
+evitar re-renderiza\347\365es desnecess\341rias;
+1
+n\343o prejudicar o desempenho do sistema principal.
+20. SEGURAN\307A
+A IA deve respeitar as permiss\365es do usu\341rio.
+Ela nunca deve:
+1
+acessar dados que o usu\341rio n\343o poderia acessar;
+1
+executar a\347\365es proibidas;
+1
+ignorar permiss\365es;
+1
+expor informa\347\365es privadas;
+1
+executar a\347\365es destrutivas sem confirma\347\343o.
+21. REGRA FUNDAMENTAL
+A IA deve seguir esta l\363gica:
+ENTENDER 
+\256
+ INTERPRETAR 
+\256
+ EXPLICAR 
+\256
+ ORIENTAR 
+\256
+ AGIR
+N\343o simplesmente:
+PERGUNTA 
+\256
+ RESPOSTA
+Ela deve se comportar como algu\351m que conhece profundamente o Neitzel e est\341 acompanhando o
+usu\341rio.
+22. EXEMPLO IDEAL
+Usu\341rio:
+"cara, n\343o t\364 entendendo nada dessa parte"
+IA:
+"Sem problema 
+n
+Voc\352 est\341 na \341rea de Leads.
+Basicamente, essa parte serve para encontrar e organizar poss\355veis clientes para sua empresa.
+Se voc\352 est\341 come\347ando agora, eu faria assim:
+1. Encontrar leads
+\256
+ procurar empresas/pessoas com potencial.
+2. Organizar
+\256
+ separar os melhores leads.
+3. Abordar
+\256
+ iniciar o contato.
+4. Acompanhar
+\256
+ registrar quem respondeu e quem precisa de retorno.
+Se quiser, eu posso te acompanhar e come\347ar pelo primeiro passo."
+23. IMPORTANTE PARA A IMPLEMENTA\307\303O
+Antes de alterar grandes partes do sistema:
+1
+Analise a arquitetura existente.
+2
+Identifique os m\363dulos existentes.
+3
+Identifique rotas e p\341ginas.
+4
+Identifique componentes reutiliz\341veis.
+5
+Identifique os dados dispon\355veis.
+6
+Identifique os fluxos existentes.
+7
+Identifique quais a\347\365es podem ser executadas pela IA.
+N\303O recriar o sistema.
+N\303O substituir funcionalidades existentes sem necessidade.
+N\303O modificar telas que j\341 est\343o funcionando apenas para adicionar a IA.
+Adicionar a IA como uma camada inteligente sobre a estrutura atual.
+Priorizar reutiliza\347\343o do c\363digo existente.
+24. OBJETIVO FINAL
+Quando terminar, quero conseguir entrar no Neitzel sem precisar lembrar onde cada fun\347\343o est\341.
+Quero poder clicar no bal\343o da IA e perguntar naturalmente:
+"Como fa\347o isso?"
+"Pra que serve isso?"
+"Como come\347o?"
+"O que eu fa\347o agora?"
+"N\343o estou entendendo."
+"Onde encontro meus clientes?"
+"Como consigo leads?"
+"Como fa\347o essa configura\347\343o?"
+"E agora?"
+E a IA deve interpretar a inten\347\343o, analisar o contexto e me conduzir at\351 a solu\347\343o.
+O usu\341rio n\343o deve precisar aprender a linguagem do sistema.
+A IA deve aprender a linguagem do usu\341rio.
+O resultado final deve fazer o Neitzel parecer menos um sistema complexo e mais um 
+especialista
+empresarial inteligente acompanhando o usu\341rio durante toda a opera\347\343o.

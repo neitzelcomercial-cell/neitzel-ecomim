@@ -1,0 +1,16 @@
+# Backups locais
+*.bak_*
+*.bak
+
+# Artefatos de teste local
+_check_*.png
+_boot_test.html
+
+# Dependências / sistema
+node_modules/
+Thumbs.db
+.DS_Store
+
+# Banco de dados local do portal
+data/
+data/admin-token.txt

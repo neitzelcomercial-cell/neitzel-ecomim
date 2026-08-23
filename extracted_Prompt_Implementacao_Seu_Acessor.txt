@@ -1,0 +1,566 @@
+--- page 1 ---
+IMPLEMENTAÇÃO DO "SEU ACESSOR" — OPERADOR PESSOAL DO ECOMIM VIA WHATSAPP
+OBJETIVO PRINCIPAL
+Quero implementar no meu sistema ECOMIM um novo módulo chamado:
+SEU ACESSOR
+Ele será meu operador pessoal do ECOMIM através do meu próprio WhatsApp.
+IMPORTANTE:
+Já existe/foi desenvolvido um sistema chamado Acessor de Clientes.
+NÃO substitua, apague, renomeie ou quebre o Acessor de Clientes.
+O novo sistema deverá coexistir com ele e ser arquitetado separadamente.
+1. O QUE EU QUERO CONSEGUIR
+Eu quero poder pegar MEU WhatsApp e mandar mensagens normais para o Seu Acessor.
+Exemplo:
+"Anota esse lead: João, dono da Pizzaria Bella, telefone 47999999999, interessado em tráfego pago."
+O sistema deve:
+1. receber a mensagem pelo WhatsApp;
+2. identificar que sou eu;
+3. identificar meu usuário no ECOMIM;
+4. identificar minha empresa/tenant;
+5. interpretar minha intenção;
+6. decidir qual ferramenta/API do ECOMIM precisa ser utilizada;
+7. executar a ação real;
+8. retornar a confirmação pelo próprio WhatsApp.
+Eu NÃO quero um chatbot que apenas responda.
+Quero um OPERADOR REAL do ECOMIM.
+2. EXEMPLOS OBRIGATÓRIOS
+
+--- page 2 ---
+CADASTRAR LEAD
+Eu:
+"Anota esse lead: Carlos, dono da Academia Fit, 47988888888, quer anunciar no Instagram."
+O sistema deve:
+• procurar se Carlos já existe;
+• evitar duplicação;
+• se não existir, criar o lead;
+• salvar as informações disponíveis;
+• responder no WhatsApp confirmando.
+ALTERAR STATUS
+Eu:
+"Coloca o Carlos em negociação."
+O sistema deve:
+• localizar o Carlos;
+• verificar possíveis duplicidades;
+• identificar o lead correto pelo contexto;
+• validar permissão;
+• alterar o status real no ECOMIM;
+• confirmar no WhatsApp.
+CRIAR TAREFA
+Eu:
+"Cria uma tarefa para eu ligar para Carlos amanhã às 9."
+O sistema deve:
+• interpretar a data/hora;
+• identificar Carlos;
+• criar a tarefa REAL no ECOMIM;
+• associar ao usuário correto;
+• confirmar pelo WhatsApp.
+CONSULTAR LEADS
+Eu:
+"Quais leads entraram hoje?"
+O sistema deve consultar o ECOMIM REAL.
+Nunca inventar números.
+
+--- page 3 ---
+LEADS QUENTES
+Eu:
+"Me mostra meus leads quentes."
+Consultar os dados reais e retornar uma lista curta e objetiva.
+TAREFAS
+Eu:
+"O que eu tenho para fazer hoje?"
+Consultar:
+• tarefas pendentes;
+• tarefas atrasadas;
+• follow-ups;
+• leads importantes;
+• negociações relevantes.
+Responder com um resumo útil.
+CONCLUIR TAREFA
+Eu:
+"Marca a tarefa do Carlos como concluída."
+Localizar a tarefa correta e atualizar REALMENTE no ECOMIM.
+CONTEXTO
+Eu:
+"Mostra os leads quentes."
+Depois:
+"E o Carlos?"
+O sistema deve entender que Carlos pertence à lista/contexto anterior.
+Depois:
+"Coloca ele em negociação."
+O sistema deve entender quem é "ele".
+Se houver ambiguidade, perguntar antes de executar.
+3. WHATSAPP DEVE SER REAL
+A prioridade máxima desta implementação é fazer o fluxo real funcionar:
+MEU WHATSAPP
+↓
+
+--- page 4 ---
+META WHATSAPP BUSINESS / CLOUD API
+↓
+WEBHOOK
+↓
+BACKEND DO SEU ACESSOR
+↓
+IDENTIFICAÇÃO DO USUÁRIO
+↓
+IA
+↓
+TOOLS/APIs DO ECOMIM
+↓
+BANCO/SERVIÇOS EXISTENTES
+↓
+RESPOSTA
+↓
+WHATSAPP
+Não quero uma simulação.
+Não quero apenas uma interface dentro do ECOMIM fingindo ser WhatsApp.
+A mensagem precisa realmente sair do meu WhatsApp, chegar ao sistema, executar a ação e retornar
+pelo WhatsApp.
+4. PRIMEIRA ETAPA — NÃO ESCREVA CÓDIGO IMEDIATAMENTE
+Antes de implementar qualquer coisa:
+AUDITE TODO O PROJETO ATUAL.
+Descubra:
+• frontend;
+• backend;
+• framework;
+• banco;
+• autenticação;
+• usuários;
+• empresas/tenants;
+• APIs;
+• endpoints;
+• serviços;
+
+--- page 5 ---
+• módulos de CRM;
+• leads;
+• clientes;
+• tarefas;
+• negociações;
+• comunicação;
+• integrações;
+• variáveis de ambiente;
+• infraestrutura;
+• sistema atual do Acessor de Clientes;
+• qualquer integração existente com WhatsApp;
+• Meta Cloud API;
+• webhooks;
+• Claude/Anthropic;
+• serviços de IA;
+• filas;
+• workers;
+• cron/jobs;
+• logs.
+NÃO crie uma segunda implementação de algo que já existe.
+Reutilize o máximo possível.
+5. IDENTIFIQUE O QUE JÁ EXISTE
+Procure especificamente no código por:
+• WhatsApp
+• Meta
+• Cloud API
+• webhook
+• webhook verification
+• phone_number_id
+• access token
+• WABA
+• WhatsApp Business
+• messages
+• Anthropic
+• Claude
+• AI
+
+--- page 6 ---
+• leads
+• CRM
+• tasks
+• opportunities
+• pipeline
+• users
+• tenants
+• permissions
+• authentication
+Também procure pelo código do atual:
+ACESSOR DE CLIENTES
+Entenda completamente como ele funciona.
+NÃO altere seu funcionamento sem necessidade.
+6. ENTREGUE PRIMEIRO UM DIAGNÓSTICO
+Antes da implementação, me mostre um diagnóstico objetivo contendo:
+ARQUITETURA ATUAL
+Explique:
+• frontend;
+• backend;
+• banco;
+• autenticação;
+• APIs;
+• Acessor de Clientes;
+• WhatsApp;
+• IA.
+O QUE JÁ PODE SER REUTILIZADO
+Liste arquivos, serviços, endpoints e funções existentes.
+O QUE ESTÁ FALTANDO
+Liste exatamente o que precisa ser criado.
+FLUXO FINAL PROPOSTO
+Mostre:
+WhatsApp
+
+--- page 7 ---
+→ Webhook
+→ Seu Acessor
+→ autenticação
+→ IA
+→ Tools
+→ ECOMIM
+→ resposta.
+Depois disso, implemente.
+Não fique apenas no planejamento.
+7. IDENTIDADE DO MEU WHATSAPP
+O sistema precisa saber exatamente quem está falando.
+Não confie apenas em:
+• nome;
+• mensagem;
+• nome do WhatsApp.
+Use o identificador real do número recebido pela integração.
+Criar uma associação segura:
+WhatsApp → usuário ECOMIM → tenant → permissões
+Somente números previamente autorizados poderão operar o Seu Acessor.
+Criar configuração administrativa para vincular:
+• número WhatsApp;
+• usuário ECOMIM;
+• empresa/tenant;
+• status ativo/inativo.
+Se meu número não estiver autorizado:
+"Este número não está autorizado a utilizar o Seu Acessor."
+8. SEGURANÇA MULTI-TENANT
+CRÍTICO.
+O Seu Acessor nunca pode permitir que eu consulte ou altere dados de outra empresa.
+Toda operação deve carregar contexto:
+• user_id;
+
+--- page 8 ---
+• tenant_id;
+• permissões.
+Nunca confiar na IA para decidir permissões.
+A IA interpreta intenção.
+O BACKEND decide se a operação é permitida.
+9. TOOLS DO SEU ACESSOR
+Criar ou reutilizar ferramentas reais para operar o ECOMIM.
+Exemplos:
+• buscar_leads
+• consultar_lead
+• criar_lead
+• atualizar_lead
+• alterar_status_lead
+• buscar_clientes
+• consultar_cliente
+• buscar_negociacoes
+• consultar_negociacao
+• criar_tarefa
+• buscar_tarefas
+• atualizar_tarefa
+• concluir_tarefa
+• registrar_interacao
+• consultar_dashboard
+• consultar_vendas
+NÃO crie essas ferramentas se já existirem equivalentes.
+Reutilize as APIs existentes.
+Cada tool deve validar:
+• usuário;
+• tenant;
+• autenticação;
+• permissão;
+• parâmetros;
+• resultado.
+
+--- page 9 ---
+10. EXECUÇÃO REAL
+Uma das regras mais importantes:
+NUNCA responder:
+"Lead criado."
+se o lead não foi realmente criado.
+NUNCA responder:
+"Tarefa criada."
+se a tarefa não foi realmente criada.
+NUNCA responder:
+"Status alterado."
+se a alteração falhou.
+A confirmação somente deve ser enviada depois que a operação retornar sucesso.
+Se falhar:
+"Não consegui cadastrar o lead agora. O ECOMIM retornou um erro. Nenhuma alteração foi realizada."
+11. CONFIRMAÇÕES
+Classifique ações.
+CONSULTAS
+Executar automaticamente.
+Exemplos:
+• consultar leads;
+• consultar vendas;
+• consultar tarefas;
+• consultar dashboard.
+AÇÕES REVERSÍVEIS
+Podem ser executadas diretamente se a permissão permitir.
+Exemplos:
+• criar lead;
+• criar tarefa;
+• alterar status.
+AÇÕES EXTERNAS
+Exigir confirmação.
+
+--- page 10 ---
+Exemplo:
+"Quer que eu envie essa mensagem para Carlos?"
+AÇÕES CRÍTICAS
+Exigir confirmação explícita.
+Exemplos:
+• excluir;
+• ações financeiras;
+• configurações;
+• operações irreversíveis.
+Nunca interpretar "ok" ou mensagem ambígua fora do contexto como autorização de uma ação crítica.
+12. CONTEXTO DE CONVERSA
+O Seu Acessor deve manter contexto.
+Exemplo:
+"Mostra os leads quentes."
+"E o Carlos?"
+"Coloca ele em negociação."
+O sistema deve entender o contexto.
+Se houver dois Carlos:
+"Encontrei 2 Carlos. Você quer Carlos da Academia Fit ou Carlos da Pizzaria Bella?"
+Não executar enquanto houver ambiguidade.
+13. MEMÓRIA
+Implementar memória de conversa de forma controlada.
+Guardar apenas o contexto necessário para continuar a conversa.
+Não enviar todo o histórico para a IA em toda mensagem.
+Resumir contexto quando necessário para economizar tokens.
+14. IDEMPOTÊNCIA
+CRÍTICO.
+WhatsApp/Webhooks podem reenviar eventos.
+A mesma mensagem NÃO pode criar dois leads ou duas tarefas.
+
+--- page 11 ---
+Usar identificadores únicos da mensagem/evento.
+Registrar:
+• message_id;
+• request_id;
+• action_id;
+• status;
+• resultado.
+Antes de executar:
+verificar se aquela mensagem já foi processada.
+15. RESPOSTAS NO WHATSAPP
+As respostas devem ser:
+• curtas;
+• naturais;
+• objetivas;
+• profissionais;
+• fáceis de ler no celular.
+Exemplo:
+"  Lead cadastrado.
+João Silva
+Pizzaria Bella
+Interesse: Tráfego pago"
+Não enviar respostas enormes.
+16. TRATAMENTO DE MENSAGENS
+O sistema deve suportar linguagem natural.
+Exemplos:
+"anota esse cliente"
+"cadastra esse cara"
+"coloca o João em negociação"
+"me lembra de falar com ele amanhã"
+"o que tenho hoje?"
+"quantos leads chegaram?"
+"mostra os quentes"
+
+--- page 12 ---
+"marca como feito"
+Não obrigar o usuário a usar comandos rígidos.
+17. CONFIGURAÇÃO DO WHATSAPP
+Verifique a integração real da Meta.
+Caso já exista:
+REUTILIZE.
+Caso não exista:
+implemente a integração necessária.
+Precisa existir:
+• webhook de recebimento;
+• verificação do webhook;
+• recebimento de mensagens;
+• identificação do remetente;
+• processamento;
+• envio de resposta;
+• tratamento de erros;
+• logs.
+NÃO coloque tokens ou segredos no frontend.
+Usar variáveis de ambiente/secret manager apropriado.
+18. PAINEL ADMINISTRATIVO
+Dentro do ECOMIM, criar uma área simples:
+SEU ACESSOR
+Mostrar:
+• status WhatsApp;
+• número conectado;
+• usuário vinculado;
+• empresa;
+• status da IA;
+• status do webhook;
+• última mensagem recebida;
+• última mensagem enviada;
+• últimos erros;
+
+--- page 13 ---
+• histórico de ações;
+• ativar/desativar;
+• permissões.
+Se já existir estrutura equivalente, reutilizar.
+19. LOGS
+Registrar ações importantes:
+• usuário;
+• tenant;
+• mensagem;
+• intenção;
+• tool executada;
+• registro afetado;
+• resultado;
+• erro;
+• timestamp.
+Nunca armazenar secrets.
+20. TESTES OBRIGATÓRIOS
+Não considere a implementação concluída apenas porque compilou.
+Criar/testar:
+TESTE 1
+Enviar "oi" pelo meu WhatsApp.
+Esperado: resposta real pelo WhatsApp.
+TESTE 2
+"Quais leads entraram hoje?"
+Esperado: consulta real no ECOMIM.
+TESTE 3
+"Cadastre João, Pizzaria Bella, 47999999999."
+Esperado: lead realmente criado.
+TESTE 4
+"Coloca João em negociação."
+Esperado: status realmente alterado.
+TESTE 5
+
+--- page 14 ---
+"Cria uma tarefa para ligar para João amanhã às 9."
+Esperado: tarefa realmente criada.
+TESTE 6
+Enviar a mesma mensagem duas vezes.
+Esperado: não duplicar ação.
+TESTE 7
+Usuário não autorizado enviar mensagem.
+Esperado: acesso negado.
+TESTE 8
+Dois leads com mesmo nome.
+Esperado: pedir desambiguação.
+TESTE 9
+Tool/API indisponível.
+Esperado: informar erro real e NÃO fingir sucesso.
+TESTE 10
+Verificar isolamento entre tenants.
+Esperado: nenhum dado cruzado.
+21. MODO DE IMPLEMENTAÇÃO
+Não faça uma reconstrução desnecessária do ECOMIM.
+Não altere:
+• layout;
+• módulos existentes;
+• banco;
+• regras de negócio;
+• Acessor de Clientes;
+sem necessidade.
+Priorize:
+reutilização > criação
+e
+integração > duplicação.
+Se uma API existente já faz determinada operação, utilize-a.
+22. SE ENCONTRAR PROBLEMAS
+
+--- page 15 ---
+Não esconda problemas.
+Se faltar:
+• variável de ambiente;
+• credencial Meta;
+• webhook;
+• endpoint;
+• permissão;
+• API;
+• tabela;
+• serviço;
+identifique exatamente.
+Não invente credenciais.
+Não crie valores falsos.
+Não simule integração em produção.
+Quando possível, crie uma configuração clara para que eu possa inserir as credenciais reais.
+23. REGRA ESPECIAL SOBRE O ACESSOR DE CLIENTES
+O atual:
+ACESSOR DE CLIENTES
+continua existindo.
+O novo:
+SEU ACESSOR
+é outro agente/módulo.
+Não misturar as responsabilidades.
+ACESSOR DE CLIENTES
+Foco:
+atendimento e relacionamento com clientes/leads.
+SEU ACESSOR
+Foco:
+ser meu operador pessoal do ECOMIM através do meu WhatsApp.
+24. PRINCÍPIO CENTRAL
+
+--- page 16 ---
+O Seu Acessor não é simplesmente uma IA.
+Ele é uma camada operacional entre mim e o ECOMIM.
+A IA é o cérebro de interpretação.
+As Tools são as mãos.
+O ECOMIM é a fonte de verdade.
+O WhatsApp é minha interface.
+Portanto:
+EU DIGO → ELE ENTENDE → ELE EXECUTA → ELE CONFIRMA
+25. CRITÉRIO FINAL DE CONCLUSÃO
+NÃO considere o trabalho concluído porque:
+• a tela apareceu;
+• o código compilou;
+• a IA respondeu;
+• existe um botão;
+• existe um endpoint.
+Considere concluído somente quando for possível demonstrar o fluxo real:
+Meu WhatsApp
+→ envio mensagem
+→ Meta recebe
+→ webhook recebe
+→ sistema identifica meu usuário
+→ Seu Acessor interpreta
+→ Tool é executada
+→ ECOMIM é alterado/consultado
+→ resultado é confirmado
+→ resposta chega no meu WhatsApp.
+Se qualquer etapa não estiver funcionando, continue investigando e corrigindo.
+26. ECONOMIA DE TOKENS
+Não desperdice tokens da IA.
+Não envie:
+• banco inteiro;
+
+--- page 17 ---
+• todos os leads;
+• histórico completo;
+• dados irrelevantes.
+Consultar somente o necessário.
+Exemplo:
+Se eu perguntar:
+"Quantos leads entraram hoje?"
+não envie todos os dados dos leads para a IA.
+Faça uma consulta agregada e retorne somente o resultado necessário.
+27. REGRA FINAL PARA O CLAUDE CODE
+Você está trabalhando em um sistema existente.
+Antes de modificar qualquer coisa:
+1. entenda;
+2. mapeie;
+3. reutilize;
+4. implemente;
+5. teste;
+6. valide.
+Não faça alterações destrutivas.
+Não recrie funcionalidades existentes.
+Não remova o Acessor de Clientes.
+Crie o Seu Acessor como módulo independente e integrado ao ECOMIM.
+A prioridade absoluta é:
+FAZER O MEU WHATSAPP CONSEGUIR OPERAR O ECOMIM DE VERDADE.
+Não quero apenas uma demonstração.
+Quero funcionamento real, seguro, testável e preparado para produção.
+

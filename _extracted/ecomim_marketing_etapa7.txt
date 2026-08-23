@@ -1,0 +1,368 @@
+ETAPA 7 — ECOMIM
+ MARKETING
+ (Estrutura Completa)
+Transformar o ECOMIM em uma plataforma completa de marketing digital, capaz de
+captar, nutrir, qualificar e converter leads automaticamente, sem depender de
+diversas ferramentas externas. O módulo deverá integrar campanhas, landing pages,
+automações, anúncios, formulários, redes sociais, IA e análise de resultados em um
+único ambiente.
+
+Objetivo
+Transformar o ECOMIM em uma plataforma completa de marketing digital, capaz de
+captar, nutrir, qualificar e converter leads automaticamente, sem depender de
+diversas ferramentas externas.
+O módulo deverá integrar campanhas, landing pages, automações, anúncios,
+formulários, redes sociais, IA e análise de resultados em um único ambiente.
+O que o módulo deve resolver
+Empresas normalmente utilizam:
+• Meta Ads
+• Google Ads
+• RD Station
+• Mailchimp
+• ActiveCampaign
+• HubSpot Marketing
+• Leadster
+• Typeform
+• Elementor
+• Landing Pages externas
+O objetivo do ECOMIM é centralizar essas funções em um único ecossistema.
+Estrutura Geral
+Campanhas
+Sistema completo para gerenciamento de campanhas.
+• Criar campanhas
+• Editar campanhas
+• Duplicar campanhas
+• Arquivar
+• Cancelar
+• Agendar início
+• Agendar fim
+• Status
+• Objetivos
+• Público
+
+• Canal
+• Orçamento
+• Responsável
+Landing Pages
+Construtor profissional com editor Drag and Drop.
+Blocos:
+• Texto
+• Imagem
+• Vídeo
+• Botão
+• Formulário
+• FAQ
+• Depoimentos
+• Contador
+• Banner
+• Carrossel
+• CTA
+• Google Maps
+• HTML
+• Scripts
+• Pixel
+• Chat
+• WhatsApp
+• Calendário
+• Templates prontos
+• Responsivo
+• SEO automático
+• Domínio próprio
+• SSL
+Formulários Inteligentes
+Tipos:
+• Contato
+• Orçamento
+• Diagnóstico
+
+• Cadastro
+• Evento
+• Pesquisa
+• Múltiplas etapas
+Campos:
+• Texto
+• Email
+• Telefone
+• CPF
+• CNPJ
+• CEP
+• Upload
+• Select
+• Checkbox
+• Radio
+• Data
+• Hora
+• Assinatura
+• Validações automáticas
+• LGPD
+Captura de Leads
+Origens:
+• Landing Pages
+• Site
+• WhatsApp
+• QR Code
+• Facebook
+• Instagram
+• Google
+• Importação CSV
+• API
+• Webhook
+Cada lead entra automaticamente no CRM.
+
+Lead Scoring
+Pontuação automática. Exemplo:
+• Abriu email — +5
+• Visitou página — +8
+• Solicitou orçamento — +25
+• Falou no WhatsApp — +20
+• Agendou reunião — +40
+• Cliente — +100
+A IA recalcula a pontuação automaticamente.
+Nutrição de Leads
+Fluxos automáticos. Exemplo:
+• Dia 1 — Email
+• Dia 2 — WhatsApp
+• Dia 4 — Conteúdo
+• Dia 6 — Oferta
+• Dia 8 — Ligação SDR
+Tudo configurável.
+Email Marketing
+• Editor profissional
+• Templates
+• Drag and Drop
+• Envio em massa
+• Segmentação
+• Teste A/B
+• Agendamento
+• Personalização
+• Domínio
+• Assinatura
+• Descadastro
+• Relatórios
+WhatsApp Marketing
+• Campanhas
+• Segmentação
+
+• Envio por grupos
+• Envio individual
+• Imagem
+• PDF
+• Vídeo
+• Áudio
+• Botões
+• Fluxos automáticos
+SMS Marketing
+• Campanhas
+• Agendamento
+• Segmentação
+• Relatórios
+Push Notification
+• Web Push
+• Mobile Push
+• Automações
+Automação de Marketing
+Construtor visual, sem programação. Exemplo de fluxo:
+
+Entrou formulário
+↓
+Esperar
+↓
+Enviar email
+↓
+Esperar
+↓
+Enviar WhatsApp
+↓
+Criar tarefa
+↓
+Mover CRM
+↓
+Criar oportunidade
+↓
+Avisar vendedor
+↓
+Encerrar fluxo
+Gestão de Conteúdo
+• Biblioteca
+• Pastas
+• Tags
+• Vídeos
+• Imagens
+• PDF
+• Documentos
+• IA cria conteúdos
+Redes Sociais
+Integrações:
+• Instagram
+• Facebook
+• LinkedIn
+• TikTok
+• YouTube
+• Threads
+
+• Pinterest
+Funções:
+• Agendamento
+• Publicação
+• Calendário Editorial
+• Comentários
+• Mensagens
+• Insights
+IA para Marketing
+Agentes:
+• Agente Copywriter
+• Agente Social Media
+• Agente SEO
+• Agente Tráfego Pago
+• Agente Criador de Landing Pages
+• Agente Criador de Campanhas
+• Agente Criador de Email
+• Agente Criador de Criativos
+• Agente Otimizador de Conversão
+A IA gera automaticamente:
+• Títulos
+• Descrições
+• Anúncios
+• Hashtags
+• Criativos
+• Email
+• Roteiros
+• Posts
+• CTA
+• Funis
+• Sequências
+• Campanhas
+SEO
+• Auditoria
+
+• Palavras-chave
+• Meta Tags
+• Schema
+• Sitemap
+• Robots
+• Performance
+• Core Web Vitals
+Pixel Manager
+• Google Analytics
+• GA4
+• Meta Pixel
+• Google Tag Manager
+• LinkedIn Insight
+• TikTok Pixel
+• Eventos personalizados
+Tráfego Pago
+• Dashboard
+• Campanhas
+• ROI
+• CPA
+• CPC
+• CTR
+• Conversões
+• Leads
+• Receita
+• IA sugere melhorias
+Dashboard
+• Visitantes
+• Conversões
+• CAC
+• ROI
+• ROAS
+• CTR
+• Campanhas
+• Leads
+
+• Vendas
+• Funil
+• Origens
+• Mapa de calor
+Relatórios
+• PDF
+• Excel
+• CSV
+• Automáticos
+• Programados
+Banco de Dados
+Principais tabelas:
+• campanhas
+• anuncios
+• grupos_anuncios
+• landing_pages
+• formularios
+• respostas_formulario
+• leads_marketing
+• segmentos
+• funis
+• automacoes_marketing
+• emails
+• campanhas_email
+• campanhas_whatsapp
+• posts_sociais
+• criativos
+• pixels
+• eventos_pixel
+• seo
+• analytics
+• dashboards_marketing
+• relatorios_marketing
+
+APIs
+• Meta Ads
+• Google Ads
+• Google Analytics
+• Google Tag Manager
+• Instagram
+• Facebook
+• LinkedIn
+• TikTok
+• YouTube
+• WhatsApp
+• SMTP
+• OpenAI
+• Claude
+• Gemini
+• Google Calendar
+• CRM
+Permissões
+• Administrador
+• Marketing
+• Gestor
+• Designer
+• Copywriter
+• Tráfego Pago
+• SDR
+• Comercial
+• Visualizador
+Segurança
+• LGPD
+• Consentimento
+• Logs
+• Auditoria
+• Controle de acesso
+• Versionamento
+• Backups
+
+Integração com outros módulos
+• CRM
+• IA
+• Comunicação
+• Agenda
+• Financeiro
+• Comercial
+• BI
+• Projetos
+• Documentos
+• Automações
+• Clientes
+Diferenciais do ECOMIM
+• IA cria campanhas completas a partir de um briefing.
+• Landing pages geradas automaticamente com base no segmento da empresa.
+• Segmentação inteligente de leads usando comportamento e histórico.
+• Nutrição omnichannel (e-mail, WhatsApp, SMS e notificações).
+• IA sugere ajustes em campanhas com baixo desempenho.
+• Conexão nativa com o CRM para distribuir leads automaticamente ao time
+comercial.
+• Dashboards unificados com métricas de marketing e vendas.
+• Biblioteca de templates reutilizáveis para campanhas, páginas e automações.
+Essa etapa posiciona o ECOMIM como uma plataforma que une CRM, automação
+comercial e marketing em um único ecossistema, reduzindo a necessidade de
+ferramentas isoladas e mantendo todos os dados centralizados.

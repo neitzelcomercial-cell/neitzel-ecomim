@@ -1,0 +1,411 @@
+--- page 1 ---
+ACESSOR ECOMIM
+ Operador Inteligente via WhatsApp
+ Documento Técnico de Especificação
+ Preparado em 15 de agosto de 2026
+--- page 2 ---
+ÍNDICE
+1. Conceito
+2. Arquitetura
+3. Análise do ECOMIM
+4. Tools do Acessor
+5. Linguagem Natural
+6. Contexto da Conversa
+7. Execução de Ações
+8. Níveis de Permissão
+9. Confirmação
+10. Autenticação
+11. Multi-Tenant
+12. Respostas do Acessor
+13. Resumos Inteligentes
+14. Futura Proatividade
+15. Idempotência
+16. Logs e Auditoria
+17. Tratamento de Erros
+18. Interface de Administração
+19. Segurança
+20. Economia de Tokens
+21. Princípio Fundamental
+22. Implementação
+23. Regra para Claude Code
+--- page 3 ---
+1. CONCEITO
+O Acessor deve funcionar como um assistente/operador pessoal conectado ao ECOMIM. O usuário poderá
+conversar naturalmente pelo WhatsApp, permitindo consultar informações, tomar decisões e executar ações
+no sistema mesmo quando estiver longe do computador.
+Exemplos de Uso:
+ "Quais leads entraram hoje?"
+ "Me mostra os leads quentes."
+ "Cadastre esse cliente."
+ "Coloca o João em negociação."
+ "Cria uma tarefa para eu ligar para Carlos amanhã às 9."
+ "Quantas oportunidades estão abertas?"
+ "Resume o que preciso fazer hoje."
+O Acessor deve interpretar a intenção, consultar ou executar a ação necessária no ECOMIM e responder de
+maneira objetiva.
+--- page 4 ---
+2. ARQUITETURA
+A arquitetura segue um fluxo bem definido para garantir segurança e separação de responsabilidades:
+Componente
+Descrição
+WhatsApp
+Interface de comunicação com o usuário
+Meta Cloud API
+Plataforma de integração WhatsApp Business
+Webhook
+Receptor de mensagens
+Backend do Acessor
+Processador de lógica e orquestração
+Claude API
+Motor de interpretação e IA
+Tools/API do ECOMIM
+Camada controlada de acesso
+ECOMIM
+Sistema de CRM e gestão
+Banco de Dados
+Fonte de verdade dos dados
+Importante: Claude NÃO deve acessar diretamente o banco de dados. Deve existir uma camada controlada
+de ferramentas/API entre a IA e o ECOMIM.
+--- page 5 ---
+3. ANÁLISE DO ECOMIM
+Antes de criar qualquer funcionalidade, é necessário realizar uma auditoria profunda do ECOMIM. Deve-se
+identificar:
+✓ Frontend (estrutura, componentes, frameworks utilizados)
+✓ Backend (linguagem, framework, endpoints disponíveis)
+✓ Banco de dados (tabelas, relacionamentos, índices)
+✓ Autenticação (JWT, Sessions, OAuth, etc)
+✓ Usuários (modelo de dados, permissões)
+✓ Empresas/Tenants (isolamento de dados)
+✓ APIs existentes (endpoints disponíveis para reutilização)
+✓ Serviços existentes (módulos, utilitários)
+✓ Módulos de leads/CRM (estrutura e funcionalidades)
+✓ Tarefas (modelo, status, atribuições)
+✓ Negociações (pipeline, status, transições)
+✓ Comunicação (logs, integração com canais)
+✓ Permissões (matriz de acesso por papel)
+✓ Regras de negócio (validações, workflows)
+Regra importante: Não recrie funcionalidades que já existem. Sempre reutilize APIs, serviços e funções
+existentes. Não altere funcionalidades existentes sem necessidade.
+--- page 6 ---
+4. TOOLS DO ACESSOR
+O Claude utiliza uma camada de ferramentas que expõem funcionalidades do ECOMIM. Exemplos de tools a
+serem criadas:
+Tool
+Descrição
+Validações
+buscar_leads
+Busca leads por filtros
+usuário, empresa, permissões
+consultar_lead
+Detalha um lead específico
+acesso ao registro
+criar_lead
+Cria novo lead
+dados completos, duplicação
+atualizar_lead
+Modifica dados do lead
+permissão de edição
+alterar_status_lead
+Muda status do lead
+validação de transição
+buscar_clientes
+Lista clientes
+filtros por empresa
+consultar_cliente
+Detalha cliente
+acesso ao registro
+buscar_negociacoes
+Lista negociações
+filtros de status
+consultar_negociacao
+Detalha negociação
+acesso ao registro
+criar_tarefa
+Cria nova tarefa
+data, atribuição válida
+buscar_tarefas
+Lista tarefas do usuário
+filtros por data
+atualizar_tarefa
+Modifica tarefa
+permissão de edição
+registrar_interacao
+Log de interação
+contexto, tipo
+consultar_dashboard
+Métricas resumidas
+dados agregados
+consultar_vendas
+Relatório de vendas
+filtros de período
+Validação de Tools: Cada ferramenta deve validar usuário, autenticação, empresa/tenant, permissões,
+parâmetros e resultado.
+--- page 7 ---
+5. LINGUAGEM NATURAL
+O Acessor não obriga o usuário a utilizar comandos específicos. Ele deve entender variações naturais e
+ambigüidades.
+Exemplo de Variação:
+"Mostra meus leads quentes." = "Quero ver os leads com maior potencial."
+Exemplo de Desambiguação:
+Usuário: "Mostra o João."
+Acessor: "Encontrei 2 contatos chamados João. Você quis dizer João Silva da Empresa X ou João Santos da
+Empresa Y?"
+6. CONTEXTO DA CONVERSA
+O Acessor deve compreender referências anteriores e manter contexto durante a conversa.
+Exemplo 1 - Referência a Listagem Anterior:
+Usuário: "Mostra os leads quentes."
+Acessor: [Lista leads]
+Usuário: "E o João?"
+Acessor: Entende que "João" está relacionado aos leads apresentados.
+Exemplo 2 - Pronomes e Referências:
+Usuário: "Muda ele para negociação."
+Acessor: Identifica quem é "ele" pelo contexto anterior. Se há ambiguidade, pergunta antes de executar.
+--- page 8 ---
+7. EXECUÇÃO DE AÇÕES
+O grande diferencial do Acessor é poder executar ações reais dentro do ECOMIM.
+Criar Lead
+Usuário: "Cadastre Maria, 47 99999-9999, dona da Pizzaria X."
+Acessor deve:
+ Extrair informações (nome, telefone, empresa)
+ Verificar se já existe
+ Criar o lead
+ Confirmar o resultado
+Alterar Status
+Usuário: "Coloca o Carlos como negociação."
+Acessor: Localiza Carlos, valida o registro e altera o status.
+Criar Tarefa
+Usuário: "Me lembra de ligar para João amanhã às 9."
+Acessor: Cria a tarefa no ECOMIM com data e hora especificada.
+Consultar Informações
+Usuário: "Quantos leads entraram hoje?"
+Acessor: Consulta o ECOMIM e retorna o número real. Nunca inventar informações.
+--- page 9 ---
+8. NÍVEIS DE PERMISSÃO
+Criar uma política de segurança em 4 níveis para as ações do Acessor:
+Nível
+Tipo de Ação
+Execução
+Exemplos
+1
+CONSULTA
+Automática
+Buscar leads, clientes, tarefas, vendas, métricas
+2
+AÇÕES REVERSÍVEIS
+Conforme permissões
+Criar lead, criar tarefa, alterar status, registrar interação
+3
+AÇÕES EXTERNAS
+Com confirmação
+Enviar mensagem a cliente, iniciar comunicação
+4
+AÇÕES CRÍTICAS
+Confirmação explícita
+Excluir registros, alterar configurações, ações financeiras
+--- page 10 ---
+9. CONFIRMAÇÃO
+Para ações sensíveis, o Acessor deve apresentar claramente o que pretende fazer e aguardar confirmação
+explícita.
+Exemplo de Confirmação:
+Vou alterar: Lead: João Silva Status: Negociação Confirmar? Usuário responde: "Sim" Somente então
+executar. Nunca interpretar uma mensagem ambígua como confirmação.
+--- page 11 ---
+10. AUTENTICAÇÃO
+O Acessor deve saber quem está falando. Criar associação segura:
+ WhatsApp → usuário ECOMIM
+ usuário ECOMIM → empresa/tenant
+ empresa/tenant → permissões
+Não permitir que qualquer número tenha acesso ao sistema. Nunca confiar apenas no nome informado
+pelo usuário. O acesso deve respeitar exatamente as permissões daquele usuário no ECOMIM.
+11. MULTI-TENANT
+O ECOMIM deve continuar isolando os dados de cada empresa. O Acessor jamais pode:
+✗ Consultar dados de outra empresa
+✗ Criar registros em outro tenant
+✗ Alterar dados de outro tenant
+✗ Expor informações de outro usuário sem permissão
+Toda chamada de tool deve carregar e validar o contexto do usuário/tenant no backend.
+12. RESPOSTAS DO ACESSOR
+As respostas devem seguir critérios específicos:
+✓ Objetivas - ir direto ao ponto
+✓ Naturais - conversação amigável
+✓ Profissionais - tom apropriado
+✓ Mobile-friendly - fáceis de ler no celular
+✓ Concisas - sem textos enormes
+✓ Sem jargão - linguagem clara
+Exemplo de Boa Resposta:
+■ 5 leads quentes 1. João — Pizzaria X 2. Carlos — Empresa Y 3. Mariana — Empresa Z 3 precisam de
+follow-up hoje.
+--- page 12 ---
+13. RESUMOS INTELIGENTES
+O Acessor deve transformar dados do ECOMIM em informações úteis e acionáveis.
+Quando o usuário pergunta: "O que eu preciso resolver hoje?"
+O Acessor pode consultar:
+ Tarefas pendentes
+ Leads quentes
+ Follow-ups necessários
+ Negociações paradas
+ Oportunidades importantes
+E responder com resumo executivo:
+■ Prioridades de hoje ■ 4 leads quentes aguardando contato. ■ 3 follow-ups atrasados. ■ 2 negociações em
+fase avançada. ■■ 1 oportunidade parada há 5+ dias.
+--- page 13 ---
+14. FUTURA PROATIVIDADE
+Preparar a arquitetura para permitir que o Acessor envie informações automaticamente no futuro:
+■ "Novo lead qualificado entrou no ECOMIM."
+■ "Você possui 3 follow-ups atrasados."
+■ "João respondeu sua mensagem."
+■ "Você fechou 2 oportunidades hoje."
+Importante: Essa funcionalidade deve ser modular e respeitar as regras da Meta/WhatsApp.
+15. IDEMPOTÊNCIA
+Criticamente importante: Webhooks podem ser reenviados. O sistema deve impedir que uma mesma
+mensagem execute uma ação duas vezes.
+Controle necessário:
+ Message ID - identificador único da mensagem
+ Request ID - rastreamento da requisição
+ Action ID - identificador da ação executada
+ Status da execução - registro do que foi feito
+--- page 14 ---
+16. LOGS E AUDITORIA
+Registrar as ações importantes do Acessor para auditoria e diagnóstico:
+Campo
+Descrição
+Exemplo
+Usuário
+Quem executou a ação
+Daniel
+Ação
+Tipo de ação
+alterar_status_lead
+Lead/Registro
+Identificação do registro
+João Silva
+Valor Anterior
+Estado antes da mudança
+Novo
+Novo Valor
+Estado após a mudança
+Negociação
+Resultado
+Sucesso ou falha
+Sucesso
+Timestamp
+Data e hora
+2024-01-15 14:30:00
+Regra: Não armazenar segredos ou informações desnecessárias nos logs.
+17. TRATAMENTO DE ERROS
+Se alguma integração estiver indisponível, o Acessor não deve inventar uma resposta.
+Exemplo correto de erro:
+"Não consegui consultar os leads agora porque o ECOMIM está temporariamente indisponível. Tente
+novamente em alguns instantes."
+A IA nunca deve fingir que executou algo que falhou.
+18. INTERFACE DE ADMINISTRAÇÃO
+Se apropriado para a arquitetura, criar dentro do ECOMIM uma área administrativa contendo:
+✓ Status da conexão WhatsApp
+✓ Usuário conectado
+✓ Permissões ativas
+✓ Histórico de interações
+✓ Ações executadas
+✓ Erros e exceções
+✓ Configurações do Acessor
+✓ Ativação/desativação
+✓ Preferências de notificações
+--- page 15 ---
+Manter interface simples e profissional.
+--- page 16 ---
+19. SEGURANÇA
+Prioridade máxima. Garantir proteção em todas as camadas:
+■ Autenticação robusta
+■ Autorização granular
+■ Isolamento por tenant
+■ Validação no backend
+■ Proteção de tokens
+■ Secrets em variáveis de ambiente
+■ Rate limiting
+■ Logs e auditoria
+■ Validação de inputs
+■ Proteção contra execução indevida
+CRÍTICO: Nunca colocar credenciais da Meta ou Claude no frontend
+CRÍTICO: Nunca permitir que o modelo decida permissões do usuário
+20. ECONOMIA DE TOKENS E CUSTOS
+O sistema deve ser eficiente para minimizar custos de API:
+ Evitar enviar dados irrelevantes para o Claude
+ Consultas específicas ao banco de dados
+ Respostas estruturadas
+ Contexto resumido e relevante
+ Limites de resultados
+ Consulta do ECOMIM sob demanda
+--- page 17 ---
+21. PRINCÍPIO FUNDAMENTAL
+Componente
+Papel
+Claude
+Cérebro de interpretação
+ECOMIM
+Fonte de verdade
+APIs/Tools
+Mãos do Acessor
+WhatsApp
+Interface de comunicação
+NUNCA inverter essa lógica.
+22. IMPLEMENTAÇÃO - ROADMAP
+Não fazer tudo de uma vez. Seguir ordem estratégica:
+1. Analise o ECOMIM
+2. Mapeie a arquitetura
+3. Identifique as APIs existentes
+4. Crie a camada de tools
+5. Implemente autenticação
+6. Integre Meta WhatsApp
+7. Integre Claude
+8. Implemente consultas
+9. Implemente ações
+10. Implemente confirmações
+11. Implemente logs
+12. Teste segurança
+13. Teste duplicação de mensagens
+14. Teste permissões
+15. Documente a configuração
+--- page 18 ---
+23. REGRA PARA IMPLEMENTAÇÃO
+NÃO saia criando arquivos e código antes de entender o projeto atual.
+Etapas corretas:
+1. Auditoria do ECOMIM
+Entender sistema atual completamente
+2. Explicação detalhada
+Como funciona, onde conectar, APIs reutilizáveis
+3. Planejamento
+APIs a criar, tabelas/serviços, mudanças necessárias
+4. Implementação
+Código modular, seguro, simples de manter
+Boas práticas obrigatórias:
+✓ Não recrie o ECOMIM
+✓ Não quebre funcionalidades existentes
+✓ Não altere a interface sem necessidade
+✓ Não duplique regras de negócio
+✓ Não crie funcionalidades não solicitadas
+✓ Priorize modularidade e segurança
+--- page 19 ---
+RESULTADO FINAL ESPERADO
+O usuário deve conseguir administrar partes importantes do ECOMIM pelo WhatsApp, estando em qualquer
+lugar:
+ No carro
+ Em uma reunião
+ Na rua
+ Longe do notebook
+E ainda conseguir fazer:
+ "Como estão minhas vendas?"
+ "Quais leads preciso atender?"
+ "Cadastre esse cliente."
+ "Crie uma tarefa."
+ "Mude esse lead para negociação."
+ "Me mostre minhas prioridades."
+O Acessor ECOMIM deve funcionar como um verdadeiro operador pessoal do sistema, permitindo que o
+usuário controle o ECOMIM de maneira natural, rápida e segura pelo WhatsApp.
+PRIORIDADES FINAIS:
+■ SEGURANÇA - Máxima proteção em todas as camadas
+■■ EXECUÇÃO REAL - Ações concretas dentro do ECOMIM
+■ INTELIGÊNCIA - Interpretação natural e contexto
+■ SIMPLICIDADE - Interface clara e fácil no mobile
+■ CONFIABILIDADE - Sistema robusto e confiável
+ ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+ Documento de Especificação Técnica - Acessor ECOMIM via WhatsApp
+ Gerado em 15 de agosto de 2026

@@ -1,0 +1,315 @@
+Página 1
+ ETAPA 10 — ECOMIM FINANCEIRO
+ ERP Financeiro
+Objetivo
+Criar um módulo financeiro completo que permita controlar toda a operação financeira da
+empresa dentro do ECOMIM, eliminando a necessidade de utilizar diversos sistemas
+separados para contas, cobranças, fluxo de caixa, faturamento, recorrência, comissões,
+impostos e indicadores financeiros.
+O módulo deve atender desde pequenas empresas até organizações com múltiplas filiais,
+centros de custo e operações complexas.
+Problemas que o módulo resolve
+Hoje muitas empresas utilizam:
+• Conta Azul
+• Omie
+• Nibo
+• QuickBooks
+• Bling
+• Asaas
+• Stripe Dashboard
+• Mercado Pago
+• Planilhas Excel
+O objetivo é centralizar tudo no ECOMIM.
+Estrutura Geral
+Dashboard Financeiro
+Visão em tempo real com os seguintes indicadores:
+
+Página 2
+Indicador
+Indicador
+Indicador
+Saldo atual
+Entradas previstas
+Saídas previstas
+Fluxo de caixa
+Receitas
+Despesas
+Lucro bruto
+Lucro líquido
+Inadimplência
+Contas vencidas
+Contas a vencer
+MRR
+ARR
+Ticket médio
+Margem
+Burn Rate
+Caixa disponível
+Capital de giro
+Contas a Receber
+Cadastro completo com os campos:
+Campo
+Campo
+Campo
+Cliente
+Contrato
+Venda
+Categoria
+Centro de custo
+Forma de pagamento
+Valor
+Juros
+Multa
+Desconto
+Vencimento
+Status
+Parcelas
+Responsável
+Observações
+Status disponíveis: Aberto, Pago, Parcialmente pago, Vencido, Cancelado, Estornado e Em
+cobrança.
+Contas a Pagar
+Controle completo, com campos semelhantes ao contas a receber, incluindo: Fornecedor,
+Nota Fiscal, Compra, Contrato e Recorrência.
+Fluxo de Caixa
+Movimentações automáticas com entradas, saídas, transferências, ajustes, projeções,
+conciliação, saldo diário e saldo mensal.
+Cobranças
+Cobrança automática com suporte para: PIX, Boleto, Cartão, Débito, Transferência, Link de
+pagamento e Carteira digital.
+Recorrência
+Periodicidades: mensal, bimestral, trimestral, semestral, anual e personalizada.
+
+Página 3
+Assinaturas
+Planos, renovação automática, upgrade, downgrade, cancelamento, período de teste e
+pró-rata.
+Emissão Fiscal
+Notas fiscais, NFS-e, NF-e, NFC-e, recibos, comprovantes e integração com provedores
+fiscais.
+Conciliação Bancária
+Importação OFX, CNAB, Open Finance, integração bancária, conciliação automática e
+sugestão por IA.
+Bancos
+Cadastro de contas bancárias, agências, carteiras, Pix, chaves Pix, saldo e extratos.
+Cartões
+Controle de cartões corporativos, limites, faturas, parcelamentos e centros de custo.
+Caixa
+Abertura, fechamento, sangria, suprimento, movimentações e conferência.
+Centros de Custo
+Cadastro, hierarquia, departamentos, projetos, filiais e produtos.
+Plano de Contas
+Receitas, despesas, investimentos, custos, impostos, financeiro, administrativo e
+personalizado.
+Orçamentos
+Previsão anual, mensal e departamental, com comparativo previsto x realizado.
+Comissões
+Comercial, SDR, Closer, parceiros, afiliados e representantes, com regras configuráveis e
+pagamento automático.
+Reembolsos
+
+Página 4
+Solicitação, aprovação, pagamento, comprovantes e histórico.
+Compras
+Solicitação, cotação, pedido, recebimento, fornecedor e pagamento.
+Fornecedores
+Cadastro, contratos, histórico, pagamentos, avaliações e documentos.
+Impostos
+Tributo
+Tributo
+Tributo
+ISS
+ICMS
+IPI
+PIS
+COFINS
+IRPJ
+CSLL
+Simples Nacional
+Lucro Presumido
+Lucro Real
+Retenções
+Inadimplência
+Clientes em atraso, cobrança automática, negociação, parcelamento, acordos e histórico. A
+IA prevê o risco de inadimplência.
+Crédito
+Limites, análise, aprovação, score e garantias.
+Investimentos
+Aplicações, rentabilidade, carteira e tesouraria.
+Patrimônio
+Bens, equipamentos, depreciação e inventário.
+IA Financeira
+Agentes especializados:
+• Agente Financeiro
+• Agente Cobrança
+• Agente Conciliação
+
+Página 5
+• Agente Tributário
+• Agente Auditor
+• Agente Fluxo de Caixa
+• Agente Orçamentário
+A IA consegue: conciliar pagamentos, detectar fraudes, classificar despesas, prever fluxo de
+caixa, identificar inadimplência, sugerir economia, analisar margem, gerar projeções, criar
+cobranças, responder dúvidas financeiras e emitir relatórios.
+Automações
+Fluxo automatizado a partir de uma venda concluída:
+ Venda concluída
+ ↓
+ Gerar cobrança
+ ↓
+ Emitir boleto
+ ↓
+ Enviar WhatsApp
+ ↓
+ Enviar Email
+ ↓
+ Registrar receita
+ ↓
+ Atualizar CRM
+ ↓
+ Atualizar Dashboard
+ ↓
+ Receber pagamento
+ ↓
+ Baixa automática
+ ↓
+ Gerar nota
+ ↓
+ Registrar comissão
+ ↓
+ Atualizar fluxo
+
+Página 6
+Notificações
+Vencimento, pagamento, inadimplência, saldo baixo, fluxo negativo, aprovação,
+transferência e PIX recebido.
+Dashboard Executivo
+Indicador
+Indicador
+Indicador
+Indicador
+Receita
+Despesa
+Lucro
+EBITDA
+Fluxo de Caixa
+MRR
+ARR
+CAC
+LTV
+ROI
+Margem
+Burn Rate
+Runway
+Inadimplência
+Comissões
+Impostos
+Relatórios
+Relatório
+Relatório
+Relatório
+Fluxo de Caixa
+Receitas
+Despesas
+DRE
+Balancete
+Contas
+Comissões
+Cobranças
+Impostos
+Conciliação
+Centros de custo
+Orçamento
+Previsões
+Banco de Dados
+Principais tabelas:
+Tabela
+Tabela
+Tabela
+contas_receber
+contas_pagar
+recebimentos
+pagamentos
+fluxo_caixa
+movimentacoes_financeiras
+assinaturas
+cobrancas
+boletos
+pix
+cartoes
+conciliacoes
+extratos
+bancos
+centros_custo
+plano_contas
+fornecedores
+compras
+notas_fiscais
+impostos
+comissoes
+
+Página 7
+Tabela
+Tabela
+Tabela
+reembolsos
+investimentos
+patrimonio
+auditoria_financeira
+relatorios_financeiros
+previsoes_financeiras
+APIs
+Integração
+Integração
+Integração
+PIX
+Open Finance
+Bancos
+Stripe
+Mercado Pago
+PagSeguro
+Asaas
+Pagar.me
+NFS-e
+ERP
+Receita Federal
+OpenAI
+Claude
+Gemini
+Webhooks
+Permissões
+Perfis de acesso: Administrador, Diretor, Financeiro, Controller, Contador, Gestor, Comercial,
+CS, Auditor e Visualizador.
+Segurança
+• LGPD
+• Criptografia
+• MFA
+• Logs
+• Auditoria
+• Backups
+• Controle de acesso
+• Versionamento
+• Assinatura digital
+Integração com outros módulos
+
+Página 8
+CRM, Comercial, Clientes, Marketing, Agenda, Atendimento, Projetos, Documentos, BI,
+Automações e IA.
+Diferenciais do ECOMIM
+• Financeiro totalmente integrado ao ciclo comercial: uma venda pode gerar
+automaticamente contrato, cobrança, nota fiscal, comissão e atualização dos
+dashboards.
+• IA financeira para conciliação bancária, previsão de fluxo de caixa, classificação de
+despesas e identificação de riscos.
+• Gestão completa de assinaturas e receitas recorrentes, ideal para empresas SaaS e
+negócios de serviços.
+• Dashboards financeiros em tempo real com indicadores estratégicos e operacionais.
+• Cobranças automatizadas por múltiplos canais (e-mail, WhatsApp e notificações) para
+reduzir a inadimplência.
+• Arquitetura preparada para múltiplas empresas, filiais, centros de custo e diferentes
+regimes tributários.
+Com essa etapa, o ECOMIM evolui para um ecossistema empresarial que integra comercial,
+atendimento, clientes e financeiro, permitindo acompanhar desde a geração do lead até o
+recebimento, a gestão do contrato e a análise dos resultados financeiros dentro de uma
+única plataforma.

@@ -1,0 +1,51 @@
+NEITZEL OS - Blueprint Mestre (Volume 0)
+Este documento define a estrutura mestre do projeto. Objetivo: servir como
+especificação de referência para desenvolvimento assistido por IA. Não é o sistema
+pronto; é o plano de engenharia para orientar sua construção.
+Princípios
+Arquitetura modular, segurança, desempenho, escalabilidade, documentação, testes,
+UX consistente, automações e IA coordenadora.
+Coleção de Documentos
+60 documentos principais divididos em Fundação, IA, CRM, Leads, Marketing, Produtos,
+Dashboard, Sistema, Segurança, APIs, Banco de Dados, Prompts, Diagramas e
+Checklists.
+IA Central
+Coordena módulos, mantém contexto, usa ferramentas integradas, pesquisa quando
+necessário e distingue informações verificadas de hipóteses.
+CRM
+Clientes, empresas, contatos, histórico, pipeline, tarefas, documentos, campos
+personalizados, auditoria e filtros.
+Leads
+Pesquisa de empresas e oportunidades usando fontes públicas e integrações
+autorizadas; deduplicação, classificação e atualização.
+Marketing
+Conteúdo baseado em informações verificáveis; integração com serviços externos para
+imagens, vídeos e voz quando disponíveis.
+Dashboard
+Painel simples, focado em prioridades, indicadores, tarefas, oportunidades e
+resultados.
+Arquitetura
+Frontend, backend, banco de dados, APIs, autenticação, logs, backup, monitoramento,
+testes automatizados.
+
+Plano Editorial
+Cada módulo terá: visão, requisitos, fluxos, modelo de dados, APIs, regras de negócio,
+testes, critérios de aceitação e prompt de implementação.
+
+Índice Planejado
+1. Constituição
+2. Arquitetura
+3. IA Central
+4. Dashboard
+5. CRM
+6. Leads
+7. Marketing
+8. Atendimento
+9. Base de Conhecimento
+10. Automações
+11. Banco de Dados
+12. APIs
+13. UX/UI
+14. Segurança
+15. Deploy
+16. Prompts Mestres

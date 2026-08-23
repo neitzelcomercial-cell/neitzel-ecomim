@@ -1,0 +1,14 @@
+{
+  "name": "neitzel-sistema",
+  "version": "1.0.0",
+  "private": true,
+  "description": "NEITZEL — Sistema Digital + Portal Público do Cliente (backend como fonte única de verdade)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test-novo-portal.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

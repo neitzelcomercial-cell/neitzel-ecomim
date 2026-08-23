@@ -1,0 +1,4 @@
+﻿
+ETAPA 17 - Parte 1
+ObjetivoCriar o núcleo central do ECOMIM...Inclui: Objetivo, O que esta etapa resolve, Estrutura Geral, Painel Master, Multiempresa, Multiunidade, White Label.
+

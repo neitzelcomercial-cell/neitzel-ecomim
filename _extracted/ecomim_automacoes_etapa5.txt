@@ -1,0 +1,71 @@
+ETAPA 5 — ECOMIM
+ AUTOMAÇÕES
+ (Estrutura Completa)
+Esse será um dos maiores módulos do ECOMIM e servirá como o "cérebro
+operacional" que conecta CRM, comunicação, IA e os demais módulos.
+
+Volume 1 — Fundamentos e Arquitetura
+• Visão geral do módulo
+• Arquitetura completa
+• Conceitos do motor de automações
+• Regras de funcionamento
+• Eventos
+• Gatilhos
+• Ações
+• Condições
+• Variáveis
+• Banco de dados completo
+Volume 2 — Interface e Experiência do Usuário
+• Todas as telas
+• Wireframes
+• UX
+• Componentes
+• Construtor visual estilo "drag and drop"
+• Biblioteca de blocos
+• Editor de workflows
+Volume 3 — Engine e Execução
+• Engine de execução
+• Filas
+• Workers
+• Scheduler
+• Retry
+• Logs
+• Histórico
+• Performance
+
+• Escalabilidade
+Volume 4 — Inteligência Artificial
+• IA dentro das automações
+• Agentes inteligentes
+• Memória
+• Tomada de decisão
+• Prompts internos
+• Ferramentas
+• Planejamento automático
+Volume 5 — Integrações
+• Integrações
+• WhatsApp
+• Email
+• Telefonia
+• APIs
+• Webhooks
+• Google
+• Meta
+• Calendário
+• CRM
+• ERP
+Volume 6 — Segurança, Governança e Métricas
+• Segurança
+• Permissões
+• Auditoria
+• Monitoramento
+• Dashboards
+
+• KPIs
+• Relatórios
+Volume 7 — Aplicação Prática e Entrega
+• Casos reais de automação
+• Centenas de templates
+• Fluxos prontos
+• Roadmap técnico
+• Prompt definitivo para o Claude implementar todo o módulo

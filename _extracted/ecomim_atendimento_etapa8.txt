@@ -1,0 +1,405 @@
+ETAPA 8 — ECOMIM
+ ATENDIMENTO
+ (Customer Service — Estrutura Completa)
+Central de Atendimento Omnichannel totalmente integrada ao ECOMIM, com IA,
+automações, histórico unificado e gestão completa de tickets.
+
+Objetivo
+Criar uma Central de Atendimento Omnichannel totalmente integrada ao ECOMIM,
+permitindo que empresas atendam clientes por diversos canais em um único lugar,
+com apoio de IA, automações, histórico unificado e gestão completa de tickets.
+O módulo deve atender desde pequenas empresas até operações com centenas de
+atendentes.
+Problemas que o módulo resolve
+Hoje muitas empresas utilizam várias ferramentas separadas:
+• WhatsApp Business
+• Zendesk
+• Freshdesk
+• Intercom
+• Crisp
+• Tawk.to
+• Messenger
+• Instagram Direct
+• Telegram
+• E-mail
+• Chat Online
+O objetivo do ECOMIM é unificar tudo.
+Estrutura Geral
+Central Omnichannel
+Todos os canais em uma única tela. Suporte para:
+• WhatsApp
+• WhatsApp Business API
+• Instagram Direct
+• Facebook Messenger
+• Telegram
+• Chat do Site
+• E-mail
+• SMS
+• Voz (telefonia)
+
+• Formulários
+• API
+• Webchat
+• Aplicativo Mobile
+Caixa de Entrada Unificada
+Visual semelhante a um mensageiro moderno. Cada conversa possui:
+• Nome do cliente
+• Foto
+• Canal de origem
+• Empresa
+• Responsável
+• Status
+• Prioridade
+• SLA
+• Etiquetas
+• Última interação
+• Tempo de espera
+• Histórico completo
+Tickets
+Sistema completo de chamados.
+Status:
+• Novo
+• Em andamento
+• Aguardando cliente
+• Em análise
+• Escalado
+• Resolvido
+• Fechado
+• Cancelado
+Prioridades:
+• Baixa
+• Média
+• Alta
+• Urgente
+• Crítica
+
+Categorias:
+• Financeiro
+• Suporte
+• Comercial
+• Pós-venda
+• Implantação
+• Garantia
+• Cobrança
+• Cancelamento
+• Dúvidas
+• Personalizadas
+Subcategorias: totalmente configuráveis.
+SLA
+Controle completo. Tempo de:
+• Primeira resposta
+• Resposta
+• Resolução
+• Espera
+• Escalonamento
+Alertas automáticos.
+Filas de Atendimento
+Exemplo:
+Financeiro
+↓
+Equipe Financeira
+Suporte Técnico
+↓
+Equipe Técnica
+Comercial
+↓
+SDR
+Pós-venda
+↓
+CSM
+
+Distribuição Automática
+• Round Robin
+• Menor carga
+• Especialidade
+• Idioma
+• Região
+• Equipe
+• Manual
+• IA
+IA no Atendimento
+Agente Recepcionista
+Recebe cliente
+↓
+Identifica assunto
+↓
+Consulta CRM
+↓
+Consulta histórico
+↓
+Consulta documentos
+↓
+Consulta pedidos
+↓
+Responde automaticamente
+↓
+Se necessário transfere para humano
+Agentes Especializados
+• Agente Comercial
+• Agente Financeiro
+• Agente Técnico
+• Agente Jurídico
+• Agente SAC
+• Agente Implantação
+• Agente Suporte
+
+• Agente Cobrança
+• Agente FAQ
+A IA consegue
+• Entender intenção
+• Classificar ticket
+• Responder perguntas
+• Criar chamados
+• Consultar histórico
+• Consultar documentos
+• Consultar contratos
+• Consultar pagamentos
+• Consultar produtos
+• Consultar pedidos
+• Transferir atendimento
+• Criar tarefas
+• Agendar reuniões
+• Gerar propostas
+Conhecimento e Produtividade
+Base de Conhecimento
+• Artigos
+• Tutoriais
+• Vídeos
+• FAQ
+• PDF
+• Documentações
+• Políticas
+• Guias
+A IA pesquisa automaticamente.
+Respostas Prontas
+• Biblioteca
+• Categorias
+• Favoritos
+• Variáveis
+
+• Atalhos
+Chat Interno
+Atendentes conversam entre si, sem o cliente visualizar.
+• Marcar usuários
+• Enviar arquivos
+• Solicitar ajuda
+Histórico
+Tudo armazenado:
+• Conversas
+• Ligações
+• Emails
+• WhatsApp
+• Notas
+• Arquivos
+• Propostas
+• Contratos
+• CRM
+• Agenda
+• Financeiro
+Anexos
+• Imagem
+• Vídeo
+• Áudio
+• PDF
+• Word
+• Excel
+• PowerPoint
+• ZIP
+• Links
+Assinaturas
+Cada atendente possui assinatura, que pode variar por departamento.
+
+Qualidade e Resultados
+Avaliação
+Após o encerramento, o cliente avalia:
+• 1 até 5 estrelas
+• NPS
+• Comentários
+Pesquisas
+• Satisfação
+• CES
+• CSAT
+• NPS
+• Personalizadas
+Dashboard
+• Tickets
+• Atendimentos
+• SLA
+• Tempo médio
+• Primeira resposta
+• Tempo de resolução
+• Atendentes
+• Filas
+• Canais
+• Avaliações
+• Clientes satisfeitos
+• Clientes insatisfeitos
+Relatórios
+• Por atendente
+• Por equipe
+• Por empresa
+• Por período
+• Por canal
+• Por categoria
+• Por SLA
+
+• Por IA
+• Por satisfação
+Automações
+Cliente envia mensagem
+↓
+Criar ticket
+↓
+Classificar
+↓
+Definir prioridade
+↓
+Enviar para fila
+↓
+Responder automaticamente
+↓
+Avisar responsável
+↓
+Atualizar CRM
+↓
+Criar tarefa
+↓
+Agendar follow-up
+↓
+Encerrar
+Notificações
+• Desktop
+• Mobile
+• Push
+• Email
+• WhatsApp
+• SMS
+• Internas
+
+Integrações
+Integração com CRM
+Cada atendimento mostra:
+• Nome
+• Empresa
+• Cargo
+• Telefone
+• Email
+• Funil
+• Negócios
+• Contratos
+• Financeiro
+• Produtos
+• Agenda
+• Notas
+• Histórico completo
+Integração com Agenda
+• Agendar reunião
+• Criar compromisso
+• Lembretes
+Integração Financeira
+• Consultar boletos
+• Consultar PIX
+• Consultar pagamentos
+• Consultar inadimplência
+• Gerar segunda via
+Integração Comercial
+• Criar oportunidade
+• Mover funil
+• Gerar proposta
+• Agendar vendedor
+Integração Projetos
+• Abrir tarefa
+
+• Criar projeto
+• Solicitar implantação
+• Solicitar desenvolvimento
+Telefonia
+• Discador
+• Gravação
+• URA
+• Fila
+• Transferência
+• Tempo de ligação
+Infraestrutura
+Banco de Dados
+Principais tabelas:
+• tickets
+• ticket_status
+• ticket_prioridades
+• ticket_categorias
+• ticket_subcategorias
+• ticket_mensagens
+• ticket_anexos
+• ticket_logs
+• ticket_historico
+• filas
+• departamentos
+• atendentes
+• escalonamentos
+• respostas_prontas
+• base_conhecimento
+• artigos
+• faq
+• avaliacoes
+• sla
+• pesquisas
+• notificacoes
+
+• agentes_ia
+• conversas
+• canais
+• integracoes
+APIs
+• WhatsApp Business
+• Instagram
+• Facebook
+• Telegram
+• SMTP
+• Google
+• Microsoft
+• Twilio
+• OpenAI
+• Claude
+• Gemini
+• Telefonia SIP
+• Webhooks
+• REST API
+• GraphQL
+Permissões
+• Administrador
+• Supervisor
+• Coordenador
+• Atendente
+• Financeiro
+• Comercial
+• Suporte
+• Implantação
+• IA
+• Cliente
+Segurança
+• LGPD
+• Criptografia
+• Logs
+
+• Auditoria
+• Controle de acesso
+• Backups
+• Versionamento
+• Assinatura digital de logs
+Diferenciais do ECOMIM
+• Visão 360° do cliente durante o atendimento, com acesso ao CRM, contratos,
+financeiro, agenda e histórico sem trocar de tela.
+• IA especializada por departamento, capaz de responder, classificar, resumir
+conversas e sugerir os próximos passos.
+• Distribuição inteligente de atendimentos baseada em regras de negócio,
+disponibilidade e especialidade da equipe.
+• Base de conhecimento integrada com busca por IA, reduzindo o tempo de
+resposta.
+• Dashboards em tempo real para acompanhar SLA, produtividade, satisfação e
+qualidade do atendimento.
+• Integração nativa com os demais módulos do ECOMIM, permitindo transformar
+um atendimento em oportunidade comercial, tarefa, projeto ou ação de pós-venda
+sem retrabalho.
+Com essa etapa, o ECOMIM deixa de ser apenas um CRM com comunicação integrada
+e passa a oferecer uma central de atendimento omnichannel completa, cobrindo todo
+o ciclo de relacionamento com o cliente dentro do mesmo ecossistema.

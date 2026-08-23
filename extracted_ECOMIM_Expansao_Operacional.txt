@@ -1,0 +1,506 @@
+--- page 1 ---
+ECOMIM
+ Expansão Operacional Completa
+ Central Operacional Integrada de Negócios
+ Documento de Especificação — 15 de agosto de 2026
+--- page 2 ---
+ÍNDICE
+Visão Geral
+1. Planner / Calendário
+2. Serviços
+3. Clientes
+4. Serviço Realizado para Cliente
+5. Produtos
+6. Estoque
+7. Produto Vendido para Cliente
+8. Serviço + Produto no Mesmo Atendimento
+9. Financeiro
+10. Receitas
+11. Custos
+12. Despesas
+13. Despesa Vinculada ao Serviço
+14. Cálculo de Lucro
+15. Dashboard Financeiro
+16. Dashboard Operacional
+17. Estoque Baixo
+18. Relacionamento Entre Módulos
+19. Exemplo de Fluxo Completo
+20. Histórico Financeiro do Cliente
+21. Formas de Pagamento
+22. Design
+23. Mobile
+24. Integração com Acessor
+25. Regras Importantes
+26. Auditoria Prévia
+27. Objetivo Principal
+--- page 3 ---
+VISÃO GERAL
+O ECOMIM deve deixar de ser apenas um CRM e se tornar uma central operacional completa do negócio.
+O usuário deve conseguir controlar o negócio integralmente através de uma única plataforma.
+Fluxo Integrado:
+CLIENTES → AGENDA → SERVIÇOS → PRODUTOS → ESTOQUE → VENDAS → DESPESAS → LUCRO
+Importante: Não recrie o ECOMIM, não remova funcionalidades, não quebre o que existe. Reutilize a
+arquitetura, banco, autenticação, componentes e regras existentes. Prioridade: funcionalidades
+REALMENTE funcionais, conectadas ao banco de dados e entre si.
+--- page 4 ---
+1. PLANNER / CALENDÁRIO
+Criar um Planner completo dentro do ECOMIM com visualização profissional e fácil de usar.
+Visualizações Suportadas:
+ Dia — Visão detalhada de um dia específico
+ Semana — Grade semanal com todos os compromissos
+ Mês — Visão mensal simplificada
+ Agenda por horários — Lista ordenada com horários
+Dados de Cada Compromisso:
+✓ Cliente — Identificação do cliente
+✓ Data — Data do agendamento
+✓ Horário inicial — Início do atendimento
+✓ Horário final — Fim do atendimento
+✓ Serviço — Qual serviço será realizado
+✓ Produtos utilizados/vendidos — Quais produtos estarão envolvidos
+✓ Valor cobrado — Preço do serviço/produtos
+✓ Observações — Notas adicionais
+✓ Status — Estado do agendamento
+✓ Responsável — Quem realizará o serviço
+✓ Endereço — Local do atendimento (quando aplicável)
+Status Sugeridos:
+ Agendado — Confirmação pendente
+ Confirmado — Cliente confirmou presença
+ Em andamento — Atendimento iniciado
+ Concluído — Serviço finalizado
+ Cancelado — Agendamento cancelado
+ Não compareceu — Cliente não compareceu
+Operações Permitidas:
+→ Criar novo agendamento
+→ Editar agendamento existente
+--- page 5 ---
+→ Mover agendamento para outro horário
+→ Cancelar agendamento
+--- page 6 ---
+2. SERVIÇOS
+Criar cadastro de serviços oferecidos pela empresa.
+Atributos de Cada Serviço:
+Atributo
+Descrição
+Nome
+Identificação do serviço
+Descrição
+Detalhes sobre o que é oferecido
+Categoria
+Tipo ou classificação
+Preço
+Valor cobrado do cliente
+Custo estimado
+Custo de realizar o serviço
+Duração
+Tempo estimado de execução
+Status
+Ativo ou inativo
+Exemplo:
+Serviço: Instalação
+Preço: R$ 500
+Custo: R$ 180
+Lucro bruto: R$ 320 (64% de margem) O sistema deve calcular automaticamente os valores quando possível.
+3. CLIENTES
+A área de clientes deve funcionar completamente integrada ao restante do sistema.
+Dados Básicos do Cliente:
+ Nome completo
+ Empresa (se aplicável)
+ Telefone
+ WhatsApp
+ E-mail
+ CPF/CNPJ (se necessário)
+ Endereço completo
+ Observações
+ Histórico de interações
+Visualizações dentro do Cliente:
+--- page 7 ---
+✓ Agendamentos passados e futuros
+✓ Serviços realizados
+✓ Produtos comprados
+✓ Valores pagos
+✓ Valores em aberto
+✓ Histórico financeiro completo
+✓ Interações registradas
+✓ Observações e notas
+Objetivo: Criar uma visão 360° completa de cada cliente, permitindo rastreamento total de relacionamento e
+transações.
+--- page 8 ---
+4. SERVIÇO REALIZADO PARA CLIENTE
+No Planner, quando existir um atendimento/agendamento, permitir registrar exatamente o que aconteceu.
+Exemplo de Registro:
+Cliente: João Silva
+Data: 20/08/2026
+Horário: 14:00 — 17:00
+Serviço: Instalação de painel
+Valor cobrado: R$ 800
+Produtos Utilizados:
+ 2x Produto A
+ 1x Produto B
+Despesas Geradas:
+ Gasolina: R$ 50
+ Frete: R$ 30 O sistema deve transformar automaticamente essas informações em dados financeiros e
+atualizar estoque, receitas e custos.
+5. PRODUTOS
+Criar uma área completa de Produtos com catálogo e controle.
+Atributos de Cada Produto:
+Atributo
+Descrição
+Nome
+Identificação do produto
+SKU/Código
+Código único identificador
+Categoria
+Classificação do produto
+Descrição
+Detalhes sobre o produto
+Fornecedor
+Quem fornece o produto
+Custo de aquisição
+Quanto custa para comprar
+Preço de venda
+Quanto vende para cliente
+Estoque atual
+Quantidade em mãos
+Estoque mínimo
+Limite de reorder
+Unidade
+Como é medido (un, kg, m, etc)
+Status
+Ativo ou inativo
+Foto opcional
+Imagem do produto
+Operações Permitidas:
+--- page 9 ---
+→ Cadastrar produto
+→ Editar dados
+→ Desativar produto
+→ Excluir quando permitido
+→ Pesquisar
+→ Filtrar por categoria
+→ Categorizar produtos
+--- page 10 ---
+6. ESTOQUE
+Criar controle real de estoque com rastreamento de todas as movimentações.
+Tipos de Movimentação:
+ Entrada — Compra/recebimento de produtos
+ Saída — Venda ou descarte
+ Ajuste — Correção de inventário
+ Venda — Produto vendido para cliente
+ Utilizado em serviço — Produto usado em atendimento
+Cada Movimentação Registra:
+✓ Produto — Qual produto
+✓ Quantidade — Quanto movimentado
+✓ Tipo — Tipo de movimentação
+✓ Data — Quando aconteceu
+✓ Usuário — Quem realizou
+✓ Motivo — Por que foi feito
+✓ Referência relacionada — Link a venda, serviço, etc
+Automação: Quando um serviço é realizado, os produtos utilizados devem diminuir automaticamente do
+estoque. Quando um produto é vendido, o estoque também diminui automaticamente.
+7. PRODUTO VENDIDO PARA CLIENTE
+Dentro do atendimento/agendamento do cliente, permitir adicionar produtos à venda.
+Processo de Adição:
+Botão: "Adicionar Produto"
+Seleção:
+ Produto: Produto A
+ Quantidade: 2
+ Preço unitário: R$ 100
+ Total: R$ 200 Sistema deve:
+1. Registrar a venda
+2. Vincular ao cliente
+3. Vincular ao atendimento (se existir)
+4. Atualizar estoque automaticamente
+--- page 11 ---
+5. Registrar receita
+6. Registrar custo
+7. Calcular margem/lucro
+--- page 12 ---
+8. SERVIÇO + PRODUTO NO MESMO ATENDIMENTO
+Um cliente pode comprar simultaneamente serviços e produtos no mesmo atendimento.
+Exemplo de Atendimento Combinado:
+ATENDIMENTO COMPLETO Cliente: João Silva Serviços:  Instalação — R$ 800 Produtos:  Produto A —
+R$ 200  Produto B — R$ 100 TOTAL: R$ 1.100 Sistema deve permitir combinar vários serviços e múltiplos
+produtos no mesmo atendimento, consolidando receita, custos e lucro.
+9. FINANCEIRO
+Criar um módulo financeiro integrado que separa categoricamente os dados monetários.
+Três Categorias Principais:
+RECEITAS
+Dinheiro que entra (serviços, produtos)
+CUSTOS
+Custo dos produtos/serviços vendidos
+DESPESAS
+Gastos operacionais
+Importante: Separar claramente o que é custo do produto/serviço (COGS) de despesa operacional permite
+cálculos precisos de lucratividade.
+--- page 13 ---
+10. RECEITAS
+Registrar automaticamente receitas provenientes de todas as operações do sistema.
+Fontes Automáticas de Receita:
+✓ Serviços realizados
+✓ Produtos vendidos
+✓ Atendimentos completados
+✓ Vendas diversas
+Permitir Também:
+Registrar receitas manualmente quando necessário (outros tipos de entrada).
+Atributos de Cada Receita:
+ Data — Quando foi gerada
+ Cliente — De quem é a receita
+ Categoria — Tipo de receita
+ Descrição — Detalhes
+ Valor — Quanto foi
+ Forma de pagamento — Como recebeu
+ Status — Se foi paga ou não
+ Referência — Link a atendimento, venda, etc
+11. CUSTOS
+Diferenciar claramente custo do produto/serviço de despesa operacional.
+Exemplo de Diferenciação:
+Venda de R$ 1.000 Custo dos produtos vendidos (COGS): R$ 300
+Receita bruta: R$ 1.000
+Lucro bruto: R$ 700 Custo é específico do produto/serviço vendido. Despesa é custo operacional (aluguel,
+gasolina, etc). Essa separação permite análise correta de margem e lucratividade.
+12. DESPESAS
+Criar cadastro de despesas operacionais do negócio.
+--- page 14 ---
+Categorias Iniciais Sugeridas:
+→ Gasolina — Combustível
+→ Frete — Transporte de mercadoria
+→ Alimentação — Refeições e lanches
+→ Materiais — Materiais de consumo
+→ Ferramentas — Equipamentos e ferramentas
+→ Funcionários — Salários e encargos
+→ Marketing — Campanhas e publicidade
+→ Taxas — Tarifas e impostos
+→ Aluguel — Aluguel de espaço
+→ Outros — Despesas diversas
+Atributos de Cada Despesa:
+ Descrição — O que foi gasto
+ Categoria — Tipo de despesa
+ Valor — Quanto foi
+ Data — Quando foi gasto
+ Cliente relacionado — Opcional
+ Serviço relacionado — Opcional
+ Forma de pagamento — Como pagou
+ Observação — Notas adicionais
+--- page 15 ---
+13. DESPESA VINCULADA AO SERVIÇO
+Dentro de cada atendimento deve ser possível registrar despesas específicas.
+Exemplo de Atendimento com Despesas:
+Cliente: João
+Serviço: Instalação
+Receita: R$ 1.000 Despesas do Atendimento:
+ Gasolina: R$ 50
+ Frete: R$ 100
+ Material: R$ 150 Cálculo Automático:
+ Receita: R$ 1.000
+ Custos: R$ 300 (custo do produto)
+ Despesas: R$ 300 (operacionais)
+ Lucro líquido: R$ 400
+14. CÁLCULO DE LUCRO
+Criar cálculo automático e visível de todas as métricas de lucratividade.
+Métricas Calculadas Automaticamente:
+✓ Receita bruta — Total de receitas
+✓ Custo dos produtos — COGS
+✓ Custo dos serviços — Custo de realização
+✓ Despesas — Gastos operacionais
+✓ Lucro bruto — Receita - Custos
+✓ Lucro líquido — Receita - Custos - Despesas
+✓ Margem de lucro — Percentual de lucro
+Fórmula Principal:
+ RECEITA - CUSTOS - DESPESAS = LUCRO LÍQUIDO
+Exibir os números claramente em dashboards e relatórios.
+--- page 16 ---
+15. DASHBOARD FINANCEIRO
+Criar uma visão centralizada de toda a saúde financeira do negócio.
+Indicadores Principais:
+■ Faturamento hoje — Receita do dia
+■ Faturamento da semana — Total da semana
+■ Faturamento do mês — Total do mês
+■ Custos totais — Todos os custos
+■ Despesas totais — Todas as despesas
+■ Lucro bruto — Receita - Custos
+■ Lucro líquido — Lucro final
+■ Margem de lucro — Percentual
+■ Produtos vendidos — Quantidade
+■ Serviços realizados — Quantidade
+Filtros Permitidos:
+■ Hoje — Últimas 24h
+■ Semana — 7 dias
+■ Mês — 30 dias
+■ Ano — 365 dias
+■ Período personalizado — Data inicial e final
+16. DASHBOARD OPERACIONAL
+Criar indicadores operacionais para acompanhamento do dia a dia.
+Indicadores Operacionais:
+■■ Clientes ativos — Clientes com interação recente
+■■ Novos clientes — Adicionados no período
+■■ Agendamentos de hoje — Compromissos programados
+■■ Serviços concluídos — Quantidade realizada
+■■ Serviços pendentes — Em andamento ou não iniciados
+■■ Produtos com estoque baixo — Abaixo do mínimo
+■■ Leads em negociação — Status de cada lead
+--- page 17 ---
+■■ Vendas realizadas — Quantidade
+■■ Faturamento — Total do período
+--- page 18 ---
+17. ESTOQUE BAIXO
+Criar sistema de alertas para produtos com estoque abaixo do mínimo configurado.
+Exemplo de Alerta:
+■■ ESTOQUE BAIXO Produto: Produto A
+Quantidade: 3 unidades
+Estoque mínimo: 5 unidades
+Status: CRÍTICO — Reorder necessário O sistema deve permitir filtrar e visualizar todos os produtos abaixo
+do limite mínimo em um único lugar.
+18. RELACIONAMENTO ENTRE OS MÓDULOS
+Essa é uma das partes mais importantes. Todos os módulos devem conversar entre si sem isolamento.
+Fluxo de Integração:
+ CLIENTE
+ ↓
+ AGENDAMENTO
+ ↓
+ SERVIÇO
+ ↓
+ PRODUTO UTILIZADO
+ ↓
+ ESTOQUE (diminui)
+ ↓
+ RECEITA (aumenta)
+ ↓
+ CUSTO (registra)
+ ↓
+ DESPESAS (registra)
+ ↓
+ LUCRO (calcula)
+Não criar módulos isolados. Cada ação em um módulo deve impactar outros de forma consistente e
+automática.
+--- page 19 ---
+19. EXEMPLO DE FLUXO COMPLETO
+Demonstração prática de como todos os módulos trabalham integrados.
+PASSO 1: AGENDAMENTO
+Usuário agenda:
+ Cliente: Maria
+ Data: 25/08
+ Horário: 09:00
+ Serviço: Instalação
+ Preço: R$ 800 PASSO 2: ATENDIMENTO
+No dia, executado:
+ Serviço: R$ 800
+ Produto A utilizado (custo R$ 150) PASSO 3: DESPESAS
+Registradas durante:
+ Gasolina: R$ 40
+ Frete: R$ 60 RESULTADO AUTOMÁTICO:
+ Receita: R$ 800
+ Custo: R$ 150
+ Despesas: R$ 100
+ Lucro: R$ 550 Sistema registra tudo automaticamente sem intervenção manual.
+20. HISTÓRICO FINANCEIRO DO CLIENTE
+Ao abrir um cliente, permitir visualizar histórico financeiro completo.
+Informações Exibidas:
+✓ Total comprado — Valor total gasto
+✓ Serviços — Serviços realizados
+✓ Produtos — Produtos comprados
+✓ Total pago — Quanto já pagou
+✓ Valor em aberto — Saldo devedor
+✓ Lucro gerado — Quanto de lucro trouxe
+✓ Último atendimento — Data e descrição
+✓ Próximo agendamento — Próxima data agendada
+--- page 20 ---
+21. FORMAS DE PAGAMENTO
+Preparar estrutura para suportar múltiplas formas de recebimento.
+Formas Suportadas:
+■ Dinheiro — Dinheiro em espécie
+■ PIX — Transferência instantânea
+■ Cartão — Débito ou crédito
+■ Transferência — Transferência bancária
+■ Boleto — Boleto bancário
+■ Outros — Formas alternativas
+Permitir registrar pagamentos parciais quando o cliente paga em múltiplas parcelas.
+22. DESIGN
+A estética deve seguir a identidade premium do ECOMIM.
+Princípios de Design:
+■ Interface limpa — Sem poluição visual
+■ Dashboard moderno — Cards informativos
+■ Calendário elegante — Visualização profissional
+■ Tabelas organizadas — Fácil leitura
+■ Filtros intuitivos — Busca eficiente
+■ Tipografia consistente — Hierarquia clara
+■ Excelente espaçamento — Breathing room
+■ Responsividade — Funciona em qualquer tela
+■ Estados visuais claros — Feedback do usuário
+O que NÃO fazer:
+■ Adicionar imagens desnecessárias
+■ Exagerar em efeitos visuais
+■ Poluir com componentes extras
+23. MOBILE
+--- page 21 ---
+Crítico: Esse sistema precisa funcionar muito bem no celular.
+Módulos Prioritários para Mobile:
+■ Planner — Ver e gerenciar agenda
+■ Clientes — Abrir perfil de cliente
+■ Atendimento — Registrar serviço e produtos
+■ Produtos — Consultar estoque
+■ Estoque — Registrar movimentações
+■ Financeiro — Acompanhar lucro
+Objetivo Principal no Mobile:
+O usuário deve conseguir abrir o celular e rapidamente: ver agenda, abrir cliente, registrar serviço, adicionar
+produto, registrar despesa, finalizar atendimento e consultar lucro.
+--- page 22 ---
+24. INTEGRAÇÃO COM O ACESSOR ECOMIM
+Tudo que for criado deve ficar disponível futuramente para o Acessor do ECOMIM via WhatsApp.
+Exemplos de Uso via Acessor:
+■ "O que tenho na agenda amanhã?"
+■ "Quanto faturei essa semana?"
+■ "Quanto gastei de gasolina esse mês?"
+■ "Qual foi meu lucro hoje?"
+■ "Quanto tenho em estoque do Produto A?"
+■ "Agende João para amanhã às 14h."
+■ "Registre R$ 50 de gasolina no atendimento da Maria."
+Importante: Construir os módulos com APIs/tools reutilizáveis que possam ser consumidas pelo Acessor.
+25. REGRAS IMPORTANTES
+✓ Dados Reais: Não criar dados fictícios. Tudo deve ser real.
+✓ Conexão DB: Não criar telas que não estejam conectadas ao banco.
+✓ Backend Completo: Não implementar apenas frontend.
+✓ Persistência: Toda ação importante precisa persistir corretamente.
+✓ Transações: Atualizações de estoque precisam ser transacionais.
+✓ Precisão: Valores financeiros precisam usar precisão adequada.
+✓ Sem Duplicação: Evitar duplicidade de registros.
+✓ Histórico: Registrar histórico de alterações importantes.
+✓ Permissões: Respeitar autenticação e permissões do usuário.
+--- page 23 ---
+26. ANTES DE IMPLEMENTAR
+Realize uma auditoria completa do ECOMIM atual.
+Identifique:
+■ O que já existe no sistema
+■ O que pode ser reutilizado
+■ O que precisa ser criado
+■ Quais tabelas já existem
+■ Quais relações precisam ser criadas
+■ Quais APIs já existem
+■ Quais módulos precisam ser conectados
+Depois:
+1. Apresente um plano técnico detalhado
+2. Mostre quais APIs serão criadas
+3. Indique quais módulos serão modificados
+4. Somente então comece a implementação
+27. OBJETIVO PRINCIPAL
+Quero que o ECOMIM deixe de ser apenas um CRM e se torne uma CENTRAL OPERACIONAL
+COMPLETA DO NEGÓCIO.
+O usuário deve conseguir controlar:
+CLIENTES → AGENDA → SERVIÇOS → PRODUTOS → ESTOQUE → VENDAS → DESPESAS → LUCRO
+Tudo deve estar conectado.
+O sistema precisa ser:
+■ Funcional — Operacional de verdade
+■ Rápido — Performance otimizada
+■ Intuitivo — Fácil de usar
+■ Confiável — Sem bugs críticos
+■ Profissional — Design premium
+■ Responsivo — Funciona em qualquer dispositivo
+--- page 24 ---
+■ Escalável — Cresce com o negócio
+■ Integrado — Módulos conectados
+NÃO quero um protótipo.
+Quero funcionalidades REAIS, PERSISTENTES e CONECTADAS ao ECOMIM existente.
+Prioridade absoluta: funcionalidade real + integração entre módulos + experiência simples para o
+usuário.
+ ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+ Documento de Especificação Técnica — ECOMIM Expansão Operacional
+ Gerado em 15 de agosto de 2026

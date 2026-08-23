@@ -1,0 +1,388 @@
+ECOMIM — Etapa 11 · BI e Analytics
+Página 1
+ETAPA 11 — ECOMIM BI
+Business Intelligence, Analytics e Inteligência Estratégica
+Objetivo
+Criar um módulo de Business Intelligence (BI) que transforme todos os dados do ECOMIM em
+informações estratégicas para tomada de decisão. O módulo deve consolidar indicadores de
+todas as áreas da empresa, oferecer dashboards interativos, análises preditivas, alertas
+inteligentes e apoio da IA para identificar tendências, oportunidades e riscos.
+O BI será o principal centro de análise da plataforma, fornecendo uma visão unificada do
+negócio.
+Problemas que o módulo resolve
+Hoje muitas empresas utilizam diversas ferramentas separadas:
+• Power BI
+• Tableau
+• Looker Studio
+• Qlik Sense
+• Excel
+• Google Analytics
+• Dashboards internos
+No ECOMIM, todas as informações ficam centralizadas.
+Estrutura Geral
+Central de Business Intelligence
+Painel único com acesso a todos os indicadores. Cada usuário visualiza apenas os
+dashboards permitidos.
+Organização por áreas:
+• Comercial
+• Marketing
+• Atendimento
+• Financeiro
+• Clientes
+• Projetos
+• RH
+• IA
+• Operações
+• Executivo
+Dashboard Executivo
+Indicadores estratégicos:
+• Receita total
+• Receita recorrente (MRR)
+• Receita anual (ARR)
+• Lucro bruto
+• Lucro líquido
+• EBITDA
+• Fluxo de caixa
+• Ticket médio
+• CAC
+• LTV
+• ROI
+• ROAS
+• Churn
+• Health Score médio
+• Conversão de vendas
+• Meta x realizado
+• Crescimento mensal
+• Crescimento anual
+Dashboard Comercial
+Indicadores:
+
+ECOMIM — Etapa 11 · BI e Analytics
+Página 2
+• Leads gerados
+• Leads qualificados
+• Oportunidades
+• Negócios ganhos
+• Negócios perdidos
+• Taxa de conversão
+• Tempo médio de fechamento
+• Receita por vendedor
+• Receita por equipe
+• Funil de vendas
+• Motivos de perda
+• Previsão de fechamento
+• Ranking de vendedores
+Dashboard Marketing
+Indicadores:
+• Visitantes
+• Leads captados
+• Origem dos leads
+• Conversão por campanha
+• CTR
+• CPC
+• CPA
+• CPL
+• ROAS
+• ROI
+• Campanhas ativas
+• Landing Pages
+• SEO
+• Redes sociais
+Dashboard Atendimento
+Indicadores:
+• Tickets abertos
+• Tickets resolvidos
+• SLA
+• Tempo de primeira resposta
+• Tempo médio de resolução
+• NPS
+• CSAT
+• CES
+• Avaliações
+• Volume por canal
+• Produtividade por atendente
+Dashboard Customer Success
+Indicadores:
+• Clientes ativos
+• Clientes novos
+• Clientes em risco
+• Churn
+• Renovações
+• Upsell
+• Cross Sell
+• Health Score
+• NPS
+• Receita por cliente
+• LTV
+• Carteira por CSM
+Dashboard Financeiro
+Indicadores:
+• Contas a pagar
+• Contas a receber
+• Inadimplência
+• Fluxo de caixa
+• Saldo bancário
+• Lucro
+• Margem
+• Impostos
+• Comissões
+• Projeção financeira
+• DRE resumida
+Dashboard Projetos
+Indicadores:
+• Projetos ativos
+• Projetos atrasados
+• Horas trabalhadas
+
+ECOMIM — Etapa 11 · BI e Analytics
+Página 3
+• Horas previstas
+• Equipes
+• Tarefas concluídas
+• Produtividade
+• SLA interno
+Dashboard RH
+Indicadores:
+• Colaboradores
+• Produtividade
+• Metas
+• Absenteísmo
+• Turnover
+• Treinamentos
+• Comissões
+• Avaliações
+Dashboard IA
+Indicadores:
+• Atendimentos realizados pela
+IA
+• Leads qualificados pela IA
+• Campanhas geradas
+• Automações executadas
+• Economia de tempo
+• Taxa de acerto
+• Intervenções humanas
+• Custos com IA
+Construtor de Dashboards
+Editor visual. Permite:
+• Arrastar componentes
+• Redimensionar widgets
+• Criar páginas
+• Compartilhar dashboards
+• Salvar modelos
+• Clonar dashboards
+Widgets Disponíveis
+• Cartões de indicadores
+• Gráficos de barras
+• Linhas
+• Área
+• Pizza
+• Rosca
+• Funil
+• Gauge
+• Radar
+• Tabelas
+• Heatmaps
+• Mapas
+• Calendários
+• Timeline
+• KPIs
+• Comparativos
+• Metas
+• Rankings
+Filtros Inteligentes
+Filtros por:
+• Empresa
+• Filial
+• Equipe
+• Usuário
+• Cliente
+• Produto
+• Serviço
+• Período
+• Cidade
+• Estado
+• País
+• Segmento
+• Origem
+• Canal
+• Status
+Relatórios
+
+ECOMIM — Etapa 11 · BI e Analytics
+Página 4
+Tipos:
+• PDF
+• Excel
+• CSV
+• HTML
+Agendamento:
+• Diário
+• Semanal
+• Mensal
+• Trimestral
+• Anual
+Envio automático:
+• Email
+• WhatsApp
+• Portal
+• API
+IA Analítica
+• Agente Analista
+• Agente Executivo
+• Agente Comercial
+• Agente Financeiro
+• Agente Marketing
+• Agente Customer Success
+• Agente Atendimento
+A IA consegue
+• Analisar tendências
+• Prever vendas
+• Detectar queda de desempenho
+• Comparar períodos
+• Encontrar gargalos
+• Detectar oportunidades
+• Sugerir metas
+• Explicar indicadores
+• Responder perguntas em linguagem natural
+• Gerar apresentações executivas
+Consultas em Linguagem Natural
+Exemplos:
+•
+“Qual vendedor vendeu mais este mês?”
+•
+“Quais campanhas tiveram maior ROI?”
+•
+“Qual cliente possui maior risco de cancelamento?”
+•
+“Quanto faturamos no último trimestre?”
+•
+“Qual equipe possui melhor SLA?”
+A IA responde utilizando os dados do sistema.
+Alertas Inteligentes
+Exemplos:
+• Receita caiu 15%
+• Churn aumentou
+• Fluxo negativo
+• Campanha sem conversão
+• SLA vencendo
+• Meta atingida
+• Cliente em risco
+• Estoque baixo (caso exista integração)
+Benchmarking Interno
+Comparação entre:
+
+ECOMIM — Etapa 11 · BI e Analytics
+Página 5
+• Filiais
+• Equipes
+• Vendedores
+• Campanhas
+• Produtos
+• Serviços
+• Períodos
+Previsões
+Previsão de:
+• Receita
+• Fluxo de caixa
+• Conversões
+• Cancelamentos
+• Demanda
+• Metas
+• Comissões
+• Crescimento
+Banco de Dados
+Principais tabelas
+• dashboards
+• dashboard_widgets
+• indicadores
+• metricas
+• metas
+• relatorios
+• consultas
+• consultas_ia
+• previsoes
+• alertas
+• notificacoes_bi
+• snapshots
+• analytics
+• data_sources
+• data_views
+• filtros
+• benchmark
+• logs_bi
+APIs
+• CRM
+• Marketing
+• Financeiro
+• Atendimento
+• Projetos
+• RH
+• Google Analytics
+• Meta Ads
+• Google Ads
+• OpenAI
+• Claude
+• Gemini
+• Power BI (exportação)
+• Looker Studio
+• Webhooks
+• REST API
+Permissões
+• Administrador
+• Diretor
+• CEO
+• Gestor
+• Financeiro
+• Marketing
+• Comercial
+• Customer Success
+• RH
+• Analista
+• Visualizador
+Segurança
+• LGPD
+• Criptografia
+• Auditoria
+• Logs
+• Controle de acesso
+• Versionamento
+• Backups
+• Permissões por dashboard
+Integração com outros módulos
+
+ECOMIM — Etapa 11 · BI e Analytics
+Página 6
+• CRM
+• Marketing
+• Comercial
+• Agenda
+• Atendimento
+• Clientes
+• Financeiro
+• Projetos
+• Documentos
+• IA
+• Automações
+• RH
+Diferenciais do ECOMIM
+•
+Visão única do negócio, reunindo dados de todos os módulos em tempo real.
+•
+IA analítica que não apenas exibe gráficos, mas interpreta indicadores, identifica tendências e
+sugere ações estratégicas.
+•
+Dashboards totalmente personalizáveis, adaptados ao perfil de cada usuário ou equipe.
+•
+Consultas em linguagem natural, permitindo que gestores façam perguntas diretamente ao
+sistema e recebam respostas baseadas nos dados.
+•
+Alertas inteligentes que notificam automaticamente riscos, oportunidades e desvios de
+metas.
+•
+Análises preditivas para vendas, churn, fluxo de caixa e desempenho operacional.
+•
+Comparativos e benchmarking interno, facilitando a identificação de boas práticas entre
+equipes, filiais e unidades de negócio.
+•
+Integração nativa com todo o ecossistema ECOMIM, eliminando silos de informação e
+apoiando decisões baseadas em dados.

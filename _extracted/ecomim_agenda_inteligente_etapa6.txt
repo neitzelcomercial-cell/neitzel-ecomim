@@ -1,0 +1,61 @@
+ETAPA 6 — ECOMIM AGENDA
+ INTELIGENTE
+ (Estrutura Completa)
+Cada parte será escrita com o mesmo nível de detalhamento das etapas
+anteriores, para que no final você tenha uma documentação técnica consistente e
+utilizável para o desenvolvimento do ECOMIM.
+
+Parte 1 — Arquitetura e Fundação
+• Objetivos do módulo
+• Arquitetura completa
+• Modelagem do banco de dados
+• Regras de negócio
+• Permissões
+• Eventos
+• Entidades
+• Casos de uso
+Parte 2 — Interface e Experiência do Usuário
+• Todas as telas
+• Wireframes descritivos
+• Componentes
+• Calendário diário, semanal, mensal e anual
+• Agenda da equipe
+• Timeline
+• Busca
+• Filtros
+Parte 3 — Agendamentos Inteligentes
+• Disponibilidade
+• Conflitos
+• Sugestão automática de horários
+• Reagendamento
+• Lembretes
+• Check-in
+• Rotas
+
+Parte 4 — IA e Automações
+• Assistente de agenda
+• Priorização automática
+• Planejamento do dia
+• Agentes
+• Fluxos automáticos
+Parte 5 — Integrações
+• Google Calendar
+• Outlook
+• Microsoft 365
+• Google Meet
+• Zoom
+• Teams
+• WhatsApp
+• Telefonia
+• APIs
+• Webhooks
+Parte 6 — Desenvolvimento
+• APIs
+• Backend
+• Frontend
+• Segurança
+• Logs
+• Auditoria
+• Dashboards
+• Roadmap
+• Prompt completo para implementação

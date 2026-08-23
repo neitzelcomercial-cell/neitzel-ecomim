@@ -1,0 +1,308 @@
+Página 1
+ ETAPA 9 — ECOMIM CLIENTES
+ Customer Success, Pós-Venda e Gestão do Cliente
+Objetivo
+Criar um módulo completo para gestão do cliente após a venda, centralizando contratos,
+onboarding, implantação, relacionamento, renovações, suporte estratégico, Customer
+Success (CS), Customer Experience (CX), fidelização, upsell, cross-sell e indicadores de
+saúde do cliente.
+O objetivo é garantir que o cliente permaneça ativo, satisfeito e gere novas oportunidades
+de negócio.
+Problemas que o módulo resolve
+Hoje muitas empresas utilizam diversas ferramentas separadas para acompanhar clientes:
+• Planilhas
+• CRM
+• Notion
+• Asana
+• Trello
+• HubSpot Service
+• Gainsight
+• Totango
+• Planilhas de renovação
+• Controle manual de contratos
+No ECOMIM tudo ficará integrado.
+Estrutura Geral
+Central de Clientes
+Cada cliente possui uma página exclusiva contendo:
+
+Página 2
+• Dados cadastrais
+• Empresa
+• Responsáveis
+• Contatos
+• Endereços
+• Segmento
+• Porte
+• Histórico completo
+• Contratos
+• Produtos contratados
+• Serviços ativos
+• Financeiro
+• Agenda
+• Projetos
+• Atendimento
+• Comercial
+• Comunicação
+• IA
+Perfil 360° do Cliente
+Visualização completa com as seguintes informações:
+• Empresa
+• CNPJ
+• Sócios
+• Contato principal
+• Filiais
+• Grupo econômico
+• Origem
+• Responsável comercial
+• CS responsável
+• Implantador
+• Status
+• Score
+• Saúde do cliente
+
+Página 3
+• Lifetime Value
+• Receita
+• Margem
+• Tempo de contrato
+• Renovações
+• Tickets
+• NPS
+• CSAT
+• Últimas interações
+
+Página 4
+Onboarding
+Fluxo completo com etapas configuráveis:
+• Venda
+• Assinatura contrato
+• Pagamento confirmado
+• Documentação
+• Kickoff
+• Configuração
+• Treinamento
+• Entrega
+• Go Live
+• Acompanhamento
+• Concluído
+Cada etapa gera: tarefas, notificações, prazos, checklist, documentos e responsáveis.
+Checklists podem ser templates por tipo de cliente, produto ou serviço, com itens
+obrigatórios e opcionais.
+Implantação
+Controle completo com status, equipe, cronograma, pendências, anexos, validações e
+aprovação.
+Gestão de Contratos
+• Cadastro
+• Versões
+• Renovações
+• Aditivos
+• Cancelamentos
+• Histórico
+• Assinatura eletrônica
+Produtos Contratados
+Cada cliente possui controle de produtos ativos e cancelados, licenças, planos, usuários,
+limites, consumo e recorrência.
+Assinaturas: mensal, trimestral, semestral, anual, vitalícia e personalizada.
+
+Página 5
+Renovações
+• Automáticas
+• Lembretes
+• Fluxos
+• Aprovação
+• Negociação
+• Histórico
+• IA sugere momento ideal
+
+Página 6
+Customer Success
+Gestão completa do CS com responsável, carteira, metas, clientes ativos, clientes críticos e
+clientes em risco.
+Health Score
+Pontuação automática recalculada continuamente pela IA. Exemplo de critérios:
+Critério
+Impacto
+Tempo sem acesso
+-20
+Sem interação
+-15
+Tickets abertos
+-10
+NPS alto
++15
+Pagamento em dia
++20
+Uso frequente
++30
+Renovou contrato
++40
+Churn
+Predição automática de probabilidade de cancelamento, com identificação de motivos,
+clientes em risco e planos de ação.
+Upsell
+A IA identifica oportunidades. Exemplo: cliente usa apenas CRM, então sugere Automações,
+Marketing, BI e IA.
+Cross Sell
+Baseado em perfil, segmento, uso, receita, histórico e objetivos.
+Outras Funcionalidades
+Agenda do Cliente
+• Reuniões
+• Treinamentos
+
+Página 7
+• Visitas
+• Follow-up
+• Renovações
+• Datas importantes
+Comunicação
+Histórico unificado: WhatsApp, Email, Telefone, SMS, Chat, Instagram, Facebook e Telegram.
+Projetos
+Projetos ativos, implantações, demandas, solicitações e cronogramas.
+Atendimento
+Tickets, SLA, avaliações, pendências e histórico.
+Financeiro
+Mensalidades, PIX, boletos, cartão, notas fiscais, pagamentos, inadimplência e
+parcelamentos.
+Documentos
+Contratos, aditivos, propostas, PDFs, planilhas, imagens, vídeos e assinaturas.
+Pesquisa de Satisfação
+NPS, CES, CSAT, pesquisas personalizadas e automáticas.
+
+Página 8
+Programa de Fidelidade
+• Tempo de contrato
+• Indicações
+• Bonificações
+• Descontos
+• Benefícios
+• Campanhas
+Indicações
+Cliente indica outro cliente com controle completo, comissões, bonificações, status e
+conversão.
+Comunidade
+Portal do cliente, central de ajuda, eventos, treinamentos, cursos, webinars e downloads.
+Portal do Cliente
+Área exclusiva para consultar contratos, abrir chamados, baixar boletos, atualizar cadastro,
+consultar projetos e agenda, assinar documentos, enviar arquivos e conversar com IA.
+IA para Customer Success
+Agentes especializados:
+• Agente Onboarding
+• Agente Renovação
+• Agente Retenção
+• Agente Relacionamento
+• Agente Financeiro
+• Agente Comercial
+• Agente Técnico
+• Agente Sucesso do Cliente
+A IA consegue: responder dúvidas, criar tarefas, agendar reuniões, analisar risco, prever
+cancelamento, sugerir upsell e cross-sell, gerar relatórios, criar planos de ação, enviar
+lembretes, resumir histórico e gerar insights.
+
+Página 9
+Dashboard e Relatórios
+Dashboards com: clientes ativos, clientes novos, clientes em risco, Health Score, MRR, ARR,
+LTV, churn, renovações, cancelamentos, NPS, CSAT, receita, produtos e carteiras.
+Relatórios disponíveis: clientes, CS, produtos, renovações, cancelamentos, churn, Health
+Score, receita, upsell, cross-sell, NPS e projetos.
+Banco de Dados
+Principais tabelas:
+Tabela
+Tabela
+Tabela
+clientes
+clientes_contatos
+contratos
+contratos_aditivos
+produtos_contratados
+assinaturas
+onboarding
+onboarding_etapas
+onboarding_checklists
+implantacoes
+health_scores
+churn_predictions
+customer_success
+renovacoes
+upsell_oportunidades
+cross_sell_oportunidades
+pesquisas_satisfacao
+fidelidade
+indicacoes
+clientes_documentos
+clientes_historico
+clientes_interacoes
+portal_clientes
+clientes_notificacoes
+
+Página 10
+APIs e Integrações
+APIs e integrações nativas:
+• CRM
+• Financeiro
+• Agenda
+• Projetos
+• WhatsApp
+• Email
+• Google Calendar
+• Microsoft 365
+• OpenAI
+• Claude
+• Gemini
+• Assinatura Eletrônica
+• ERP
+• Webhooks
+Permissões
+Perfis de acesso:
+• Administrador
+• Diretor
+• Gestor
+• Customer Success
+• Implantação
+• Financeiro
+• Comercial
+• Suporte
+• Cliente
+• Parceiro
+• Visualizador
+Segurança
+
+Página 11
+• LGPD
+• Criptografia
+• Logs
+• Auditoria
+• Controle de acesso
+• Versionamento
+• Backups
+• MFA
+Integração com outros módulos
+• CRM
+• IA
+• Comunicação
+• Agenda
+• Marketing
+• Atendimento
+• Financeiro
+• Projetos
+• BI
+• Documentos
+• Automações
+Diferenciais do ECOMIM
+• Perfil 360° do cliente reunindo informações comerciais, financeiras, operacionais e de
+relacionamento em uma única tela.
+• Health Score e previsão de churn alimentados por IA, permitindo ações preventivas.
+• Fluxos completos de onboarding e implantação com checklists, responsáveis e
+automações.
+• Portal do Cliente integrado ao ecossistema, oferecendo autoatendimento e
+transparência.
+• Identificação automática de oportunidades de upsell e cross-sell com base no
+comportamento do cliente.
+
+Página 12
+• Customer Success orientado por dados, com dashboards, alertas e planos de ação
+sugeridos por IA.
+• Integração nativa com CRM, Atendimento, Marketing, Financeiro, Agenda, Projetos e BI,
+garantindo continuidade do relacionamento desde o primeiro contato até a fidelização.
+Com essa etapa, o ECOMIM passa a gerenciar todo o ciclo de vida do cliente após a venda,
+transformando o pós-venda em um processo estratégico para retenção, crescimento da
+receita e fortalecimento do relacionamento.
