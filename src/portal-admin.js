@@ -55,10 +55,15 @@
         <div class="btn-group" style="margin-top:12px">
           <button class="btn btn-sm btn-primary" id="pt-cmd">Copiar comando</button>
           <button class="btn btn-sm" id="pt-retry">Tentar conectar novamente</button>
-          <a class="btn btn-sm btn-ghost" href="http://localhost:8080/" target="_blank">Abrir sistema no servidor</a>
+          <button class="btn btn-sm btn-success" id="pt-abrir-direto">Abrir portal mesmo assim</button>
         </div>`));
       const cmd = c.querySelector('#pt-cmd');
       if (cmd) cmd.addEventListener('click', () => { navigator.clipboard && navigator.clipboard.writeText('node server.js'); toastMsg('Comando copiado.', 'success'); });
+      const direto = c.querySelector('#pt-abrir-direto');
+      if (direto) direto.addEventListener('click', () => {
+        const janela = window.open('http://localhost:8080/agendamento', '_blank');
+        if (!janela) location.href = 'http://localhost:8080/agendamento';
+      });
     }
     const retry = c.querySelector('#pt-retry');
     if (retry) retry.addEventListener('click', () => render(c));
@@ -100,7 +105,7 @@
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <code style="background:var(--bg-soft,#f4f4f5);padding:6px 10px;border-radius:8px">${esc(link)}</code>
         <button class="btn btn-sm" id="pt-copiar">Copiar link</button>
-        <a class="btn btn-sm btn-ghost" href="${esc(link)}" target="_blank">Abrir portal</a>
+        <button class="btn btn-sm btn-success" id="pt-abrir">Abrir portal no navegador</button>
       </div>
       ${(st.links && st.links.rede && st.links.rede.length) ? `
       <p class="text-muted" style="font-size:12px;margin-top:10px">Compartilhar com clientes <b>na mesma rede</b> (Wi-Fi da empresa — celular acessa direto):</p>
@@ -112,6 +117,10 @@
       render(c);
     });
     cardTop.querySelector('#pt-copiar').addEventListener('click', () => { navigator.clipboard && navigator.clipboard.writeText(link); toastMsg('Link copiado.', 'success'); });
+    cardTop.querySelector('#pt-abrir').addEventListener('click', () => {
+      const janela = window.open(link, '_blank');
+      if (!janela) location.href = link; // bloqueador de pop-up: navega na própria aba
+    });
     cardTop.querySelectorAll('[data-rede]').forEach((b) => b.addEventListener('click', () => {
       navigator.clipboard && navigator.clipboard.writeText(b.dataset.rede);
       toastMsg('Link de rede copiado.', 'success');

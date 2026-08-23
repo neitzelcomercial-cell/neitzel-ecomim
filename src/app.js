@@ -293,145 +293,15 @@ function renderMain() {
   `);
   const content = el('main', 'ecomim-content', '');
   const main = el('div', 'ecomim-main', '', topbar, content);
-  iniciarFundoGraficos(main);
-  
-  // Adiciona balão flutuante de IA no canto inferior direito
-  const floatingAiButton = el('button', 'ecomim-ai-floating', `
-    <div class="ai-floating-icon">${ICONS.ai}</div>
-    <span class="ai-floating-tooltip">Precisa de ajuda?</span>
-  `);
-  floatingAiButton.title = 'Assistente Neitzel';
-  floatingAiButton.setAttribute('aria-label', 'Abrir assistente de IA');
-  floatingAiButton.addEventListener('click', () => toggleAiPanel());
-  
-  // Adiciona o balão ao main
-  main.appendChild(floatingAiButton);
-  
-  return main;
+  // Fundo discreto do sistema: particulas suaves + brilho diagonal raro (CSS puro)
+  const fundoSuave = el('div', 'fundo-suave', '<span class="fp f1"></span><span class="fp f2"></span><span class="fp f3"></span><span class="fp f4"></span><span class="fp f5"></span><span class="fs-brilho"></span>');
+  main.insertBefore(fundoSuave, main.firstChild);
 }
 
 /* ------------------------------------------------------------------ *
  * FUNDO ANIMADO DO SISTEMA — gráficos financeiros vivos (canvas)
  * Curvas de receita rolando, candles e barras — tema NEITZEL.
  * ------------------------------------------------------------------ */
-
-function iniciarFundoGraficos(container) {
-  try {
-    if (container.querySelector('.fundo-graficos')) return;
-    const cv = document.createElement('canvas');
-    cv.className = 'fundo-graficos';
-    cv.setAttribute('aria-hidden', 'true');
-    container.insertBefore(cv, container.firstChild);
-    const ctx = cv.getContext('2d');
-    const reduz = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    let W = 0, H = 0, dpr = 1, raf = 0, t0 = performance.now(), parado = false;
-
-    function cores() {
-      const claro = document.documentElement.getAttribute('data-theme') === 'light';
-      return {
-        verde: claro ? '22,140,90' : '62,207,142',
-        ouro: claro ? '170,130,30' : '212,175,55',
-        azul: claro ? '40,120,160' : '34,170,210',
-        base: claro ? .5 : 1
-      };
-    }
-
-    function resize() {
-      dpr = Math.min(2, window.devicePixelRatio || 1);
-      const r = container.getBoundingClientRect();
-      W = cv.width = Math.max(2, Math.round(r.width * dpr));
-      H = cv.height = Math.max(2, Math.round(r.height * dpr));
-      cv.style.width = r.width + 'px';
-      cv.style.height = r.height + 'px';
-    }
-
-    // séries pseudo-aleatórias estáveis (uma por curva/candles)
-    function serie(n, seed) {
-      let v = .45 + seed * .25, out = [];
-      for (let i = 0; i < n; i++) {
-        v += (Math.sin(i * .7 + seed * 9) * .035) + (Math.random() - .48) * .05;
-        v = Math.max(.12, Math.min(.92, v));
-        out.push(v);
-      }
-      return out;
-    }
-    const CURVA_A = serie(110, .4), CURVA_B = serie(130, -.6), CANDLES = serie(70, .9);
-
-    function desenhaCurva(pts, desloc, yTop, yAmp, rgb, alpha, preenche) {
-      const passo = (W * 1.6) / (pts.length - 1);
-      const offPx = (desloc % pts.length) * passo;
-      ctx.beginPath();
-      for (let i = 0; i < pts.length; i++) {
-        let idx = (i + Math.floor(desloc)) % pts.length;
-        const x = i * passo - offPx + (i === 0 ? offPx : 0); // rola suavemente
-        const xx = x;
-        const y = yTop + (1 - pts[idx]) * yAmp;
-        i ? ctx.lineTo(xx, y) : ctx.moveTo(xx, y);
-      }
-      ctx.strokeStyle = 'rgba(' + rgb + ',' + (alpha).toFixed(3) + ')';
-      ctx.lineWidth = 1.6 * dpr;
-      ctx.shadowColor = 'rgba(' + rgb + ',' + (.35 * alpha > .08 ? .08 : 0) + ')';
-      ctx.shadowBlur = 10 * dpr;
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-      if (preenche) {
-        ctx.lineTo(W + passo, H); ctx.lineTo(0, H); ctx.closePath();
-        const g = ctx.createLinearGradient(0, yTop, 0, yTop + yAmp);
-        g.addColorStop(0, 'rgba(' + rgb + ',' + (alpha * .35).toFixed(3) + ')');
-        g.addColorStop(1, 'rgba(' + rgb + ',0)');
-        ctx.fillStyle = g; ctx.fill();
-      }
-    }
-
-    function desenhaCandles(desloc) {
-      const c = cores();
-      const n = CANDLES.length, larg = W / 26, corpo = Math.max(3, larg * .42);
-      for (let i = 0; i < 26; i++) {
-        const idx = (i + Math.floor(desloc * .4)) % n;
-        const v = CANDLES[idx], vAnt = CANDLES[(idx + n - 1) % n];
-        const alta = v >= vAnt;
-        const x = ((i * larg) - (desloc * .4 * larg) % W + W) % W;
-        const yC = H * (.18 + (1 - v) * .3), corpoH = Math.max(4, Math.abs(v - vAnt) * H * .5 + 4);
-        const rgb = alta ? c.verde : '239,68,68';
-        ctx.fillStyle = 'rgba(' + rgb + ',' + (.16 * c.base).toFixed(3) + ')';
-        ctx.fillRect(x, yC, corpo, corpoH);
-        ctx.fillRect(x + corpo / 2 - .5 * dpr, yC - 8 * dpr, 1 * dpr, corpoH + 16 * dpr);
-      }
-    }
-
-    function desenhaBarras(tempo) {
-      const c = cores();
-      const n = 22, larg = W / n;
-      for (let i = 0; i < n; i++) {
-        const h = (0.05 + Math.abs(Math.sin(tempo * .0006 + i * .55)) * .12) * H;
-        const x = i * larg + larg * .18;
-        ctx.fillStyle = 'rgba(' + (i % 3 === 0 ? c.ouro : c.azul) + ',' + (.14 * c.base).toFixed(3) + ')';
-        ctx.fillRect(x, H - h, larg * .5, h);
-      }
-    }
-
-    function frame(agora) {
-      if (!cv.isConnected) return;
-      raf = requestAnimationFrame(frame);
-      if (parado || document.hidden) return;
-      const t = (agora - t0);
-      ctx.clearRect(0, 0, W, H);
-      const c = cores();
-      const desloc = t * .0035;
-      desenhaBarras(t);
-      desenhaCurva(CURVA_B, desloc * .62, H * .16, H * .34, c.ouro, .20 * c.base, false);
-      desenhaCurva(CURVA_A, desloc, H * .28, H * .46, c.verde, .30 * c.base, true);
-      desenhaCandles(desloc * .5);
-    }
-
-    resize();
-    window.addEventListener('resize', () => { resize(); });
-    document.addEventListener('visibilitychange', () => { parado = document.hidden; });
-    new ResizeObserver(() => resize()).observe(container);
-    if (reduz) { resize(); frame(performance.now()); cancelAnimationFrame(raf); parado = true; }
-    else raf = requestAnimationFrame(frame);
-  } catch (e) { /* fundo é cosmético: nunca quebrar o app */ }
-}
 
 /* ------------------------------------------------------------------ *
  * LOGIN
