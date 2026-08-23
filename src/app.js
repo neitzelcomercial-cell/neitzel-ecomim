@@ -296,12 +296,20 @@ function renderMain() {
   // Fundo discreto do sistema: particulas suaves + brilho diagonal raro (CSS puro)
   const fundoSuave = el('div', 'fundo-suave', '<span class="fp f1"></span><span class="fp f2"></span><span class="fp f3"></span><span class="fp f4"></span><span class="fp f5"></span><span class="fs-brilho"></span>');
   main.insertBefore(fundoSuave, main.firstChild);
-}
 
-/* ------------------------------------------------------------------ *
- * FUNDO ANIMADO DO SISTEMA — gráficos financeiros vivos (canvas)
- * Curvas de receita rolando, candles e barras — tema NEITZEL.
- * ------------------------------------------------------------------ */
+  // Balão flutuante de IA no canto inferior direito
+  const floatingAiButton = el('button', 'ecomim-ai-floating', `
+    <div class="ai-floating-icon">${ICONS.ai}</div>
+    <span class="ai-floating-tooltip">Precisa de ajuda?</span>
+  `);
+  floatingAiButton.title = 'Assistente Neitzel';
+  floatingAiButton.setAttribute('aria-label', 'Abrir assistente de IA');
+  floatingAiButton.addEventListener('click', () => toggleAiPanel());
+
+  main.appendChild(floatingAiButton);
+
+  return main;
+}
 
 /* ------------------------------------------------------------------ *
  * LOGIN

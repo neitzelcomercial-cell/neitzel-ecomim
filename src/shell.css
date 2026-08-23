@@ -454,3 +454,29 @@ canvas.fundo-graficos { position: absolute; inset: 0; z-index: 0; pointer-events
   #nz-splash .splash-card, #nz-splash .splash-logo-wrap, #nz-splash .splash-titulo span, #nz-splash .splash-frase,
   #nz-splash .splash-bar span, #nz-splash .splash-ring { animation: none !important; opacity: 1 !important; transform: none !important; }
 }
+
+/* Fundo discreto do sistema - particulas suaves + brilho raro (ramo beleza/servicos) */
+.fundo-suave { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+.fundo-suave .fp { position: absolute; bottom: -14px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, rgba(62,207,142,.5), rgba(62,207,142,.08) 70%);
+  opacity: .12; filter: blur(1px); will-change: transform; }
+.fundo-suave .f1 { left: 8%;  width: 9px;  height: 9px;  animation: nz-sobe 38s linear infinite; }
+.fundo-suave .f2 { left: 26%; width: 6px;  height: 6px;  animation: nz-sobe 52s linear 6s infinite;
+  background: radial-gradient(circle at 35% 30%, rgba(212,175,55,.55), rgba(212,175,55,.08) 70%); }
+.fundo-suave .f3 { left: 47%; width: 11px; height: 11px; animation: nz-sobe 46s linear 14s infinite; }
+.fundo-suave .f4 { left: 68%; width: 7px;  height: 7px;  animation: nz-sobe 58s linear 22s infinite;
+  background: radial-gradient(circle at 35% 30%, rgba(212,175,55,.5), rgba(212,175,55,.07) 70%); }
+.fundo-suave .f5 { left: 87%; width: 10px; height: 10px; animation: nz-sobe 44s linear 31s infinite; }
+@keyframes nz-sobe {
+  0%   { transform: translateY(0)        translateX(0)      ; opacity: 0; }
+  8%   { opacity: .12; }
+  50%  { transform: translateY(-48vh)    translateX(3vw);    opacity: .1; }
+  92%  { opacity: .06; }
+  100% { transform: translateY(-102vh)   translateX(-2vw);   opacity: 0; }
+}
+.fundo-suave .fs-brilho { position: absolute; top: -20%; left: -30%; width: 26%; height: 150%;
+  background: linear-gradient(105deg, transparent, rgba(255,255,255,.05) 45%, rgba(62,207,142,.06) 55%, transparent);
+  transform: rotate(12deg); filter: blur(6px); animation: nz-brilho 26s ease-in-out infinite; }
+@keyframes nz-brilho { 0%, 72% { left: -35%; } 100% { left: 115%; } }
+[data-theme="light"] .fundo-suave .fp { opacity: .18; }
+@media (prefers-reduced-motion: reduce) { .fundo-suave .fp, .fundo-suave .fs-brilho { animation: none; display: none; } }
