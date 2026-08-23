@@ -73,6 +73,18 @@
 
   /* ------------------------------ render ------------------------------ */
   async function render(c) {
+    try {
+      await renderInterno(c);
+    } catch (e) {
+      c.innerHTML = '';
+      c.appendChild(el('div', 'card', `
+        <h3>Não foi possível abrir o painel do Portal</h3>
+        <p class="text-muted" style="font-size:12.5px;font-family:monospace">${esc((e && e.message) || String(e))}</p>
+        <button class="btn btn-sm btn-primary" onclick="location.reload()">Recarregar página</button>`));
+    }
+  }
+
+  async function renderInterno(c) {
     c.innerHTML = '<div class="empty">Carregando portal…</div>';
     const st = await get('/api/admin/config');
     if (!st) { cardServidor(c); return; }
