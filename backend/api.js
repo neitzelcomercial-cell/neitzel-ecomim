@@ -63,6 +63,11 @@ function publicConfig(db) {
     permitirCancelar: !!c.permitirCancelarCliente, cancelarAteHoras: c.cancelarAteHoras,
     permitirRemarcar: !!c.permitirRemarcarCliente,
     mensagemFechado: c.mensagemFechado,
+    titulo: c.titulo || '',
+    subtitulo: c.subtitulo || '',
+    tema: c.tema || {},
+    logoDataUrl: c.logoDataUrl || '',
+    professionals: db.professionals.filter((p) => p.ativo !== false && p.status !== 'inativo').map((p) => ({ id: p.id, nome: p.nome })),
     schedule: db.schedule,
     specialHours: db.specialHours.map((s) => ({ date: s.date, periodos: s.periodos })),
     blockedDates: db.blockedDates.map((b) => b.date),
@@ -222,11 +227,102 @@ function cancelarTx(db, id, ultimos4) {
 }
 
 /* --------------------------------- ADMIN ---------------------------------- */
+// Autenticação admin: Bearer NEITZEL_ADMIN_TOKEN OU PIN curto (X-Admin-Pin)
+// para o modo ADM discreto embutido no Portal (padrão '00', configurável).
 function isAdmin(req, db) {
   const esperado = process.env.NEITZEL_ADMIN_TOKEN || '';
-  if (!esperado) return false;
+  const pin = process.env.NEITZEL_ADMIN_PIN || '00';
   const h = req.headers['authorization'] || '';
-  return h === 'Bearer ' + esperado;
+  const pinHeader = String(req.headers['x-admin-pin'] || '');
+  return (esperado && h === 'Bearer ' + esperado) || pinHeader === pin;
+}
+
+/** Publica o portal estático no GitHub Pages (agendamento.html + portal-config.json). */
+async function publicarPortal(db, opts) {
+  const fs = require('fs');
+  const path = require('path');
+  // Token: corpo da requisição, arquivo local ou env — nunca hardcode
+  let token = (opts && opts.github_token) || '';
+  const tokenFile = path.join(__dirname, '..', 'data', 'github-token.txt');
+  try {
+    if (!token && fs.existsSync(tokenFile)) token = fs.readFileSync(tokenFile, 'utf8').trim();
+    if (!token && process.env.GITHUB_TOKEN) token = process.env.GITHUB_TOKEN;
+    if ((opts && opts.github_token) && !fs.existsSync(tokenFile)) {
+      try { fs.writeFileSync(tokenFile, String(opts.github_token), 'utf8'); } catch (e) {}
+    }
+  } catch (e) {}
+  if (!token) return { ok: false, code: 'SEM_TOKEN_GITHUB' };
+
+  const owner = (opts && opts.owner) || process.env.GITHUB_OWNER || 'neitzelcomercial-cell';
+  const repo = (opts && opts.repo) || process.env.GITHUB_REPO || 'neitzel-ecomim';
+  const branch = (opts && opts.branch) || 'master';
+  const dirPath = (opts && opts.path) || 'portal';
+  const headers = {
+    'Authorization': 'Bearer ' + token,
+    'Accept': 'application/vnd.github+json',
+    'Content-Type': 'application/json',
+    'User-Agent': 'NEITZEL-Sistema'
+  };
+
+  async function putFile(path_, contentB64, mensagem) {
+    let sha = null;
+    try {
+      const r = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path_}?ref=${branch}`, { headers });
+      if (r.ok) sha = (await r.json()).sha;
+    } catch (e) {}
+    const r = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path_}`, {
+      method: 'PUT', headers,
+      body: JSON.stringify({ message: mensagem, content: contentB64, branch, sha })
+    });
+    if (!r.ok && r.status !== 422) throw new Error('GitHub ' + r.status + ' em ' + path_);
+    return true;
+  }
+
+  try {
+    // 1) Configuração viva do banco (fonte única de verdade)
+    const cfgPortal = {
+      geradoEm: new Date().toISOString(),
+      empresaNome: db.config.empresaNome,
+      segmento: db.config.segmento,
+      telefone: db.config.telefone,
+      instagram: db.config.instagram,
+      timezone: db.config.timezone,
+      slotMin: db.config.slotMin,
+      janelaDias: db.config.janelaDias,
+      holdTtlMinutos: db.config.holdTtlMinutos,
+      antecedenciaMinMinutos: db.config.antecedenciaMinMinutos,
+      permitirCancelarCliente: db.config.permitirCancelarCliente,
+      cancelarAteHoras: db.config.cancelarAteHoras,
+      portalAtivo: db.config.portalAtivo,
+      tema: db.config.tema || {},
+      logoDataUrl: db.config.logoDataUrl || '',
+      titulo: db.config.titulo || '',
+      subtitulo: db.config.subtitulo || '',
+      schedule: db.schedule,
+      specialHours: db.specialHours,
+      blockedDates: db.blockedDates.map((b) => b.date),
+      blockedTimes: db.blockedTimes,
+      services: db.services.filter((s) => s.status === 'ativo' && s.portalVisivel !== false),
+      products: db.products.filter((p) => p.status === 'ativo'),
+      professionals: db.professionals.filter((p) => p.ativo !== false),
+      apiUrl: (opts && opts.apiUrl) || ''
+    };
+    await putFile(dirPath + '/portal-config.json', Buffer.from(JSON.stringify(cfgPortal, null, 1)).toString('base64'), 'NEITZEL: publica configuracao do portal');
+    // 2) Página do portal (mesma servida localmente)
+    const htmlPath = path.join(__dirname, '..', 'agendamento.html');
+    if (fs.existsSync(htmlPath)) {
+      const html = fs.readFileSync(htmlPath, 'utf8');
+      await putFile(dirPath + '/index.html', Buffer.from(html).toString('base64'), 'NEITZEL: publica pagina do portal');
+    }
+    store.audit('admin.portal_publicado_github', { owner, repo, dirPath, branch });
+    return {
+      ok: true,
+      url: `https://${owner}.github.io/${repo}/${dirPath}/index.html`,
+      configUrl: `https://${owner}.github.io/${repo}/${dirPath}/portal-config.json`
+    };
+  } catch (e) {
+    return { ok: false, code: 'FALHA_PUBLICACAO', message: e.message };
+  }
 }
 
 const rotasAdmin = {
@@ -246,10 +342,12 @@ function adminMutacao(db, acao, body) {
     case 'put-config': {
       const c = db.config, b = body || {};
       const nums = ['slotMin', 'antecedenciaMinMinutos', 'janelaDias', 'holdTtlMinutos', 'capacidadePorSlot', 'cancelarAteHoras', 'intervaloPadraoMin'];
-      const strs = ['empresaNome', 'segmento', 'telefone', 'instagram', 'timezone', 'mensagemFechado'];
+      const strs = ['empresaNome', 'segmento', 'telefone', 'instagram', 'timezone', 'mensagemFechado', 'titulo', 'subtitulo'];
       strs.forEach((k) => { if (typeof b[k] === 'string') c[k] = b[k].slice(0, 120); });
       nums.forEach((k) => { if (b[k] !== undefined && Number.isFinite(Number(b[k])) && Number(b[k]) >= 0) c[k] = Number(b[k]); });
       ['portalAtivo', 'permitirCancelarCliente', 'permitirRemarcarCliente'].forEach((k) => { if (typeof b[k] === 'boolean') c[k] = b[k]; });
+      if (b.logoDataUrl === '' || (typeof b.logoDataUrl === 'string' && b.logoDataUrl.startsWith('data:image/') && b.logoDataUrl.length <= 400000)) c.logoDataUrl = b.logoDataUrl;
+      if (b.tema && typeof b.tema === 'object') c.tema = Object.assign({}, c.tema, { primaria: String(b.tema.primaria || '').slice(0, 20), fundo: String(b.tema.fundo || '').slice(0, 20), card: String(b.tema.card || '').slice(0, 20), texto: String(b.tema.texto || '').slice(0, 20) });
       store.audit('admin.config_atualizada', c);
       return { ok: true };
     }
@@ -307,6 +405,7 @@ function syncCatalogo(db, body) {
     status: p.status === 'inativo' ? 'inativo' : 'ativo'
   });
   if (Array.isArray(body.servicos)) db.services = body.servicos.map(normS);
+  if (Array.isArray(body.profissionais)) db.professionals = body.profissionais.slice(0, 30).map((pr) => ({ id: String(pr.id || uid('pf')), nome: String(pr.nome || '').slice(0, 80), status: pr.status === 'inativo' ? 'inativo' : 'ativo' }));
   if (Array.isArray(body.produtos)) db.products = body.produtos.map(normP);
   store.audit('admin.catalogo_sincronizado', { servicos: db.services.length, produtos: db.products.length });
   return { ok: true, servicos: db.services.length, produtos: db.products.length };
@@ -356,7 +455,7 @@ async function buscarWeb(q) {
   return val;
 }
 
-module.exports = { json, errJson, rateLimit, ctxAgora, publicConfig, servicoPublico, criarHold, confirmarTx, cancelarTx, isAdmin, rotasAdmin, adminMutacao, adminListaAdd, adminRemove, syncCatalogo, adminStatusTx, resumoPublico, buscarWeb, setCorsOrigin };
+module.exports = { json, errJson, rateLimit, ctxAgora, publicConfig, servicoPublico, criarHold, confirmarTx, cancelarTx, isAdmin, rotasAdmin, adminMutacao, adminListaAdd, adminRemove, syncCatalogo, adminStatusTx, resumoPublico, buscarWeb, setCorsOrigin, publicarPortal };
 
 
 

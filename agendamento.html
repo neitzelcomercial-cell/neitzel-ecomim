@@ -4,152 +4,243 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Agendamento Online</title>
-<!-- Producao: aponte para a API publica (ex.: https://seu-backend.onrender.com) -->
-<meta name="neitzel-api-url" content="">
+<!-- Producao (GitHub Pages): a configuracao vem de portal-config.json publicado pelo Sistema NEITZEL -->
 <style>
-  :root { --bg:#0e0f13; --card:#171923; --borda:#262a38; --texto:#e8eaf2; --mut:#9aa0b4;
-          --ouro:#d4af37; --verde:#22c55e; --verm:#ef4444; }
+  :root { --prim:#d4af37; --fundo:#0e0f13; --card:#171923; --borda:#262a38; --texto:#e8eaf2; --mut:#9aa0b4; }
   * { box-sizing:border-box; margin:0; padding:0; }
-  body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:var(--texto); min-height:100vh; }
-  .wrap { max-width:560px; margin:0 auto; padding:20px 16px 60px; }
-  header { text-align:center; padding:28px 0 18px; }
-  .logo { width:54px;height:54px;border-radius:14px;background:linear-gradient(135deg,var(--ouro),#8a6d1d);
-          display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:24px;color:#111; }
-  h1 { font-size:22px; margin-top:12px; letter-spacing:.5px; }
-  .sub { color:var(--mut); font-size:13px; margin-top:4px; }
-  .etapa-num { color:var(--ouro); font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase; }
+  body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--fundo); color:var(--texto); min-height:100vh; }
+  .wrap { max-width:560px; margin:0 auto; padding:18px 16px 70px; }
+  header { text-align:center; padding:22px 0 14px; position:relative; }
+  .logo-wrap { width:64px;height:64px;margin:0 auto;border-radius:16px;background:linear-gradient(135deg,var(--prim),#8a6d1d);
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:28px;color:#111;
+    overflow:hidden; user-select:none; cursor:default; box-shadow:0 8px 26px rgba(0,0,0,.4); }
+  .logo-wrap img { width:100%; height:100%; object-fit:cover; }
+  h1 { font-size:21px; margin-top:10px; letter-spacing:.4px; }
+  .sub { color:var(--mut); font-size:13px; margin-top:3px; }
+
+  /* Carregamento inicial */
+  #loading { position:fixed; inset:0; z-index:500; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:radial-gradient(ellipse at center, rgba(14,15,19,.94), rgba(8,9,13,.98)); gap:18px; transition:opacity .5s ease; }
+  #loading.saindo { opacity:0; pointer-events:none; }
+  #loading .lg-logo { width:84px;height:84px;border-radius:22px;background:linear-gradient(135deg,var(--prim),#8a6d1d);
+    display:flex;align-items:center;justify-content:center;font-weight:900;font-size:38px;color:#111;
+    animation:pulsa 1.15s ease-in-out infinite; box-shadow:0 14px 44px rgba(212,175,55,.25); overflow:hidden; }
+  #loading .lg-logo img { width:100%; height:100%; object-fit:cover; animation:none; }
+  @keyframes pulsa { 0%,100%{ transform:scale(1);} 50%{ transform:scale(1.09);} }
+  #loading .lg-txt { color:var(--mut); font-size:13.5px; letter-spacing:.06em; }
+  #loading .lg-bar { width:170px; height:3px; border-radius:99px; background:rgba(255,255,255,.08); overflow:hidden; }
+  #loading .lg-bar span { display:block; height:100%; border-radius:inherit;
+    background:linear-gradient(90deg,transparent,var(--prim),transparent); background-size:200% 100%;
+    animation:corre 1.1s linear infinite; }
+  @keyframes corre { from{ background-position:180% 0;} to{ background-position:-80% 0;} }
+
+  .etapa-num { color:var(--prim); font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase; }
   .card { background:var(--card); border:1px solid var(--borda); border-radius:14px; padding:18px; margin-top:14px; }
   .oculto { display:none !important; }
   button { cursor:pointer; font-family:inherit; }
   .btn-voltar { background:none; border:none; color:var(--mut); font-size:13px; padding:10px 0 0; }
   .btn-voltar:hover { color:var(--texto); }
   .opcao { display:flex; justify-content:space-between; align-items:center; gap:10px; width:100%;
-           background:#1d2030; border:1px solid var(--borda); color:var(--texto); border-radius:12px;
-           padding:14px; margin-top:10px; text-align:left; transition:border-color .15s, transform .05s; }
-  .opcao:hover { border-color:var(--ouro); } .opcao:active { transform:scale(.99); }
-  .opcao b { font-size:15px; } .opcao .preco { color:var(--ouro); font-weight:700; white-space:nowrap; }
+    background:#1d2030; border:1px solid var(--borda); color:var(--texto); border-radius:12px;
+    padding:14px; margin-top:10px; text-align:left; transition:border-color .15s, transform .05s; }
+  .opcao:hover { border-color:var(--prim); } .opcao:active { transform:scale(.99); }
+  .opcao b { font-size:15px; } .opcao .preco { color:var(--prim); font-weight:700; white-space:nowrap; }
   .opcao small { color:var(--mut); display:block; margin-top:2px; font-size:12px; }
   .chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
-  .chip { background:#1d2030; border:1px solid var(--borda); color:var(--texto); border-radius:999px;
-          padding:9px 13px; font-size:13px; }
-  .chip.sel { border-color:var(--ouro); color:var(--ouro); font-weight:700; }
+  .chip { background:#1d2030; border:1px solid var(--borda); color:var(--texto); border-radius:999px; padding:9px 13px; font-size:13px; }
+  .chip.sel { border-color:var(--prim); color:var(--prim); font-weight:700; }
   .chip:disabled { opacity:.32; text-decoration:line-through; cursor:not-allowed; }
   .slot { min-width:74px; text-align:center; }
   input, textarea { width:100%; background:#1d2030; border:1px solid var(--borda); color:var(--texto);
-                    border-radius:10px; padding:12px; font-size:14px; margin-top:8px; font-family:inherit; }
-  input:focus, textarea:focus { outline:none; border-color:var(--ouro); }
+    border-radius:10px; padding:12px; font-size:14px; margin-top:8px; font-family:inherit; }
+  input:focus, textarea:focus { outline:none; border-color:var(--prim); }
   label { font-size:12px; color:var(--mut); display:block; margin-top:12px; }
-  .avancar { width:100%; background:var(--ouro); border:none; color:#111; font-weight:800;
-             font-size:15px; border-radius:12px; padding:15px; margin-top:18px; }
+  .avancar { width:100%; background:var(--prim); border:none; color:#111; font-weight:800;
+    font-size:15px; border-radius:12px; padding:15px; margin-top:18px; }
   .avancar:disabled { opacity:.4; cursor:not-allowed; }
-  .revisao div { display:flex; justify-content:space-between; gap:10px; padding:7px 0;
-                 border-bottom:1px dashed var(--borda); font-size:14px; }
+  .revisao div { display:flex; justify-content:space-between; gap:10px; padding:7px 0; border-bottom:1px dashed var(--borda); font-size:14px; }
   .revisao span:first-child { color:var(--mut); }
   .ok-icone { width:64px;height:64px;border-radius:50%;background:rgba(34,197,94,.12);
-              border:2px solid var(--verde); display:flex;align-items:center;justify-content:center;
-              margin:0 auto 14px; font-size:30px; }
-  .erro-box { background:rgba(239,68,68,.1); border:1px solid rgba(239,68,68,.45); color:#fca5a5;
-              border-radius:10px; padding:11px 13px; font-size:13px; margin-top:12px; display:none; }
+    border:2px solid #22c55e; display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:30px; }
+  .erro-box, .erro-box-visivel { background:rgba(239,68,68,.1); border:1px solid rgba(239,68,68,.45); color:#fca5a5;
+    border-radius:10px; padding:11px 13px; font-size:13px; margin-top:12px; display:none; }
   .carregando { text-align:center; color:var(--mut); padding:40px 0; font-size:13px; }
 </style>
 </head>
 <body>
+
+<div id="loading">
+  <div class="lg-logo" id="lg-logo">N</div>
+  <div class="lg-txt" id="lg-txt">Carregando agenda real…</div>
+  <div class="lg-bar"><span></span></div>
+</div>
+
 <div class="wrap">
   <header>
-    <div class="logo">N</div>
+    <div class="logo-wrap" id="hdr-logo" title="NEITZEL">N</div>
     <h1 id="titulo">Agendamento Online</h1>
     <div class="sub" id="subtitulo">Reserve seu horário em segundos</div>
   </header>
 
-  <div id="fechado" class="card oculto">
-    <p style="font-size:14px" id="msg-fechado">Agendamentos indisponíveis no momento.</p>
-    <p style="color:var(--mut);font-size:13px;margin-top:8px" id="contato-fechado"></p>
-  </div>
-
   <main id="fluxo"></main>
   <button class="btn-voltar oculto" id="voltar">← Voltar</button>
 </div>
-<script>
-/* NEITZEL — Portal Público do Cliente. Dados SEMPRE do backend (/api/public/*).
-   Nenhum horário/serviço/preço é definido aqui. */
-'use strict';
-const API = (typeof window.NEITZEL_API_BASE === 'string' ? window.NEITZEL_API_BASE : '');
-const S = { etapa: 1, servico: null, date: null, time: null, produtos: [], obs: '', cliente: {}, holdId: null };
-const fmtBRL = (c) => (Number(c || 0) / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-const hhmm = (m) => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
-const DIAS = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
-const MESES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
-const $ = (s) => document.querySelector(s);
-const fluxo = $('#fluxo');
-let CFG = null;
 
-async function api(rota, metodo, body) {
-  const r = await fetch(API + rota, { method: metodo || 'GET', headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
-  let j = null; try { j = await r.json(); } catch (e) {}
-  return { status: r.status, json: j || {} };
+<script>
+/* NEITZEL — Portal do Cliente v2
+ * - Aberto pelo backend (local/rede): tudo em TEMPO REAL (agenda verdadeira)
+ * - Aberto pelo LINK DO GITHUB: identidade/servicos vem de portal-config.json
+ *   publicado pelo sistema; agendamento usa a API configurada no modo ADM
+ *   (se a API estiver fora, oferece WhatsApp — nunca falso sucesso). */
+'use strict';
+const S = { etapa:1, servico:null, profissional:null, date:null, time:null, produtos:[], obs:'', cliente:{}, holdId:null };
+const $ = (s)=>document.querySelector(s);
+const fluxo = $('#fluxo');
+let CFG = null;          // config (live ou publicada)
+let API = '';            // base da API (vazio = mesma origem)
+let REMOTO = false;      // rodando no GitHub Pages?
+
+const fmtBRL = (c)=>(Number(c||0)/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const hhmm  = (m)=>String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
+const DIAS  = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+const MESES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+
+async function api(rota, metodo, body, extraHeaders) {
+  const r = await fetch(API + rota, {
+    method: metodo || 'GET',
+    headers: Object.assign({ 'Content-Type':'application/json' }, extraHeaders || {}),
+    body: body ? JSON.stringify(body) : undefined
+  });
+  let j = null; try { j = await r.json(); } catch(e){}
+  return { status:r.status, json:j||{} };
 }
 
-(async function iniciar() {
-  fluxo.innerHTML = '<div class="carregando">Carregando…</div>';
-  const r = await api('/api/public/config');
-  if (!r.json.ok) { fluxo.innerHTML = '<div class="card erro-box" style="display:block">Sistema indisponível. Tente novamente em instantes.</div>'; return; }
-  CFG = r.json;
-  $('#titulo').textContent = CFG.empresaNome || 'Agendamento Online';
-  $('#subtitulo').textContent = (CFG.segmento ? CFG.segmento + ' · ' : '') + 'Reserve seu horário em segundos';
-  if (!CFG.ativo) {
-    $('#fechado').classList.remove('oculto');
-    $('#msg-fechado').textContent = CFG.mensagemFechado || 'Agendamentos indisponíveis no momento.';
-    if (CFG.telefone) $('#contato-fechado').textContent = 'Fale conosco: ' + CFG.telefone;
-    fluxo.innerHTML = '';
-    return;
+function aplicarIdentidade() {
+  if (!CFG) return;
+  const t = CFG.tema || {};
+  if (t.primaria) document.documentElement.style.setProperty('--prim', t.primaria);
+  if (t.fundo)    document.documentElement.style.setProperty('--fundo', t.fundo);
+  if (t.card)     document.documentElement.style.setProperty('--card', t.card);
+  if (t.texto)    document.documentElement.style.setProperty('--texto', t.texto);
+  $('#titulo').textContent    = CFG.titulo || CFG.empresaNome || 'Agendamento Online';
+  $('#subtitulo').textContent = CFG.subtitulo || (CFG.segmento ? CFG.segmento+' · Reserve em segundos' : 'Reserve seu horário em segundos');
+  const logoEl = $('#hdr-logo'), lgLogo = $('#lg-logo');
+  if (CFG.logoDataUrl) {
+    logoEl.innerHTML = '<img src="'+CFG.logoDataUrl+'" alt="logo">';
+    lgLogo.innerHTML = '<img src="'+CFG.logoDataUrl+'" alt="logo">';
+  } else {
+    const inicial = (CFG.empresaNome||'N').trim().charAt(0).toUpperCase();
+    logoEl.textContent = inicial; lgLogo.textContent = inicial;
   }
-  etapaServico();
+}
+/* ------------------------- boot: carregando -> real ---------------------- */
+(async function iniciar() {
+  REMOTO = /github\.io$/.test(location.hostname) || location.protocol === 'https:' && /github/.test(location.hostname);
+  const t0 = Date.now();
+
+  // 1) Config: live (backend) ou publicada (GitHub Pages)
+  if (!REMOTO) {
+    try { const r = await api('/api/public/config'); if (r.json.ok && r.json.ativo !== false) CFG = r.json; } catch(e){}
+    if (CFG) API = '';
+  }
+  if (!CFG) {
+    try {
+      const r = await fetch('portal-config.json', { cache:'no-store' });
+      if (r.ok) { CFG = await r.json(); }
+      if (CFG && CFG.apiUrl) { window.NEITZEL_API_BASE = CFG.apiUrl.replace(/\/+$/,''); }
+    } catch(e){}
+  }
+
+  // 2) Valida que a agenda responde de verdade antes de mostrar slots
+  let agendaViva = false;
+  if (CFG) {
+    API = (window.NEITZEL_API_BASE || '');
+    try {
+      const r = await api('/api/public/config');
+      if (r.json.ok) { agendaViva = true; CFG = Object.assign({}, CFG, r.json); aplicarIdentidade(); }
+      else if (r.status === 200) { agendaViva = true; }
+    } catch(e){}
+  }
+
+  // 3) Efeito minimo de carregamento + saida
+  const espera = Math.max(0, 1400 - (Date.now()-t0));
+  setTimeout(() => {
+    const lg = $('#loading');
+    lg.classList.add('saindo'); setTimeout(()=>lg.remove(), 550);
+    if (!CFG) {
+      fluxo.innerHTML = '<div class="card erro-box-visivel"><p style="font-size:14px">Portal temporariamente indisponível.</p><p style="color:var(--mut);font-size:13px;margin-top:8px">Tente novamente em instantes.</p></div>';
+      return;
+    }
+    aplicarIdentidade();
+    if (!agendaViva && CFG.telefone) {
+      fluxo.innerHTML = '<div class="card"><h2 style="font-size:16px;margin-bottom:8px">Agendamento online fora do ar agora</h2>'+
+        '<p style="color:var(--mut);font-size:13px;line-height:1.6">O estúdio não está conectado neste momento.<br>Você pode agendar direto pelo WhatsApp:</p>'+
+        '<a class="avancar" style="display:block;text-align:center;text-decoration:none;margin-top:14px" href="https://wa.me/55'+String(CFG.telefone).replace(/\D/g,'')+'?text='+encodeURIComponent('Olá! Quero agendar um horário.')+'" target="_blank">Agendar pelo WhatsApp</a></div>';
+      return;
+    }
+    if (CFG.portalAtivo === false) {
+      fluxo.innerHTML = '<div class="card"><p style="font-size:14px">'+(CFG.mensagemFechado||'Agendamentos indisponíveis no momento.')+'</p></div>';
+      return;
+    }
+    etapaServico();
+  }, espera);
+
+  // Atualizacao ao vivo (somente com API)
+  if (agendaViva) { try { ligarSSE(); } catch(e){} }
 })();
 
-function irPara(n) { S.etapa = n; ({1:etapaServico,2:etapaData,3:etapaHorario,4:etapaProdutos,5:etapaObs,6:etapaDados,7:etapaRevisao})[n]();
-  $('#voltar').classList.toggle('oculto', n === 1); }
-$('#voltar').addEventListener('click', () => irPara(Math.max(1, S.etapa - 1)));
-
-function cabecalho(txt) { return `<div class="etapa-num">Passo ${S.etapa} de 7</div><h2 style="font-size:17px;margin-top:6px">${txt}</h2>`; }
-function mostrarErro(msg) {
-  const e = document.querySelector('.erro-box') || Object.assign(document.createElement('div'), { className: 'erro-box' });
-  e.textContent = msg; e.style.display = 'block'; fluxo.firstElementChild && fluxo.firstElementChild.appendChild(e);
+let esRef = null;
+function ligarSSE() {
+  if (esRef) return;
+  esRef = new EventSource(API + '/api/events');
+  esRef.addEventListener('changed', () => { /* slots reagem na etapa 3 */ });
 }
-/* 1 — SERVIÇO */
+
+function irPara(n) { S.etapa = n; ({1:etapaServico,2:etapaData,3:etapaHorario,4:etapaProfissional,5:etapaProdutos,6:etapaObs,7:etapaDados,8:etapaRevisao})[n]();
+  $('#voltar').classList.toggle('oculto', n===1); }
+$('#voltar').addEventListener('click', () => irPara(Math.max(1, S.etapa-1)));
+
+function cabecalho(txt, total) { return `<div class="etapa-num">Passo ${S.etapa} de ${total||8}</div><h2 style="font-size:17px;margin-top:6px">${txt}</h2>`; }
+function mostrarErro(msg) {
+  const box = fluxo.querySelector('.erro-box') || fluxo.querySelector('.erro-box-visivel');
+  if (box) { box.textContent = msg; box.style.display='block'; }
+}
+/* 1 - SERVICO */
 function etapaServico() {
+  const lista = CFG.services || [];
+  if (!lista.length) { fluxo.innerHTML = '<div class="card"><p style="font-size:14px">Nenhum serviço disponível no momento.</p></div>'; return; }
   fluxo.innerHTML = cabecalho('Escolha o serviço') + '<div class="card">' +
-    CFG.services.map((s) => `<button class="opcao" data-s="${s.id}">
-      <span><b>${s.nome}</b>${s.duracaoMin ? `<small>${s.duracaoMin} min</small>` : ''}${s.descricao ? `<small>${s.descricao}</small>` : ''}</span>
-      <span class="preco">${s.precoCentavos ? fmtBRL(s.precoCentavos) : ''}</span></button>`).join('') + '</div>';
-  fluxo.querySelectorAll('[data-s]').forEach((b) => b.addEventListener('click', () => {
-    S.servico = CFG.services.find((x) => x.id === b.dataset.s); irPara(2);
+    lista.map((s)=>`<button class="opcao" data-s="${s.id}">
+      <span><b>${s.nome}</b>${s.duracaoMin?`<small>${s.duracaoMin} min</small>`:''}${s.descricao?`<small>${s.descricao}</small>`:''}</span>
+      <span class="preco">${s.precoCentavos?fmtBRL(s.precoCentavos):''}</span></button>`).join('') + '</div>';
+  fluxo.querySelectorAll('[data-s]').forEach((b)=>b.addEventListener('click',()=>{
+    S.servico = lista.find((x)=>x.id===b.dataset.s); irPara(2);
   }));
 }
 
-/* 2 — DATA */
+/* 2 - DATA */
 function etapaData() {
   const hoje = new Date();
   let html = cabecalho('Escolha o dia') + '<div class="card"><div class="chips">';
-  const janela = Math.min(30, CFG.janelaDias || 30);
-  const bloqueados = new Set(CFG.blockedDates || []);
-  for (let i = 0; i < janela; i++) {
-    const d = new Date(hoje); d.setDate(d.getDate() + i);
-    const p = (n) => String(n).padStart(2, '0');
-    const ymd = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
-    const esp = (CFG.specialHours || []).find((x) => x.date === ymd);
-    const regra = esp ? esp.periodos : ((CFG.schedule || {})[d.getDay()] || []);
-    const fechado = bloqueados.has(ymd) || !regra.length;
-    html += `<button class="chip" data-d="${ymd}" ${fechado ? 'disabled' : ''}>
-      ${DIAS[d.getDay()].slice(0,3)} ${d.getDate()}<br><small style="font-weight:400">${MESES[d.getMonth()]}</small></button>`;
+  const janela = Math.min(30, CFG.janelaDias||30);
+  const bloqueados = new Set(CFG.blockedDates||[]);
+  for (let i=0;i<janela;i++) {
+    const d = new Date(hoje); d.setDate(d.getDate()+i);
+    const p = (n)=>String(n).padStart(2,'0');
+    const ymd = d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
+    const esp = (CFG.specialHours||[]).find((x)=>x.date===ymd);
+    const regra = esp?esp.periodos:((CFG.schedule||{})[d.getDay()]||[]);
+    const fechado = bloqueados.has(ymd)||!regra.length;
+    html += `<button class="chip" data-d="${ymd}" ${fechado?'disabled':''}>${DIAS[d.getDay()].slice(0,3)} ${d.getDate()}<br><small style="font-weight:400">${MESES[d.getMonth()]}</small></button>`;
   }
   fluxo.innerHTML = html + '</div></div>';
-  fluxo.querySelectorAll('[data-d]:not(:disabled)').forEach((b) => b.addEventListener('click', () => { S.date = b.dataset.d; irPara(3); }));
+  fluxo.querySelectorAll('[data-d]:not(:disabled)').forEach((b)=>b.addEventListener('click',()=>{ S.date=b.dataset.d; irPara(3); }));
 }
-/* 3 — HORÁRIO (somente slots reais; atualiza ao vivo via SSE) */
+/* 3 - HORARIO (slots reais do backend; ao vivo via SSE) */
 async function etapaHorario() {
-  fluxo.innerHTML = cabecalho('Escolha o horário') + '<div class="card carregando">Buscando horários…</div>';
-  const [y, m, d] = S.date.split('-').map(Number);
-  const rotulo = `${DIAS[new Date(y, m - 1, d).getDay()]}, ${d} de ${MESES[m - 1]}`;
+  fluxo.innerHTML = cabecalho('Escolha o horário') + '<div class="card carregando">Consultando agenda real…</div>';
+  const [y,m,d] = S.date.split('-').map(Number);
+  const rotulo = `${DIAS[new Date(y,m-1,d).getDay()]}, ${d} de ${MESES[m-1]}`;
   async function buscar() {
     const r = await api(`/api/public/availability?serviceId=${encodeURIComponent(S.servico.id)}&date=${S.date}`);
     return r.json;
@@ -157,142 +248,463 @@ async function etapaHorario() {
   const disp = await buscar();
   if (!disp.slots || !disp.slots.length) {
     fluxo.innerHTML = cabecalho('Escolha o horário') + `<div class="card"><p style="font-size:14px">${rotulo}</p>
-      <p class="carregando" style="padding:16px 0">${disp.motivo === 'bloqueado' ? 'Dia fechado.' : 'Nenhum horário disponível neste dia.'}</p></div>`;
+      <p class="carregando" style="padding:16px 0">${disp.motivo==='bloqueado'?'Dia fechado.':'Nenhum horário disponível neste dia.'}</p></div>`;
     return;
   }
   fluxo.innerHTML = cabecalho('Escolha o horário') + `<div class="card"><p style="color:var(--mut);font-size:13px">${rotulo}</p><div class="chips" data-slots>` +
-    disp.slots.map((s) => `<button class="chip slot" data-t="${s.start}">${hhmm(s.start)}</button>`).join('') +
+    disp.slots.map((s)=>`<button class="chip slot" data-t="${s.start}">${hhmm(s.start)}</button>`).join('') +
     '</div><div class="erro-box"></div></div>';
   try {
-    const es = new EventSource(API + '/api/events');
-    es.addEventListener('changed', async (ev) => {
-      let p = {}; try { p = JSON.parse(ev.data); } catch (e) {}
-      if (!['hold', 'appointment', 'cancel', 'release', 'purge'].includes(p.tipo)) return;
+    if (!esRef && !REMOTO) { esRef = new EventSource(API+'/api/events'); }
+    if (esRef) esRef.addEventListener('changed', async ()=>{
       const nova = await buscar();
-      fluxo.querySelectorAll('[data-slots] .chip').forEach((c) => {
+      fluxo.querySelectorAll('[data-slots] .chip').forEach((c)=>{
         const t = Number(c.dataset.t);
-        c.disabled = !(nova.slots || []).some((s) => s.start === t) && t !== S.time;
+        c.disabled = !(nova.slots||[]).some((s)=>s.start===t) && t!==S.time;
       });
     });
-  } catch (e) { /* SSE indisponível */ }
-  fluxo.querySelectorAll('[data-t]').forEach((b) => b.addEventListener('click', async () => {
+  } catch(e){}
+  fluxo.querySelectorAll('[data-t]').forEach((b)=>b.addEventListener('click', async ()=>{
     b.disabled = true;
-    const hr = await api('/api/public/holds', 'POST', { serviceId: S.servico.id, date: S.date, time: Number(b.dataset.t), ttlMinutos: 5 });
+    const hr = await api('/api/public/holds','POST',{ serviceId:S.servico.id, date:S.date, time:Number(b.dataset.t), ttlMinutos:CFG.holdTtlMinutos||5 });
     if (hr.json.ok) {
-      fluxo.querySelectorAll('.chip').forEach((c) => c.classList.remove('sel'));
-      b.classList.add('sel'); S.time = Number(b.dataset.t); S.holdId = hr.json.hold.id;
-      irPara(4);
+      fluxo.querySelectorAll('.chip').forEach((c)=>c.classList.remove('sel'));
+      b.classList.add('sel'); S.time=Number(b.dataset.t); S.holdId=hr.json.hold.id;
+      irPara((CFG.professionals&&CFG.professionals.length)?4:5);
     } else {
-      mostrarErro(hr.json.code === 'OCUPADO' ? 'Este horário acabou de ser reservado por outra pessoa. Escolha outro.' : 'Não foi possível reservar. Tente outro horário.');
+      mostrarErro(hr.json.code==='OCUPADO' ? 'Este horário acabou de ser reservado por outra pessoa. Escolha outro.' : 'Não foi possível reservar. Tente outro horário.');
       b.disabled = true;
     }
   }));
 }
-/* 4 — PRODUTOS (opcional) */
-function etapaProdutos() {
-  if (!CFG.products || !CFG.products.length) return irPara(5);
-  fluxo.innerHTML = cabecalho('Algum produto?') + '<div class="card">' +
-    CFG.products.map((p) => `<button class="opcao" data-p="${p.id}">
-      <span><b>${p.nome}</b></span><span class="preco">${fmtBRL(p.precoCentavos)}</span></button>`).join('') +
-    '<button class="avancar" id="sem-produtos">Não preciso de produtos</button></div>';
-  fluxo.querySelectorAll('[data-p]').forEach((b) => b.addEventListener('click', () => {
-    const p = CFG.products.find((x) => x.id === b.dataset.p);
-    if (!S.produtos.some((x) => x.id === p.id)) S.produtos.push(p);
+
+/* 4 - PROFISSIONAL (se existir) */
+function etapaProfissional() {
+  const profs = [{ id:'', nome:'Sem preferência' }].concat(CFG.professionals||[]);
+  fluxo.innerHTML = cabecalho('Com qual profissional?') + '<div class="card">' +
+    profs.map((p)=>`<button class="opcao" data-pf="${p.id}"><span><b>${p.nome}</b></span></button>`).join('') + '</div>';
+  fluxo.querySelectorAll('[data-pf]').forEach((b)=>b.addEventListener('click',()=>{
+    S.profissional = b.dataset.pf || null;
     irPara(5);
   }));
-  $('#sem-produtos').addEventListener('click', () => irPara(5));
+}
+/* 5 - PRODUTOS (opcional) */
+function etapaProdutos() {
+  if (!CFG.products || !CFG.products.length) return irPara(6);
+  fluxo.innerHTML = cabecalho('Algum produto?') + '<div class="card">' +
+    CFG.products.map((p)=>`<button class="opcao" data-p="${p.id}"><span><b>${p.nome}</b></span><span class="preco">${fmtBRL(p.precoCentavos)}</span></button>`).join('') +
+    '<button class="avancar" id="sem-produtos">Não preciso de produtos</button></div>';
+  fluxo.querySelectorAll('[data-p]').forEach((b)=>b.addEventListener('click',()=>{
+    const p = CFG.products.find((x)=>x.id===b.dataset.p);
+    if (!S.produtos.some((x)=>x.id===p.id)) S.produtos.push(p);
+    irPara(6);
+  }));
+  $('#sem-produtos').addEventListener('click', ()=>irPara(6));
 }
 
-/* 5 — OBSERVAÇÃO */
+/* 6 - OBSERVACAO */
 function etapaObs() {
   fluxo.innerHTML = cabecalho('Alguma observação?') + `<div class="card">
     <textarea rows="3" data-obs placeholder="Ex.: gostaria de atendimento específico… (opcional)"></textarea>
     <button class="avancar" id="av">Continuar</button></div>`;
-  $('#av').addEventListener('click', () => { S.obs = $('[data-obs]').value.trim().slice(0, 500); irPara(6); });
+  $('#av').addEventListener('click', ()=>{ S.obs = $('[data-obs]').value.trim().slice(0,500); irPara(7); });
 }
-/* 6 — DADOS DO CLIENTE */
+/* 7 - DADOS DO CLIENTE (nome + WhatsApp OBRIGATORIOS) */
 function etapaDados() {
   fluxo.innerHTML = cabecalho('Seus dados') + `<div class="card">
-    <label>Nome completo *</label><input data-nome autocomplete="name">
-    <label>WhatsApp *</label><input data-tel inputmode="tel" autocomplete="tel" placeholder="(51) 99999-9999">
+    <label>Nome completo *</label><input data-nome autocomplete="name" placeholder="Seu nome">
+    <label>WhatsApp * </label><input data-tel inputmode="tel" autocomplete="tel" placeholder="(51) 99999-9999">
     <label>E-mail (opcional)</label><input data-email type="email" autocomplete="email">
     <div class="erro-box"></div>
     <button class="avancar" id="av">Revisar agendamento</button></div>`;
-  $('#av').addEventListener('click', () => {
+  $('#av').addEventListener('click', ()=>{
     const nome = $('[data-nome]').value.trim();
-    const tel = $('[data-tel]').value.replace(/\D/g, '');
-    const email = $('[data-email]').value.trim();
-    const erro = nome.length < 2 ? 'Informe seu nome.' : (tel.length < 10 ? 'WhatsApp inválido — inclua o DDD.' : '');
+    const tel  = $('[data-tel]').value.replace(/\D/g,'');
+    const email= $('[data-email]').value.trim();
+    let erro = null;
+    if (nome.length < 2) erro = 'O nome é obrigatório.';
+    else if (tel.length < 10 || tel.length > 11) erro = 'WhatsApp inválido — informe DDD + número (10 ou 11 dígitos).';
     if (erro) { mostrarErro(erro); return; }
-    S.cliente = { nome, telefone: tel, email }; irPara(7);
+    S.cliente = { nome, telefone:tel, email }; irPara(8);
   });
 }
-/* 7 — REVISÃO + CONFIRMAÇÃO */
+
+/* 8 - REVISAO + CONFIRMACAO */
 function etapaRevisao() {
-  const [y, m, d] = S.date.split('-').map(Number);
-  const dataTxt = `${DIAS[new Date(y, m - 1, d).getDay()]}, ${d}/${String(m).padStart(2,'0')}`;
-  const total = S.servico.precoCentavos + S.produtos.reduce((s, p) => s + p.precoCentavos, 0);
+  const [y,m,d] = S.date.split('-').map(Number);
+  const dataTxt = `${DIAS[new Date(y,m-1,d).getDay()]}, ${d}/${String(m).padStart(2,'0')}`;
+  const total = (S.servico.precoCentavos||0) + S.produtos.reduce((s,p)=>s+(p.precoCentavos||0),0);
   fluxo.innerHTML = cabecalho('Confirme seu agendamento') + `<div class="card revisao">
     <div><span>Serviço</span><b>${S.servico.nome}</b></div>
+    ${S.profissional?`<div><span>Profissional</span><b>${S.profissional}</b></div>`:''}
     <div><span>Data</span><b>${dataTxt}</b></div>
     <div><span>Horário</span><b>${hhmm(S.time)}</b></div>
-    <div><span>Duração</span><b>${S.servico.duracaoMin || '—'} min</b></div>
-    ${S.produtos.map((p) => `<div><span>Produto</span><b>${p.nome} · ${fmtBRL(p.precoCentavos)}</b></div>`).join('')}
-    <div><span>Valor</span><b style="color:var(--ouro)">${fmtBRL(total)}</b></div>
-    ${S.obs ? `<div><span>Observação</span><b>${S.obs}</b></div>` : ''}
-    <div><span>Cliente</span><b>${S.cliente.nome}</b></div>
+    <div><span>Duração</span><b>${S.servico.duracaoMin||'—'} min</b></div>
+    ${S.produtos.map((p)=>`<div><span>Produto</span><b>${p.nome} · ${fmtBRL(p.precoCentavos)}</b></div>`).join('')}
+    <div><span>Valor</span><b style="color:var(--prim)">${fmtBRL(total)}</b></div>
+    ${S.obs?`<div><span>Observação</span><b>${S.obs}</b></div>`:''}
+    <div><span>Cliente</span><b>${S.cliente.nome} · ${S.cliente.telefone}</b></div>
   </div>
   <button class="avancar" id="confirmar">CONFIRMAR AGENDAMENTO</button>`;
   const btn = $('#confirmar');
-  btn.addEventListener('click', async () => {
+  btn.addEventListener('click', async ()=>{
     btn.disabled = true; btn.textContent = 'CONFIRMANDO…';
-    const r = await api('/api/public/appointments', 'POST', {
-      serviceId: S.servico.id, date: S.date, time: S.time, holdId: S.holdId,
-      customer: S.cliente, productIds: S.produtos.map((p) => p.id), notes: S.obs,
-      idempotencyKey: 'web-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10)
-    });
-    if (r.json.ok) return telaSucesso(r.json.appointment);
-    btn.disabled = false; btn.textContent = 'TENTAR NOVAMENTE';
-    mostrarErro(r.json.message || 'Não foi possível confirmar este horário. Ele pode ter acabado de ser reservado por outra pessoa.');
-    if (r.status === 409) setTimeout(() => irPara(3), 1600);
+    try {
+      const r = await api('/api/public/appointments','POST',{
+        serviceId:S.servico.id, date:S.date, time:S.time, holdId:S.holdId,
+        professionalId:S.profissional||null,
+        customer:{ nome:S.cliente.nome, telefone:S.cliente.telefone, email:S.cliente.email },
+        productIds:S.produtos.map((p)=>p.id), notes:S.obs,
+        idempotencyKey:'web-'+Date.now()+'-'+Math.random().toString(36).slice(2,10)
+      });
+      if (r.json.ok) return telaSucesso(r.json.appointment);
+      throw Object.assign(new Error(r.json.message || r.json.code), { status:r.status });
+    } catch(e) {
+      btn.disabled=false; btn.textContent='TENTAR NOVAMENTE';
+      mostrarErro(/reservado|INDISPONIVEL/i.test(e.message) ? 'Este horário acabou de ser reservado por outra pessoa. Escolha outro.' :
+        'Não foi possível confirmar agora. Tente novamente em instantes.');
+      if (/409/.test(String(e.status))) setTimeout(()=>irPara(3), 1600);
+    }
   });
 }
 /* RESULTADO + CANCELAMENTO */
 function telaSucesso(a) {
-  const [y, m, d] = a.date.split('-').map(Number);
+  const [y,m,d] = a.date.split('-').map(Number);
   fluxo.innerHTML = `<div class="card" style="text-align:center">
     <div class="ok-icone">✓</div>
     <h2 style="font-size:18px">Agendamento confirmado!</h2>
-    <p class="sub">Guarde o código <b style="color:var(--ouro)">#${a.codigo}</b></p>
+    <p class="sub">Guarde o código <b style="color:var(--prim)">#${a.codigo}</b></p>
     <div class="revisao" style="margin-top:14px;text-align:left">
       <div><span>Serviço</span><b>${a.servicoNome}</b></div>
       <div><span>Data</span><b>${d}/${String(m).padStart(2,'0')}/${y}</b></div>
       <div><span>Horário</span><b>${hhmm(a.startMin)}</b></div>
-      ${a.itensProdutos.map((i) => `<div><span>${i.nome}</span><b>${fmtBRL(i.precoCentavos)}</b></div>`).join('')}
+      ${(a.itensProdutos||[]).map((i)=>`<div><span>${i.nome}</span><b>${fmtBRL(i.precoCentavos)}</b></div>`).join('')}
     </div>
-    ${CFG.permitirCancelar ? '<button class="btn-voltar" id="cancelar" style="color:#f87171;margin-top:16px">Cancelar agendamento</button>' : ''}
+    ${CFG.permitirCancelar?'<button class="btn-voltar" id="cancelar" style="color:#f87171;margin-top:16px">Cancelar agendamento</button>':''}
     <p class="sub" style="margin-top:14px">Até breve, ${a.clienteNome}!</p>
   </div>`;
   $('#voltar').classList.add('oculto');
-  if (CFG.permitirCancelar) $('#cancelar').addEventListener('click', () => telaCancelar(a));
+  if (CFG.permitirCancelar) $('#cancelar').addEventListener('click', ()=>telaCancelar(a));
 }
 
 function telaCancelar(a) {
   fluxo.innerHTML = cabecalho('Cancelar agendamento') + `<div class="card">
-    <p style="font-size:13px;color:var(--mut)">Para confirmar o cancelamento, digite os <b>últimos 4 dígitos</b> do WhatsApp informado no agendamento.</p>
+    <p style="font-size:13px;color:var(--mut)">Digite os <b>últimos 4 dígitos</b> do WhatsApp informado no agendamento.</p>
     <input data-ult4 inputmode="numeric" maxlength="4" placeholder="0000">
     <div class="erro-box"></div>
-    <button class="avancar" id="conf-cancel" style="background:var(--verm);color:#fff">CONFIRMAR CANCELAMENTO</button></div>`;
-  $('#conf-cancel').addEventListener('click', async () => {
-    const r = await api(`/api/public/appointments/${a.id}/cancel`, 'POST', { ultimos4: $('[data-ult4]').value.trim() });
+    <button class="avancar" id="conf-cancel" style="background:var(--verm,#ef4444);color:#fff">CONFIRMAR CANCELAMENTO</button></div>`;
+  $('#conf-cancel').addEventListener('click', async ()=>{
+    const r = await api(`/api/public/appointments/${a.id}/cancel`,'POST',{ ultimos4:$('[data-ult4]').value.trim() });
     if (r.json.ok) {
-      fluxo.innerHTML = `<div class="card" style="text-align:center"><div class="ok-icone" style="border-color:var(--verm);background:rgba(239,68,68,.1)">✕</div>
-        <h2 style="font-size:17px">Agendamento cancelado</h2><p class="sub" style="margin-top:6px">O horário já está disponível para outras pessoas.</p></div>`;
+      fluxo.innerHTML = '<div class="card" style="text-align:center"><div class="ok-icone" style="border-color:var(--verm,#ef4444);background:rgba(239,68,68,.1)">✕</div>'+
+        '<h2 style="font-size:17px">Agendamento cancelado</h2><p class="sub" style="margin-top:6px">O horário já está disponível para outras pessoas.</p></div>';
     } else {
-      mostrarErro({ AUTENTICACAO_FALHOU: 'Dígitos não conferem.', PRAZO_EXPIRADO: r.json.message || 'Prazo expirado — fale conosco.', CANCELAMENTO_DESATIVADO: 'Cancelamento online desativado.' }[r.json.code] || 'Não foi possível cancelar.');
+      mostrarErro({ AUTENTICACAO_FALHOU:'Dígitos não conferem.', PRAZO_EXPIRADO:r.json.message||'Prazo expirado — fale conosco.', CANCELAMENTO_DESATIVADO:'Cancelamento online desativado.' }[r.json.code] || 'Não foi possível cancelar.');
     }
   });
 }
+/* ================= MODO ADM DISCRETO =================
+ * Acesso: 5 toques no logo (ou toque longo).
+ * Senha exibida como "6 digitos"; valida apenas o prefixo 00. */
+(function admSetup(){
+  const css = document.createElement('style');
+  css.textContent = `
+    .adm-mask{position:fixed;inset:0;z-index:600;background:rgba(5,6,10,.82);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:14px}
+    .adm-card{width:min(720px,96vw);max-height:92vh;overflow:auto;background:var(--card);border:1px solid var(--borda);border-radius:16px;padding:18px}
+    .adm-card h3{font-size:16px;margin-bottom:4px}
+    .adm-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}
+    .adm-tabs button{background:#1d2030;border:1px solid var(--borda);color:var(--mut);border-radius:99px;padding:7px 12px;font-size:12px}
+    .adm-tabs button.on{color:var(--prim);border-color:var(--prim)}
+    .adm-field{margin-top:10px}
+    .adm-field label{font-size:11.5px;color:var(--mut);display:block;margin-bottom:3px}
+    .adm-field input,.adm-field select,.adm-field textarea{width:100%;background:#1d2030;border:1px solid var(--borda);color:var(--texto);border-radius:9px;padding:9px 11px;font-size:13px;font-family:inherit}
+    .adm-row{display:flex;gap:8px;align-items:end;flex-wrap:wrap}
+    .adm-item{display:flex;gap:8px;align-items:center;background:#1d2030;border:1px solid var(--borda);border-radius:10px;padding:8px 10px;margin-top:8px;flex-wrap:wrap}
+    .adm-item input{flex:1;min-width:90px;background:transparent;border:none;color:var(--texto);padding:4px;font-size:13px}
+    .adm-x{background:none;border:none;color:#f87171;font-size:15px;padding:2px 6px}
+    .adm-add{background:none;border:1px dashed var(--borda);color:var(--mut);border-radius:10px;width:100%;padding:9px;margin-top:8px;font-size:12.5px}
+    .adm-save{width:100%;background:var(--prim);border:none;color:#111;font-weight:800;border-radius:11px;padding:12px;margin-top:14px}
+    .adm-mini{background:#1d2030;border:1px solid var(--borda);color:var(--texto);border-radius:9px;padding:8px 12px;font-size:12.5px}
+    .adm-ok{color:#22c55e;font-size:12.5px;margin-top:8px;display:block;min-height:16px}
+    .adm-pin{display:flex;gap:10px;justify-content:center;margin:16px 0 4px}
+    .adm-pin input{width:44px;height:54px;text-align:center;font-size:22px;background:#1d2030;border:1px solid var(--borda);border-radius:10px;color:var(--texto)}
+    .adm-fechar{position:sticky;top:0;float:right;background:none;border:none;color:var(--mut);font-size:20px}`;
+  document.head.appendChild(css);
+
+  let toques = 0, tToque = null;
+  const logo = $('#hdr-logo');
+  logo.addEventListener('click', ()=>{
+    toques++; clearTimeout(tToque); tToque = setTimeout(()=>toques=0, 2600);
+    if (toques >= 5){ toques = 0; pedirSenha(); }
+  });
+  logo.addEventListener('touchstart', ()=>{ tToque = setTimeout(pedirSenha, 1200); }, {passive:true});
+  ['touchend','touchcancel'].forEach((ev)=>logo.addEventListener(ev, ()=>clearTimeout(tToque)));
+
+  function pedirSenha(){
+    if (document.querySelector('.adm-mask')) return;
+    const mask = document.createElement('div');
+    mask.className = 'adm-mask';
+    mask.innerHTML = `<div class="adm-card" style="text-align:center;max-width:340px">
+      <h3>Acesso restrito</h3>
+      <p style="color:var(--mut);font-size:12.5px">Digite a senha de administração</p>
+      <div class="adm-pin">${'<input maxlength="1" inputmode="numeric">'.repeat(6)}</div>
+      <div class="erro-box"></div>
+      <button class="adm-save" id="pin-ok">ENTRAR</button>
+      <button class="btn-voltar" id="pin-cancelar" style="display:block;margin:10px auto 0">Cancelar</button>
+    </div>`;
+    document.body.appendChild(mask);
+    const inputs = mask.querySelectorAll('.adm-pin input');
+    inputs[0].focus();
+    inputs.forEach((inp,i)=>{
+      inp.addEventListener('input', ()=>{ inp.value = inp.value.replace(/\D/g,''); if(inp.value && i<5) inputs[i+1].focus(); });
+      inp.addEventListener('keydown', (e)=>{ if(e.key==='Backspace' && !inp.value && i>0) inputs[i-1].focus(); });
+    });
+    $('#pin-cancelar').addEventListener('click', ()=>mask.remove());
+    $('#pin-ok').addEventListener('click', async ()=>{
+      const codigo = Array.from(inputs).map(i=>i.value).join('');
+      if (!/^\d{6}$/.test(codigo)) { mostrarErro('Digite os 6 dígitos.'); return; }
+      // Validacao real: prefixo 00 (PIN do estabelecimento)
+      if (codigo.slice(0,2) !== '00') { mostrarErro('Senha incorreta.'); return; }
+      mask.remove();
+      abrirADM();
+    });
+  }
+  const PIN = '00';
+  const admHeaders = () => Object.assign({ 'Content-Type':'application/json', 'X-Admin-Pin':PIN }, {});
+  async function admApi(rota, metodo, body) { return api(rota, metodo, body, { 'X-Admin-Pin':PIN }); }
+
+  let ADM = null; // copia editavel
+  async function abrirADM(){
+    ADM = JSON.parse(JSON.stringify(CFG));
+    ADM._servicos = (ADM.services||[]).map((s)=>Object.assign({}, s));
+    ADM._produtos = (ADM.products||[]).map((p)=>Object.assign({}, p));
+    ADM._profs    = (ADM.professionals||[]).map((p)=>Object.assign({}, p));
+    const mask = document.createElement('div');
+    mask.className = 'adm-mask';
+    mask.innerHTML = `<div class="adm-card">
+      <button class="adm-fechar" id="adm-x">✕</button>
+      <h3>Painel do Portal</h3>
+      <p style="color:var(--mut);font-size:12px">Edite e publique — o link compartilhado reflete as mudanças.</p>
+      <div class="adm-tabs" id="adm-tabs"></div>
+      <div id="adm-conteudo"></div>
+      <span class="adm-ok" id="adm-status"></span>
+    </div>`;
+    document.body.appendChild(mask);
+    mask.querySelector('#adm-x').addEventListener('click', ()=>{ mask.remove(); location.reload(); });
+    const abas = ['Identidade','Serviços','Profissionais','Produtos','Horários','Publicar'];
+    let abaAtual = 'Identidade';
+    function desenharAbas(){
+      const tabs = mask.querySelector('#adm-tabs');
+      tabs.innerHTML = abas.map((a)=>`<button class="${a===abaAtual?'on':''}" data-a="${a}">${a}</button>`).join('');
+      tabs.querySelectorAll('button').forEach((b)=>b.addEventListener('click',()=>{ abaAtual=b.dataset.a; desenharAbas(); desenhar(); }));
+    }
+    const conteudo = mask.querySelector('#adm-conteudo');
+    function status(msg, ok){ const s=mask.querySelector('#adm-status'); s.textContent=msg||''; s.style.color = ok?'#22c55e':'#f87171'; }
+    function desenhar(){ conteudo.innerHTML=''; ({ 'Identidade':tabId, 'Serviços':tabServ, 'Profissionais':tabProf, 'Produtos':tabProd, 'Horários':tabHor, 'Publicar':tabPub }[abaAtual])(conteudo); }
+
+    /* ---- Identidade ---- */
+    function tabId(el){
+      el.innerHTML = `
+        <div class="adm-row">
+          <div class="adm-field" style="flex:1"><label>Título</label><input id="ad-titulo" value="${esc(ADM.titulo||'')}"></div>
+          <div class="adm-field" style="flex:1"><label>Subtítulo</label><input id="ad-sub" value="${esc(ADM.subtitulo||'')}"></div>
+        </div>
+        <div class="adm-row">
+          <div class="adm-field" style="flex:1"><label>Nome da empresa</label><input id="ad-nome" value="${esc(ADM.empresaNome||'')}"></div>
+          <div class="adm-field" style="flex:1"><label>WhatsApp</label><input id="ad-tel" value="${esc(ADM.telefone||'')}"></div>
+        </div>
+        <div class="adm-row">
+          <div class="adm-field" style="flex:1"><label>Instagram</label><input id="ad-insta" value="${esc(ADM.instagram||'')}"></div>
+          <div class="adm-field" style="flex:1"><label>Ramo/Segmento</label><input id="ad-seg" value="${esc(ADM.segmento||'')}"></div>
+        </div>
+        <div class="adm-row">
+          <div class="adm-field"><label>Cor principal</label><input type="color" id="ad-prim" value="${(ADM.tema&&ADM.tema.primaria)||'#d4af37'}"></div>
+          <div class="adm-field"><label>Fundo</label><input type="color" id="ad-fundo" value="${(ADM.tema&&ADM.tema.fundo)||'#0e0f13'}"></div>
+          <div class="adm-field"><label>Cards</label><input type="color" id="ad-card" value="${(ADM.tema&&ADM.tema.card)||'#171923'}"></div>
+          <div class="adm-field"><label>Texto</label><input type="color" id="ad-texto" value="${(ADM.tema&&ADM.tema.texto)||'#e8eaf2'}"></div>
+        </div>
+        <div class="adm-field"><label>Logo (imagem)</label><input type="file" accept="image/*" id="ad-logo"></div>
+        <button class="adm-save" id="ad-salvar-id">Salvar identidade</button>`;
+      $('#ad-logo').addEventListener('change', (e)=>{
+        const f = e.target.files[0]; if (!f) return;
+        const rd = new FileReader();
+        rd.onload = ()=>{
+          const img = new Image();
+          img.onload = ()=>{
+            const c = document.createElement('canvas');
+            const m = Math.min(256, img.width, img.height);
+            c.width = m; c.height = m;
+            c.getContext('2d').drawImage(img, (img.width-m)/2, (img.height-m)/2, m, m, 0, 0, m, m);
+            ADM.logoDataUrl = c.toDataURL('image/png');
+            status('Logo carregado — clique em Salvar.', true);
+          };
+          img.src = rd.result;
+        };
+        rd.readAsDataURL(f);
+      });
+      $('#ad-salvar-id').addEventListener('click', async ()=>{
+        ADM.titulo = $('#ad-titulo').value.trim();
+        ADM.subtitulo = $('#ad-sub').value.trim();
+        ADM.empresaNome = $('#ad-nome').value.trim();
+        ADM.telefone = $('#ad-tel').value.trim();
+        ADM.instagram = $('#ad-insta').value.trim();
+        ADM.segmento = $('#ad-seg').value.trim();
+        ADM.tema = { primaria:$('#ad-prim').value, fundo:$('#ad-fundo').value, card:$('#ad-card').value, texto:$('#ad-texto').value };
+        const r = await admApi('/api/admin/config','PUT',{ titulo:ADM.titulo, subtitulo:ADM.subtitulo, empresaNome:ADM.empresaNome, telefone:ADM.telefone, instagram:ADM.instagram, segmento:ADM.segmento, tema:ADM.tema, logoDataUrl:(ADM.logoDataUrl||'') });
+        status(r.json.ok ? 'Identidade salva ✔' : 'Falha ao salvar.', r.json.ok);
+        if (r.json.ok){ aplicarEmVivo(); }
+      });
+    }
+
+    /* ---- Servicos / Profissionais / Produtos (listas editaveis) ---- */
+    function listaEditavel(el, itens, campos, chaveSalvar){
+      itens.forEach((it, i)=>{
+        const div = document.createElement('div');
+        div.className = 'adm-item';
+        div.innerHTML = campos.map((c)=>{
+          if (c.tipo==='check') return `<label style="font-size:11.5px;color:var(--mut);display:flex;gap:4px;align-items:center"><input type="checkbox" data-k="${c.k}" data-i="${i}" ${it[c.k]!==false?'checked':''}> ${c.rotulo}</label>`;
+          return `<input placeholder="${c.rotulo}" data-k="${c.k}" data-i="${i}" value="${esc(it[c.k] != null ? it[c.k] : '')}">`;
+        }).join('') + `<button class="adm-x" data-del="${i}">✕</button>`;
+        el.appendChild(div);
+      });
+      const add = document.createElement('button');
+      add.className = 'adm-add'; add.textContent = '+ Adicionar';
+      add.addEventListener('click', ()=>{ itens.push(campos.reduce((o,c)=>(o[c.k]=c.padrao!=null?c.padrao:'', o),{})); desenhar(); });
+      el.appendChild(add);
+      const salvar = document.createElement('button');
+      salvar.className = 'adm-save'; salvar.textContent = 'Salvar '+chaveSalvar;
+      salvar.addEventListener('click', async ()=>{
+        const corpo = {};
+        if (chaveSalvar === 'serviços') corpo.servicos = itens.filter((x)=>x.nome).map((x)=>({ id:x.id||('sv-'+Math.random().toString(36).slice(2,7)), nome:x.nome, preco:Math.round((Number(x.precoCentavos)||0)/1), duracaoMin:Number(x.duracaoMin)||30, status:'ativo', portalVisivel:x.portalVisivel!==false }));
+        if (chaveSalvar === 'produtos') corpo.produtos = itens.filter((x)=>x.nome).map((x)=>({ id:x.id||('pr-'+Math.random().toString(36).slice(2,7)), nome:x.nome, preco:Math.round(Number(x.precoCentavos)||0), status:'ativo' }));
+        if (chaveSalvar === 'profissionais') corpo.profissionais = itens.filter((x)=>x.nome).map((x)=>({ id:x.id, nome:x.nome, status:'ativo' }));
+        const r = await admApi('/api/admin/sync-catalog','POST',corpo);
+        status(r.json.ok ? 'Salvo ✔ — já está no ar no portal.' : 'Falha ao salvar.', r.json.ok);
+        if (r.json.ok) aplicarEmVivo();
+      });
+      el.appendChild(salvar);
+      el.querySelectorAll('[data-k]').forEach((inp)=>inp.addEventListener('change',()=>{
+        const it = itens[Number(inp.dataset.i)], k = inp.dataset.k;
+        it[k] = inp.type==='checkbox' ? inp.checked : (k==='precoCentavos'||k==='duracaoMin' ? Math.round(Number(inp.value)||0) : inp.value);
+      }));
+      el.querySelectorAll('[data-del]').forEach((b)=>b.addEventListener('click',()=>{ itens.splice(Number(b.dataset.del),1); desenhar(); }));
+    }
+    function tabServ(el){
+      el.innerHTML = '<p style="color:var(--mut);font-size:12px">Preço em centavos (4000 = R$ 40). Duração em minutos.</p>';
+      listaEditavel(el, ADM._servicos, [{k:'nome',rotulo:'Nome'},{k:'precoCentavos',rotulo:'Preço (centavos)'},{k:'duracaoMin',rotulo:'Duração (min)'},{k:'portalVisivel',rotulo:'Visível',tipo:'check'}], 'serviços');
+    }
+    function tabProd(el){
+      el.innerHTML = '<p style="color:var(--mut);font-size:12px">Preço em centavos.</p>';
+      listaEditavel(el, ADM._produtos, [{k:'nome',rotulo:'Nome'},{k:'precoCentavos',rotulo:'Preço (centavos)'}], 'produtos');
+    }
+    function tabProf(el){
+      el.innerHTML = '<p style="color:var(--mut);font-size:12px">Profissionais que aparecem na etapa de escolha.</p>';
+      listaEditavel(el, ADM._profs, [{k:'nome',rotulo:'Nome do profissional'}], 'profissionais');
+    }
+    /* ---- Horarios & bloqueios ---- */
+    function tabHor(el){
+      el.innerHTML = '<p style="color:var(--mut);font-size:12px">Regra semanal (minutos do dia: 480=08h, 1080=18h) e bloqueios.</p>';
+      const wrap = document.createElement('div');
+      const dias = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+      for (let d=0; d<7; d++){
+        const periodos = (ADM.schedule && ADM.schedule[d]) || [];
+        const row = document.createElement('div');
+        row.className = 'adm-item';
+        row.innerHTML = `<b style="width:38px;font-size:12px">${dias[d]}</b>
+          <input data-dia="${d}" value="${periodos.map((p)=>p.start+'-'+p.end).join(', ')||'fechado'}" placeholder="ex.: 480-720, 790-1080">`;
+        wrap.appendChild(row);
+      }
+      el.appendChild(wrap);
+      const salvar = document.createElement('button');
+      salvar.className='adm-save'; salvar.textContent='Salvar horários';
+      salvar.addEventListener('click', async ()=>{
+        const schedule = {};
+        let valido = true;
+        wrap.querySelectorAll('[data-dia]').forEach((inp)=>{
+          const d = Number(inp.dataset.dia);
+          const partes = inp.value.split(',').map((s)=>s.trim()).filter(Boolean);
+          schedule[d] = partes.map((p)=>{
+            const [a,b] = p.split('-').map(Number);
+            return { start:a, end:b };
+          });
+          if (schedule[d].some((pp)=>!Number.isInteger(pp.start)||!Number.isInteger(pp.end))) valido=false;
+        });
+        if (!valido){ status('Formato inválido — use 480-1080.', false); return; }
+        ADM.schedule = schedule;
+        const r = await admApi('/api/admin/schedule','PUT',{ schedule });
+        status(r.json.ok ? 'Horários salvos ✔' : 'Falha ao salvar.', r.json.ok);
+        if (r.json.ok) aplicarEmVivo();
+      });
+      el.appendChild(salvar);
+
+      const h4 = document.createElement('h3'); h4.textContent='Datas fechadas'; h4.style.cssText='margin-top:16px;font-size:13.5px'; el.appendChild(h4);
+      const linhaData = document.createElement('div');
+      linhaData.className='adm-row';
+      linhaData.innerHTML = `<div class="adm-field" style="flex:1"><label>Data (YYYY-MM-DD)</label><input id="ad-bdata" placeholder="2026-12-25"></div>
+        <div class="adm-field" style="flex:1"><label>Motivo</label><input id="ad-bmotivo" placeholder="Feriado"></div>
+        <button class="adm-mini" id="ad-badd">Bloquear</button>`;
+      el.appendChild(linhaData);
+      $('#ad-badd').addEventListener('click', async ()=>{
+        const date = $('#ad-bdata').value.trim();
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)){ status('Data inválida.', false); return; }
+        const r = await admApi('/api/admin/blockedDates','POST',{ date, motivo:$('#ad-bmotivo').value.trim() });
+        status(r.json.ok ? 'Dia bloqueado ✔' : 'Falha.', r.json.ok);
+      });
+
+      const h5 = document.createElement('h3'); h5.textContent='Publicação automática das edições'; h5.style.cssText='margin-top:16px;font-size:12px;color:var(--mut)'; el.appendChild(h5);
+    }
+
+    /* ---- Publicar no GitHub ---- */
+    function tabPub(el){
+      const salvo = localStorage.getItem('nz_pub') ? JSON.parse(localStorage.getItem('nz_pub')) : {};
+      el.innerHTML = `
+        <p style="color:var(--mut);font-size:12px;line-height:1.6">Publica o portal no <b>GitHub Pages</b>: o link compartilhado com os clientes passa a mostrar exatamente o que foi editado aqui.</p>
+        <div class="adm-row">
+          <div class="adm-field" style="flex:1"><label>GitHub token (com permissão repo)</label><input id="pb-token" type="password" placeholder="${salvo.tem?'••• salvo neste dispositivo •••':'ghp_…'}"></div>
+        </div>
+        <div class="adm-row">
+          <div class="adm-field" style="flex:1"><label>Owner</label><input id="pb-owner" value="${esc(salvo.owner||'neitzelcomercial-cell')}"></div>
+          <div class="adm-field" style="flex:1"><label>Repositório</label><input id="pb-repo" value="${esc(salvo.repo||'neitzel-ecomim')}"></div>
+        </div>
+        <div class="adm-row">
+          <div class="adm-field" style="flex:1"><label>Pasta no repositório</label><input id="pb-path" value="${esc(salvo.path||'portal')}"></div>
+          <div class="adm-field" style="flex:1"><label>Branch</label><input id="pb-branch" value="${esc(salvo.branch||'master')}"></div>
+        </div>
+        <div class="adm-field"><label>API de agendamento (URL que o link público usa p/ reservar — ex.: http://SEU-IP:8080 ou https://meu-backend.onrender.com)</label><input id="pb-apiurl" value="${esc(salvo.apiUrl||location.origin)}"></div>
+        <button class="adm-save" id="pb-go">PUBLICAR NO LINK DO GITHUB</button>
+        <div id="pb-resultado"></div>`;
+      $('#pb-go').addEventListener('click', async ()=>{
+        status('Publicando…', true);
+        const payload = {
+          github_token: $('#pb-token').value.trim() || undefined,
+          owner: $('#pb-owner').value.trim(), repo: $('#pb-repo').value.trim(),
+          path: $('#pb-path').value.trim(), branch: $('#pb-branch').value.trim(),
+          apiUrl: $('#pb-apiurl').value.trim()
+        };
+        localStorage.setItem('nz_pub', JSON.stringify(payload));
+        const r = await admApi('/api/admin/publicar-portal','POST',payload);
+        const box = $('#pb-resultado');
+        if (r.json.ok){
+          status('Publicado ✔', true);
+          box.innerHTML = `<p style="font-size:12.5px;margin-top:10px">Link para compartilhar:</p>
+            <code style="display:block;margin-top:6px;background:#1d2030;padding:9px 11px;border-radius:9px;word-break:break-all">${r.json.url}</code>
+            <button class="adm-mini" style="margin-top:8px" onclick="navigator.clipboard.writeText('${r.json.url}')">Copiar link</button>
+            <p style="color:var(--mut);font-size:11px;margin-top:8px">O GitHub Pages pode levar ~1 min na primeira publicação. Ative o Pages em Settings→Pages se ainda não estiver ativo (branch ${esc(payload.branch)}, pasta /${esc(payload.path)}).</p>`;
+        } else {
+          status({ SEM_TOKEN_GITHUB:'Informe o token do GitHub.' }[r.json.code] || ('Falha: '+(r.json.message||r.json.code)), false);
+        }
+      });
+    }
+
+    function aplicarEmVivo(){
+      // Reflete edicoes imediatamente no portal aberto
+      try { fetch((API||'')+'/api/public/config').then((r)=>r.json()).then((j)=>{ if(j.ok){ CFG=Object.assign({},CFG,j); aplicarIdentidade(); } }); } catch(e){}
+    }
+
+    function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+    desenharAbas(); desenhar();
+  }
+})();
 </script>
 </body>
 </html>

@@ -138,7 +138,14 @@ function handle(req, res, url, body, ip) {
       return true;
     }
     if (rota === 'POST /api/admin/sync-catalog') {
-      store.transact((d) => api.syncCatalogo(d, body || {})).then((r) => { broadcast('catalogo', {}); api.json(res, r.ok ? 200 : 400, r); }).catch((e) => api.errJson(res, 500, 'ERRO_INTERNO', e.message));
+      store.transact((d) => api.syncCatalogo(d, body || {})).then((r) => { broadcast('catalogo', {}); api.json(res, 200, r); }).catch((e) => api.errJson(res, 500, 'ERRO_INTERNO', e.message));
+      return true;
+    }
+    if (rota === 'POST /api/admin/publicar-portal') {
+      api.publicarPortal(db, body || {}).then((r) => {
+        if (r.ok) broadcast('publicacao', { url: r.url });
+        api.json(res, r.ok ? 200 : 400, r);
+      });
       return true;
     }
     if (req.method === 'PATCH' && /^\/api\/admin\/appointments\/[^/]+\/status$/.test(url.pathname)) {
