@@ -126,11 +126,61 @@
       toastMsg('Link de rede copiado.', 'success');
     }));
 
+    c.appendChild(cardGithub());
     c.appendChild(await cardAgenda(st.schedule));
     c.appendChild(cardBloqueios(st));
     c.appendChild(await cardConfig(cfg));
     c.appendChild(await cardCatalogo());
     c.appendChild(cardAgendamentos());
+  }
+
+  /* ---- Link do GitHub (compartilhável) + publicação ---- */
+  function cardGithub() {
+    const salvo = (() => { try { return JSON.parse(localStorage.getItem('nz_pub') || '{}'); } catch (e) { return {}; } })();
+    const owner = salvo.owner || 'neitzelcomercial-cell';
+    const repo = salvo.repo || 'neitzel-ecomim';
+    const pasta = salvo.path || 'portal';
+    const branch = salvo.branch || 'master';
+    const urlGit = `https://${owner}.github.io/${repo}/${pasta}/index.html`;
+
+    const card = el('div', 'card', `
+      <h4>Link do GitHub para compartilhar</h4>
+      <p class="text-muted" style="font-size:12px">Este é o link que vai para os clientes (Instagram, WhatsApp, QR Code). Ele mostra exatamente o que foi publicado — edite no Portal e clique em <b>Publicar agora</b>.</p>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <code id="gh-url" style="background:var(--bg-soft,#f4f4f5);padding:6px 10px;border-radius:8px;word-break:break-all">${esc(urlGit)}</code>
+        <button class="btn btn-sm" id="gh-copiar">Copiar link</button>
+        <button class="btn btn-sm btn-ghost" id="gh-abrir">Abrir</button>
+      </div>
+      <div class="btn-group" style="margin-top:12px;flex-wrap:wrap">
+        <input class="input" id="gh-token" type="password" placeholder="${salvo.temToken ? '✔ token salvo neste dispositivo — pode publicar direto' : 'GitHub token (ghp_…), só na primeira vez'}" style="max-width:340px">
+        <button class="btn btn-sm btn-primary" id="gh-publicar">Publicar agora no GitHub</button>
+      </div>
+      <span class="text-muted" id="gh-status" style="font-size:12px;display:block;margin-top:8px;min-height:16px"></span>`);
+    card.querySelector('#gh-copiar').addEventListener('click', () => { navigator.clipboard && navigator.clipboard.writeText(urlGit); toastMsg('Link copiado.', 'success'); });
+    card.querySelector('#gh-abrir').addEventListener('click', () => {
+      const j = window.open(urlGit, '_blank'); if (!j) location.href = urlGit;
+    });
+    card.querySelector('#gh-publicar').addEventListener('click', async () => {
+      const stSpan = card.querySelector('#gh-status');
+      const tokenInput = card.querySelector('#gh-token');
+      stSpan.textContent = 'Publicando…'; stSpan.style.color = '';
+      const r = await send('POST', '/api/admin/publicar-portal', {
+        github_token: tokenInput.value.trim() || undefined,
+        owner, repo, path: pasta, branch,
+        apiUrl: location.origin
+      });
+      if (r.json.ok) {
+        if (tokenInput.value.trim()) localStorage.setItem('nz_pub', JSON.stringify({ owner, repo, path: pasta, branch, temToken: true }));
+        else localStorage.setItem('nz_pub', JSON.stringify({ owner, repo, path: pasta, branch, temToken: true }));
+        stSpan.style.color = '#22c55e';
+        stSpan.innerHTML = `Publicado ✔ — ${esc(r.json.url)}`;
+        toastMsg('Portal publicado no GitHub!', 'success');
+      } else {
+        stSpan.style.color = '#f87171';
+        stSpan.textContent = { SEM_TOKEN_GITHUB: 'Cole o GitHub token acima (uma vez) e publique de novo.' }[r.json.code] || ('Falha: ' + (r.json.message || r.json.code));
+      }
+    });
+    return card;
   }
 
   /* ---- agenda semanal (múltiplos períodos por dia) ---- */
