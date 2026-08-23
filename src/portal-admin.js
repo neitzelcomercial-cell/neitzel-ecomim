@@ -127,11 +127,48 @@
     }));
 
     c.appendChild(cardGithub());
-    c.appendChild(await cardAgenda(st.schedule));
-    c.appendChild(cardBloqueios(st));
-    c.appendChild(await cardConfig(cfg));
-    c.appendChild(await cardCatalogo());
-    c.appendChild(cardAgendamentos());
+
+    /* ---- PRÉVIA AO VIVO: o portal novo, como o cliente vê ---- */
+    const previa = el('div', 'card', `
+      <h4>Seu portal — ao vivo</h4>
+      <p class="text-muted" style="font-size:12px">É exatamente assim que o cliente vê. Tudo que você editar aqui reflete nesta prévia na hora.</p>
+      <div class="btn-group" style="margin:10px 0 12px">
+        <button class="btn btn-sm btn-success" id="pv-abrir">Abrir portal em nova aba</button>
+        <button class="btn btn-sm btn-ghost" id="pv-refresh">Atualizar prévia</button>
+      </div>
+      <div style="border:1px solid rgba(128,128,128,.3);border-radius:20px;overflow:hidden;height:min(680px,78vh);background:#0e0f13;box-shadow:0 10px 30px rgba(0,0,0,.25)">
+        <iframe id="pv-frame" title="Prévia do Portal do Cliente" src="/agendamento?vivo=1" style="width:100%;height:100%;border:none;display:block"></iframe>
+      </div>`);
+    c.appendChild(previa);
+    previa.querySelector('#pv-abrir').addEventListener('click', () => {
+      const j = window.open('/agendamento', '_blank'); if (!j) location.href = '/agendamento';
+    });
+    previa.querySelector('#pv-refresh').addEventListener('click', () => {
+      const f = previa.querySelector('#pv-frame');
+      f.src = '/agendamento?vivo=' + Date.now();
+    });
+
+    /* ---- Gestão avançada (recolhida) ---- */
+    function detalhes(titulo, node, aberto) {
+      const d = document.createElement('details');
+      d.className = 'card';
+      d.style.padding = '14px 18px';
+      if (aberto) d.open = true;
+      const s = document.createElement('summary');
+      s.textContent = titulo;
+      s.style.cssText = 'cursor:pointer;font-weight:700;font-size:14.5px';
+      d.appendChild(s);
+      const wrap = document.createElement('div');
+      wrap.style.marginTop = '10px';
+      wrap.appendChild(node);
+      d.appendChild(wrap);
+      return d;
+    }
+    c.appendChild(detalhes('⚙️ Horários de funcionamento', await cardAgenda(st.schedule)));
+    c.appendChild(detalhes('🚫 Bloqueios, feriados e horários especiais', cardBloqueios(st)));
+    c.appendChild(detalhes('🎚️ Regras de agendamento', await cardConfig(cfg)));
+    c.appendChild(detalhes('📦 Catálogo publicado no portal', await cardCatalogo()));
+    c.appendChild(detalhes('📋 Agendamentos recebidos', cardAgendamentos()));
   }
 
   /* ---- Link do GitHub (compartilhável) + publicação ---- */
