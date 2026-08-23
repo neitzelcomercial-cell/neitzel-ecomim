@@ -413,12 +413,6 @@ function showLogin() {
   const submit = async () => {
     const r = await features.security.verifyPin(input.value);
     if (r.ok) {
-      if (features.security.hasTotp()) {
-        const totp = prompt('Código TOTP (6 dígitos):');
-        if (!totp) { toast('MFA exigido — informe o código', 'warn'); return; }
-        const rr = await features.security.verifyTotp(totp);
-        if (!rr.ok) { toast('Código TOTP inválido', 'danger'); return; }
-      }
       overlay.remove();
       initApp(true);
     } else toast('Senha incorreta', 'danger');
