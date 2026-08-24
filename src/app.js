@@ -398,7 +398,7 @@ function iniciarChuvaCodigo(canvas) {
       // no claro, escurece para manter contraste sobre papel
       return COR_TEMA ? cor.map((v) => Math.round(v * 0.55)) : cor;
     }
-    return COR_TEMA ? [17, 113, 74] : [62, 207, 142];
+    return COR_TEMA ? [30, 64, 175] : [62, 207, 142];
   }
 
   function frame() {
@@ -464,7 +464,7 @@ function iniciarLoginFX(overlay) {
   redimensionar();
   window.addEventListener('resize', () => redimensionar());
 
-  const cor = () => (document.documentElement.getAttribute('data-theme') === 'light' ? '22,106,67' : '62,207,142');
+  const cor = () => (document.documentElement.getAttribute('data-theme') === 'light' ? '37,99,235' : '62,207,142');
   const nos = Array.from({ length: 34 }, () => ({ x: Math.random(), y: Math.random(), vx: (Math.random() - .5) * .0006, vy: (Math.random() - .5) * .0006, r: 1.2 + Math.random() * 1.6 }));
   const CH = '0123456789%↑R$·';
   const digitos = Array.from({ length: 26 }, () => ({ x: Math.random(), y: Math.random(), v: .00025 + Math.random() * .00055, s: 10 + Math.random() * 13, c: CH[Math.floor(Math.random() * CH.length)], a: .07 + Math.random() * .18 }));
@@ -520,7 +520,7 @@ function showLogin() {
   const overlay = el('div', 'ecomim-login', `
     <canvas class="login-canvas" aria-hidden="true"></canvas>
     <div class="ecomim-login-card">
-      <div class="login-logo"><div class="ecomim-brand-logo" style="width:52px;height:52px;font-size:22px;background:linear-gradient(135deg,#0b0d0c,#166a43)">N</div></div>
+      <div class="login-logo"><div class="ecomim-brand-logo ecomim-brand-logo-nz" style="width:52px;height:52px;font-size:22px">N</div></div>
       <h1 class="login-title">${esc(I18N.titulo)}</h1>
       <div class="login-sub" style="letter-spacing:.28em;text-transform:uppercase;font-size:10px;font-weight:700;color:var(--e-danger);margin-top:2px;margin-bottom:18px">Sistema Digital</div>
       <p class="login-sub">Digite sua senha de 6 números para acessar o sistema</p>
@@ -865,7 +865,7 @@ function iniciarDashFX(container) {
   function frame() {
     if (!cv.isConnected) { cancelAnimationFrame(raf); return; }
     dim();
-    const c = document.documentElement.getAttribute('data-theme') === 'light' ? '22,106,67' : '62,207,142';
+    const c = document.documentElement.getAttribute('data-theme') === 'light' ? '37,99,235' : '62,207,142';
     ctx.clearRect(0, 0, W, H);
     for (const n of nos) { n.x += n.vx; n.y += n.vy; if (n.x < 0 || n.x > 1) n.vx *= -1; if (n.y < 0 || n.y > 1) n.vy *= -1; }
     ctx.lineWidth = dpr * .6;
@@ -2130,7 +2130,7 @@ function renderEstrategia(c) {
     <h1>Estratégia & Previsão</h1>
     <p>O sistema pensa com você: quem está esfriando, o que vende, para onde o movimento caminha.</p>
     <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
-      <button class="btn btn-primary" id="btn-cenario" style="background:linear-gradient(135deg,var(--e-brand),#0d5c38);box-shadow:0 6px 22px rgba(22,106,67,.35)">
+      <button class="btn btn-primary" id="btn-cenario" style="background:linear-gradient(135deg,var(--e-brand),var(--nz-red-strong));box-shadow:0 6px 22px var(--nz-red-glow)">
         Possível Cenário — analisar as próximas 8 semanas
       </button>
       <span class="text-muted" style="font-size:12px;align-self:center">Agente busca em notícias, índices e eventos reais de ${esc([cfg.cidade, cfg.estado, cfg.pais].filter(Boolean).join(' · ') || 'sua região')}</span>
@@ -3651,25 +3651,27 @@ function renderConfig(c) {
   /* --- PERSONALIZAÇÃO COMPLETA DO SISTEMA --- */
   /* Famílias de tema: cada uma com modelo ESCURO e CLARO na mesma cor-assinatura.
      `arteCor` tinge a obra de fundo (foto + aurora + chuva de código) para combinar. */
+  /* Famílias de tema: identidade em dois atos — ESCURO veste o VERDE da marca,
+     CLARO veste AZUL profissional. O tom de fundo e a arte continuam por família. */
   const TEMAS_FAMILIAS = [
     { nome: 'Verde Neitzel', arteCor: 'verde', art: '',
       escuro: { tema: 'dark', destaque: '', fundo: '', surface: '', texto: '', borda: '' },
-      claro: { tema: 'light', destaque: '#14603c', fundo: '#f5f7f6', surface: '#ffffff', texto: '#101913', borda: '#dfe6e1' } },
+      claro: { tema: 'light', destaque: '#2563eb', fundo: '#f5f7f6', surface: '#ffffff', texto: '#101913', borda: '#dfe6e1' } },
     { nome: 'Grafite & Âmbar', arteCor: 'ambar', art: '',
-      escuro: { tema: 'dark', destaque: '#d97706', fundo: '#0b0c10', surface: '#15171e', texto: '#eceae4', borda: '#272a33' },
-      claro: { tema: 'light', destaque: '#a16207', fundo: '#faf8f4', surface: '#ffffff', texto: '#1f1910', borda: '#eadfc9' } },
+      escuro: { tema: 'dark', destaque: '', fundo: '#0b0c10', surface: '#15171e', texto: '#eceae4', borda: '#272a33' },
+      claro: { tema: 'light', destaque: '#2563eb', fundo: '#faf8f4', surface: '#ffffff', texto: '#1f1910', borda: '#eadfc9' } },
     { nome: 'Oceano Profundo', arteCor: 'oceano', art: 'oceano',
-      escuro: { tema: 'dark', destaque: '#38bdf8', fundo: '#081019', surface: '#0f1a26', texto: '#e6f0f7', borda: '#1c2d3d' },
-      claro: { tema: 'light', destaque: '#075985', fundo: '#eff4f9', surface: '#ffffff', texto: '#101c28', borda: '#d8e3ee' } },
+      escuro: { tema: 'dark', destaque: '', fundo: '#081019', surface: '#0f1a26', texto: '#e6f0f7', borda: '#1c2d3d' },
+      claro: { tema: 'light', destaque: '#2563eb', fundo: '#eff4f9', surface: '#ffffff', texto: '#101c28', borda: '#d8e3ee' } },
     { nome: 'Vinho Executivo', arteCor: 'vinho', art: '',
-      escuro: { tema: 'dark', destaque: '#f43f5e', fundo: '#120b0e', surface: '#1b1216', texto: '#f7edf0', borda: '#2f1d24' },
-      claro: { tema: 'light', destaque: '#9f1239', fundo: '#fbf5f6', surface: '#ffffff', texto: '#241016', borda: '#eedde1' } },
+      escuro: { tema: 'dark', destaque: '', fundo: '#120b0e', surface: '#1b1216', texto: '#f7edf0', borda: '#2f1d24' },
+      claro: { tema: 'light', destaque: '#2563eb', fundo: '#fbf5f6', surface: '#ffffff', texto: '#241016', borda: '#eedde1' } },
     { nome: 'Roxo Neon', arteCor: 'roxo', art: 'neon',
-      escuro: { tema: 'dark', destaque: '#a78bfa', fundo: '#0c0a14', surface: '#14111f', texto: '#ece9fa', borda: '#251f3a' },
-      claro: { tema: 'light', destaque: '#6d28d9', fundo: '#f6f4fb', surface: '#ffffff', texto: '#171129', borda: '#e4def2' } },
+      escuro: { tema: 'dark', destaque: '', fundo: '#0c0a14', surface: '#14111f', texto: '#ece9fa', borda: '#251f3a' },
+      claro: { tema: 'light', destaque: '#2563eb', fundo: '#f6f4fb', surface: '#ffffff', texto: '#171129', borda: '#e4def2' } },
     { nome: 'Matrix Terminal', arteCor: 'matrix', art: 'matrix',
-      escuro: { tema: 'dark', destaque: '#4ade80', fundo: '#050807', surface: '#0b110d', texto: '#d9f4e4', borda: '#17251c' },
-      claro: { tema: 'light', destaque: '#166534', fundo: '#f2f7f2', surface: '#ffffff', texto: '#0d1b11', borda: '#d8e6da' } },
+      escuro: { tema: 'dark', destaque: '', fundo: '#050807', surface: '#0b110d', texto: '#d9f4e4', borda: '#17251c' },
+      claro: { tema: 'light', destaque: '#2563eb', fundo: '#f2f7f2', surface: '#ffffff', texto: '#0d1b11', borda: '#d8e6da' } },
   ];
   const MODELOS_BOTAO = [
     ['padrao', 'Padrão'], ['arredondado', 'Arredondado'], ['pill', 'Pílula'], ['quadrado', 'Quadrado'],
@@ -3888,7 +3890,7 @@ function renderConfig(c) {
     const mapa = { destaque: '#pz-destaque', fundo: '#pz-fundo', surface: '#pz-surface', texto: '#pz-texto', borda: '#pz-borda' };
     const inp = c.querySelector(mapa[alvo]);
     if (inp) {
-      const padroes = { destaque: '#166a43', fundo: document.documentElement.getAttribute('data-theme') === 'light' ? '#f5f6f8' : '#090a0d', surface: document.documentElement.getAttribute('data-theme') === 'light' ? '#ffffff' : '#101116', texto: document.documentElement.getAttribute('data-theme') === 'light' ? '#131418' : '#e8eaee', borda: document.documentElement.getAttribute('data-theme') === 'light' ? '#e4e6ea' : '#22242c' };
+      const padroes = { destaque: document.documentElement.getAttribute('data-theme') === 'light' ? '#2563eb' : '#3ecf8e', fundo: document.documentElement.getAttribute('data-theme') === 'light' ? '#f5f6f8' : '#0c0d12', surface: document.documentElement.getAttribute('data-theme') === 'light' ? '#ffffff' : '#14151c', texto: document.documentElement.getAttribute('data-theme') === 'light' ? '#131418' : '#e8eaee', borda: document.documentElement.getAttribute('data-theme') === 'light' ? '#e4e6ea' : '#262933' };
       inp.value = padroes[alvo];
     }
     toast('Cor restaurada ao padrão', 'info');

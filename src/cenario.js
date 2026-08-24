@@ -369,7 +369,7 @@
     }));
     function cor(a) {
       const claro = document.documentElement.getAttribute('data-theme') === 'light';
-      return claro ? `rgba(22,106,67,${a})` : `rgba(62,207,142,${a})`;
+      return claro ? `rgba(37,99,235,${a})` : `rgba(62,207,142,${a})`;
     }
     function frame() {
       if (!canvas.isConnected) { cancelAnimationFrame(raf); return; }

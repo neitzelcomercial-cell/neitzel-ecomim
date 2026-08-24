@@ -197,7 +197,7 @@ canvas.fundo-graficos { position: absolute; inset: 0; z-index: 0; pointer-events
 
 /* Comandos rápidos (Ctrl+K) */
 .cmdk {
-  position: fixed; inset: 0; z-index: 95; background: rgba(2, 6, 23, 0.5);
+  position: fixed; inset: 0; z-index: 95; background: rgba(10, 12, 20, 0.42);
   display: none; align-items: flex-start; justify-content: center; padding-top: 12vh;
 }
 .cmdk.open { display: flex; }
@@ -494,7 +494,7 @@ canvas.fundo-graficos { position: absolute; inset: 0; z-index: 0; pointer-events
 }
 /* Splash de boas-vindas (centro da tela) */
 #nz-splash { position: fixed; inset: 0; z-index: 9998; display: flex; align-items: center; justify-content: center;
-  background: radial-gradient(ellipse at center, rgba(10,12,18,.72), rgba(8,9,14,.88));
+  background: radial-gradient(ellipse at center, rgba(12,14,20,.58), rgba(10,11,16,.76));
   backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px);
   opacity: 1; transition: opacity .45s ease, backdrop-filter .45s ease; }
 #nz-splash.saindo { opacity: 0; }
