@@ -213,7 +213,9 @@
     const E = window.ECOMIM;
     if (window.ECOMIM_APP && window.ECOMIM_APP.renderApp) window.ECOMIM_APP.renderApp();
     setTimeout(() => {
-      toast(' Bem-vindo(a) ao NEITZEL — Sistema Empresarial Digital!', 'success');
+      // Balão de boas-vindas premium (só aparece DEPOIS que a senha já foi criada)
+      if (window.toastHero) window.toastHero('Bem-vindo(a) ao NEITZEL!', 'Sua senha está protegida. Sistema pronto para o uso.');
+      else toast('Bem-vindo(a) ao NEITZEL — Sistema Empresarial Digital!', 'success');
       const fech = document.querySelector('.nz-onboarding');
       if (fech) fech.remove();
     }, 120);

@@ -127,7 +127,7 @@ const NEITZEL_IA = (() => {
 
       if (p.includes('lead')) {
         const atrasados = E.modules.tarefas.atrasadas().length;
-        return { texto: `Você tem ${d.leads.length} lead(s) no funil (${leadsHoje} novo(s) hoje) e ${d.fila.length} na fila de aprovação. ${atrasados ? `Há ${atrasados} tarefa(s) atrasada(s) para follow-up.` : 'Sem tarefas atrasadas no momento.'}` };
+        return { texto: `Você tem ${d.leads.length} lead(s) no funil (${leadsHoje} novo(s) hoje). ${atrasados ? `Há ${atrasados} tarefa(s) atrasada(s) para follow-up.` : 'Sem tarefas atrasadas no momento.'}` };
       }
       if (p.includes('tarefa')) {
         const pend = E.modules.tarefas.pendentes();
@@ -273,7 +273,7 @@ const NEITZEL_IA = (() => {
       ['Rotina de verificação', 'operacional'],
       ['Integração WhatsApp', st.ativo ? 'atencao' : 'interrompido'],
       ['IA (motor local)', 'operacional'],
-      ['Caçador de Leads', window.ECOMIM_HUNTER ? 'operacional' : 'interrompido'],
+      ['Estratégia & Previsão', window.NEITZEL_CENARIO ? 'operacional' : 'atencao'],
       ['Estoque', window.NEITZEL_OPS ? 'operacional' : 'interrompido'],
     ];
     itensSaude.forEach(([nome, status]) => {

@@ -4,6 +4,7 @@ const store = require('./store');
 const T = require('./time');
 const api = require('./api');
 const engine = require('./engine');
+const cacador = require('./cacador');
 
 const sseClients = new Set();
 
@@ -102,6 +103,34 @@ function handle(req, res, url, body, ip) {
     api.buscarWeb(url.searchParams.get('q'))
       .then((v) => api.json(res, v.ok ? 200 : 404, v))
       .catch(() => api.errJson(res, 502, 'FALHA_PESQUISA'));
+    return true;
+  }
+
+  /* ---------- AGENTE DE CENÁRIO: análise de previsão multi-fonte ---------- */
+  if (url.pathname === '/api/cenario/analisar') {
+    if (!api.rateLimit(ip, 10)) return api.errJson(res, 429, 'MUITAS_REQUISICOES'), true;
+    api.analisarCenario({
+      pais: url.searchParams.get('pais'),
+      estado: url.searchParams.get('estado'),
+      cidade: url.searchParams.get('cidade'),
+      segmento: url.searchParams.get('segmento'),
+    }).then((v) => api.json(res, v.ok ? 200 : 502, v))
+      .catch((e) => api.errJson(res, 502, 'FALHA_ANALISE_CENARIO', e && e.message));
+    return true;
+  }
+
+  /* ---------- CAÇADOR: busca REAL de contatos públicos (multi-fonte) ---------- */
+  if (url.pathname === '/api/cacador/pesquisar') {
+    if (!api.rateLimit(ip, 30)) return api.errJson(res, 429, 'MUITAS_REQUISICOES'), true;
+    cacador.pesquisar({
+      cidade: url.searchParams.get('cidade'),
+      uf: url.searchParams.get('uf'),
+      termo: url.searchParams.get('termo') || url.searchParams.get('segmento') || url.searchParams.get('palavraChave') || url.searchParams.get('profissao'),
+      empresa: url.searchParams.get('empresa'),
+      fonte: url.searchParams.get('fonte'),
+      limite: url.searchParams.get('limite'),
+    }).then((v) => api.json(res, v.ok ? 200 : (v.code === 'CIDADE_NAO_ENCONTRADA' ? 404 : 400), v))
+      .catch((e) => api.errJson(res, 502, 'FALHA_BUSCA_EXTERNA', e && e.message));
     return true;
   }
 

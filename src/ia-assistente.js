@@ -730,8 +730,9 @@ if (typeof window.NEITZEL_IA_ASSISTENTE === 'undefined') {
       
       // Status
       isAtivo: () => assistenteAtivo,
-      
+
       // Configuração
+      config,
       configurar: (novasConfigs) => { Object.assign(config, novasConfigs); },
       
       // Conhecimento

@@ -455,7 +455,146 @@ async function buscarWeb(q) {
   return val;
 }
 
-module.exports = { json, errJson, rateLimit, ctxAgora, publicConfig, servicoPublico, criarHold, confirmarTx, cancelarTx, isAdmin, rotasAdmin, adminMutacao, adminListaAdd, adminRemove, syncCatalogo, adminStatusTx, resumoPublico, buscarWeb, setCorsOrigin, publicarPortal };
+/* ------------------------------------------------------------------------ *
+ * AGENTE DE CENÁRIO — pesquisa real multi-motor com país/estado/cidade.
+ * Usa o Chrome headless (Google → DDG → Mojeek → Bing) e cai para APIs
+ * abertas quando o navegador não está disponível. Nada é inventado:
+ * devolvem-se apenas títulos/trechos/URLs que os motores realmente
+ * retornaram.
+ * ------------------------------------------------------------------------ */
+const chromeMod = (() => { try { return require('./chrome'); } catch (e) { return null; } })();
+const cacheCenario = new Map();
+
+function consultasDeCenario({ pais, estado, cidade, segmento }) {
+  const agora = new Date();
+  const meses = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+  const mesAtual = meses[agora.getMonth()];
+  const proximoMes = meses[(agora.getMonth() + 1) % 12];
+  const onde = [cidade, estado, pais].filter(Boolean).join(' ');
+  return [
+    { consulta: `previsão economia ${onde} próximos meses`, motor: 'busca', peso: 'alta' },
+    { consulta: `${pais} índice confiança do consumidor IPCA SELIC atual`, motor: 'busca', peso: 'alta' },
+    { consulta: `eventos ${cidade || onde} ${mesAtual} ${proximoMes}`, motor: 'busca', peso: 'media' },
+    { consulta: `feriados e datas especiais ${cidade || estado || pais} próximos 2 meses`, motor: 'busca', peso: 'media' },
+    { consulta: `mercado ${segmento}s ${cidade || onde} movimento demanda`, motor: 'busca', peso: 'alta' },
+    { consulta: `comércio empresas ${cidade || onde} crescimento fechamento`, motor: 'busca', peso: 'alta' },
+    { consulta: `gasto das pessoas consumo pessoal ${pais} tendência`, motor: 'busca', peso: 'media' },
+    { consulta: `economia ${onde}`, motor: 'wikipedia', peso: 'baixa' },
+    { consulta: `${pais} consumer confidence inflation`, motor: 'ddg', peso: 'baixa' },
+  ];
+}
+
+/** Contagem REAL de estabelecimentos no Google Maps (segmento + comércio +
+ *  empresas) na cidade/estado informados. Serve de termômetro de mercado:
+ *  quantos concorrentes existem e como está a densidade local. */
+async function mercadoLocal({ pais, estado, cidade, segmento }) {
+  if (!chromeMod || !chromeMod.disponivel()) return null;
+  const termos = [];
+  if (segmento) termos.push(segmento + 's');
+  termos.push('comercio', 'empresas', 'escritorios');
+  const alvos = [];
+  for (const t of termos) {
+    // Segmento principal é medido na CIDADE e também no ESTADO inteiro
+    if (t === segmento + 's') {
+      if (estado) alvos.push({ termo: t, nivel: 'estado', cidade: '', uf: estado });
+      if (cidade) alvos.push({ termo: t, nivel: 'cidade', cidade, uf: estado });
+    } else {
+      if (cidade) alvos.push({ termo: t, nivel: 'cidade', cidade, uf: estado });
+      else if (estado) alvos.push({ termo: t, nivel: 'estado', cidade: '', uf: estado });
+    }
+  }
+  try {
+    const respostas = await chromeMod.comAbasIndependentes(
+      alvos,
+      (aba, item) => chromeMod.buscarNoMaps(item.termo, item.cidade, item.uf, 40),
+      3
+    );
+    const mercados = [];
+    respostas.forEach((r, i) => {
+      const lista = (r && r.ok && Array.isArray(r.valor)) ? r.valor : [];
+      mercados.push({
+        termo: alvos[i].termo,
+        nivel: alvos[i].nivel,
+        onde: [alvos[i].cidade, alvos[i].uf].filter(Boolean).join('/'),
+        total: lista.length,
+        comNota: lista.filter((l) => l.rating && /\d/.test(l.rating)).length,
+        mediaEstrelas: (() => {
+          const notas = lista.map((l) => { const m = String(l.rating || '').match(/(\d[.,]\d)/); return m ? parseFloat(m[1].replace(',', '.')) : null; }).filter((n) => n != null);
+          return notas.length ? Number((notas.reduce((a, b) => a + b, 0) / notas.length).toFixed(2)) : null;
+        })(),
+        amostra: lista.slice(0, 8).map((l) => ({ nome: l.name, nota: l.rating || '' })),
+      });
+    });
+    return mercados.length ? { consultas: mercados, coletadoEm: new Date().toISOString() } : null;
+  } catch (e) { return null; }
+}
+
+async function analisarCenario(params) {
+  const p = {
+    pais: String(params.pais || 'Brasil').slice(0, 40),
+    estado: String(params.estado || '').slice(0, 2).toUpperCase(),
+    cidade: String(params.cidade || '').slice(0, 60),
+    segmento: String(params.segmento || '').slice(0, 40),
+  };
+  const chave = JSON.stringify(Object.assign({ v: 3 }, p));
+  const hit = cacheCenario.get(chave);
+  if (hit && Date.now() - hit.ts < 900000) return hit.val;
+
+  const lista = consultasDeCenario(p);
+  const fontes = [];
+
+  async function viaChrome() {
+    if (!chromeMod || !chromeMod.disponivel()) return false;
+    try {
+      const respostas = await chromeMod.comAbasIndependentes(
+        lista.filter((x) => x.motor === 'busca'),
+        (aba, item) => chromeMod.buscarResultadosNaAba(aba, item.consulta, 10),
+        4
+      );
+      let achou = 0;
+      respostas.forEach((r, i) => {
+        if (r && r.ok && Array.isArray(r.valor) && r.valor.length) {
+          fontes.push({ consulta: lista[i].consulta, motor: 'chrome-web', resultados: r.valor.slice(0, 8) });
+          achou++;
+        }
+      });
+      return achou > 0;
+    } catch (e) { return false; }
+  }
+
+  async function viaApisAbertas() {
+    const alvos = lista.filter((x) => x.motor !== 'busca').slice(0, 4);
+    const resultados = await Promise.all(alvos.map(async (item) => {
+      const r = await buscarWeb(item.consulta);
+      return { consulta: item.consulta, motor: item.motor === 'ddg' ? 'ddg-api' : 'wikipedia-api', resultados: r.ok ? [{ url: (r.fontes[0] && r.fontes[0].url) || '', titulo: r.texto.slice(0, 140), trecho: r.texto.slice(0, 260) }] : [] };
+    }));
+    let achou = 0;
+    resultados.forEach((r) => { if (r.resultados.length) { fontes.push(r); achou++; } });
+    return achou > 0;
+  }
+
+  // Tenta Chrome primeiro; se falhar usa as APIs abertas como rede de segurança
+  let ok = false;
+  try { ok = await viaChrome(); } catch (e) {}
+  if (!ok) { try { ok = await viaApisAbertas(); } catch (e) {} }
+
+  // Mercado real: quantos estabelecimentos do segmento + comércio + empresas
+  // existem de fato na cidade/estado (lidos do Google Maps agora). Com uma
+  // segunda tentativa — o Maps às vezes demora a renderizar o feed.
+  let mercado = null;
+  for (let tent = 0; tent < 2 && !mercado; tent++) {
+    try { mercado = await mercadoLocal(p); } catch (e) { mercado = null; }
+    if (!mercado && tent === 0) await new Promise((r) => setTimeout(r, 2500));
+  }
+
+  const val = (ok || mercado)
+    ? { ok: true, fontes, mercado, coletadoEm: new Date().toISOString(), motores: chromeMod && chromeMod.disponivel() ? 'chrome-headless + apis' : 'apis-abertas' }
+    : { ok: false, code: 'SEM_FONTES', fontes: [], mercado: null, coletadoEm: new Date().toISOString() };
+  cacheCenario.set(chave, { ts: Date.now(), val });
+  return val;
+}
+
+module.exports = { json, errJson, rateLimit, ctxAgora, publicConfig, servicoPublico, criarHold, confirmarTx, cancelarTx, isAdmin, rotasAdmin, adminMutacao, adminListaAdd, adminRemove, syncCatalogo, adminStatusTx, resumoPublico, buscarWeb, analisarCenario, setCorsOrigin, publicarPortal };
 
 
 

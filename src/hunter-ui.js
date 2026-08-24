@@ -50,7 +50,7 @@
   /* Estado da UI */
   const U = {
     filtros: {
-      busca: '', tipo: '', cidade: '', estado: '', ddd: '',
+      busca: '', tipo: '', cidade: '', estado: '',
       profissao: '', segmento: '', fonte: '', qualidade: '', scoreMin: '', status: '',
     },
     grupo: '',
@@ -100,7 +100,7 @@
           <span>Erros: <b>${ativo.erros}</b></span>
           <span>Progresso: <b>${pct}%</b></span>
         </div>
-        <button class="btn btn-sm btn-danger" id="hunter-cancelar" style="margin-top:10px">⏹ Cancelar pesquisa</button>
+        <button class="btn btn-sm btn-danger" id="hunter-cancelar" style="margin-top:10px">â¹ Cancelar pesquisa</button>
       `);
       c.appendChild(pcard);
       const cancelar = pcard.querySelector('#hunter-cancelar');
@@ -121,7 +121,6 @@
         </label>
         <label>Cidade <input class="input" id="h-cidade" value="${esc(s.cidade)}" placeholder="ex.: Joinville" /></label>
         <label>Estado (UF) <input class="input" id="h-estado" value="${esc(s.estado)}" maxlength="2" placeholder="SC" /></label>
-        <label>DDD <input class="input" id="h-ddd" value="${esc(s.ddd)}" maxlength="2" placeholder="47" /></label>
         <label>Profissão <input class="input" id="h-profissao" value="${esc(s.profissao)}" placeholder="ex.: nutricionista" /></label>
         <label>Cargo <input class="input" id="h-cargo" value="${esc(s.cargo)}" placeholder="ex.: gerente" /></label>
         <label>Segmento <input class="input" id="h-segmento" value="${esc(s.segmento)}" placeholder="ex.: academias" /></label>
@@ -133,7 +132,7 @@
         <button class="btn btn-primary" id="h-executar"> Executar pesquisa</button>
         <button class="btn btn-sm" id="h-limpar"> Limpar base</button>
       </div>
-      <div class="hunter-note">As fontes marcadas como ativas participam. Se uma fonte falhar, a pesquisa continua.</div>
+      <div class="hunter-note">Busca REAL: o servidor lê cada fonte ativa na internet (busca aberta, mapa público, perfis públicos, sites e diretórios) e traz só contatos que existem de verdade. O que a fonte não tiver fica como "indisponível" — nada é inventado.</div>
     `);
     c.appendChild(buscaCard);
 
@@ -155,7 +154,7 @@
         </div>
         ${f.erros && f.erros.length ? `<div class="hunter-note" style="color:var(--e-danger)">${esc(f.erros.slice(-3).join(' · '))}</div>` : ''}
         <div class="src-actions">
-          <button class="btn btn-xs" data-src-exec="${esc(f.id)}">▶ Executar só esta</button>
+          <button class="btn btn-xs" data-src-exec="${esc(f.id)}">â–¶ Executar só esta</button>
           <button class="btn btn-xs btn-ghost" data-src-ver="${esc(f.id)}">Ver resultados</button>
         </div>
       `);
@@ -172,7 +171,7 @@
         execBtn.textContent = 'Rodando…';
         const r = await H.executarPesquisa(Object.assign({}, s, { fontes: [f.id], tipo: s.tipo === 'todos' ? 'empresa' : s.tipo }));
         execBtn.disabled = false;
-        execBtn.textContent = '▶ Executar só esta';
+        execBtn.textContent = 'â–¶ Executar só esta';
         if (r.ok) toast(`Fonte ${f.nome} concluída — ${r.search.resultados.encontrados} lead(s)`, 'success');
         else toast('Não foi possível executar', 'danger');
       });
@@ -208,7 +207,7 @@
       <div class="hunter-filters-more" id="h-f-more" ${filtrosAbertos ? '' : 'hidden'}>
         <select class="input" id="h-f-tipo"><option value="">Tipo: todos</option><option value="person" ${U.filtros.tipo === 'person' ? 'selected' : ''}>Pessoa</option><option value="company" ${U.filtros.tipo === 'company' ? 'selected' : ''}>Empresa</option></select>
         <select class="input" id="h-f-qualidade"><option value="">Qualidade: todas</option>${['Excelente', 'Bom', 'Médio', 'Baixo'].map((q) => `<option value="${q}" ${U.filtros.qualidade === q ? 'selected' : ''}>${q}</option>`).join('')}</select>
-        <select class="input" id="h-f-score"><option value="">Score: todos</option><option value="80" ${U.filtros.scoreMin === '80' ? 'selected' : ''}>≥ 80 (excelentes)</option><option value="60" ${U.filtros.scoreMin === '60' ? 'selected' : ''}>≥ 60</option><option value="40" ${U.filtros.scoreMin === '40' ? 'selected' : ''}>≥ 40</option></select>
+        <select class="input" id="h-f-score"><option value="">Score: todos</option><option value="80" ${U.filtros.scoreMin === '80' ? 'selected' : ''}>â‰¥ 80 (excelentes)</option><option value="60" ${U.filtros.scoreMin === '60' ? 'selected' : ''}>â‰¥ 60</option><option value="40" ${U.filtros.scoreMin === '40' ? 'selected' : ''}>â‰¥ 40</option></select>
         <select class="input" id="h-f-status"><option value="">Status: todos</option><option value="novo" ${U.filtros.status === 'novo' ? 'selected' : ''}>Novo</option><option value="na_fila" ${U.filtros.status === 'na_fila' ? 'selected' : ''}>Na fila do CRM</option></select>
         <select class="input" id="h-f-fonte"><option value="">Fonte: todas</option>${H.DB.sources.map((f2) => `<option value="${esc(f2.id)}" ${U.filtros.fonte === f2.id ? 'selected' : ''}>${esc(f2.nome)}</option>`).join('')}</select>
         <button class="btn btn-sm btn-ghost" id="h-f-limpar">Limpar</button>
@@ -242,15 +241,15 @@
       if (tgl) tgl.setAttribute('aria-expanded', String(filtrosAbertos));
     });
     filtros.querySelector('#h-f-limpar').addEventListener('click', () => {
-      U.filtros = { busca: '', tipo: '', cidade: '', estado: '', ddd: '', profissao: '', segmento: '', fonte: '', qualidade: '', scoreMin: '', status: '' };
+      U.filtros = { busca: '', tipo: '', cidade: '', estado: '', profissao: '', segmento: '', fonte: '', qualidade: '', scoreMin: '', status: '' };
       rerenderHunter();
     });
 
     // Agrupamento (organização)
     const grupo = el('div', 'group-strip', '');
-    ['', 'city', 'state', 'ddd', 'profession', 'segment', 'quality', 'fonte'].forEach((g) => {
+    ['', 'city', 'state', 'profession', 'segment', 'quality', 'fonte'].forEach((g) => {
       const label = g === '' ? 'Sem grupo'
-        : g === 'city' ? 'Cidade' : g === 'state' ? 'Estado' : g === 'ddd' ? 'DDD'
+        : g === 'city' ? 'Cidade' : g === 'state' ? 'Estado'
         : g === 'profession' ? 'Profissão' : g === 'segment' ? 'Segmento'
         : g === 'quality' ? 'Qualidade' : 'Fonte';
       const chip = el('button', 'chip' + (U.grupo === g ? ' on' : ''), esc(label));
@@ -267,7 +266,7 @@
     // Dividido entre Pessoas e Comércios para organização rápida.
     renderPipeline(c, D.leads);
 
-    // Lista de leads (com agrupamento por cidade/estado/ddd/profissão/segmento/qualidade/fonte)
+    // Lista de leads (com agrupamento por cidade/estado/profissão/segmento/qualidade/fonte)
     const leads = H.filtrar(D.leads, Object.assign({}, U.filtros));
     const grupoCampo = U.grupo === 'fonte' ? 'source.type' : U.grupo;
     const agrupados = U.grupo ? H.agrupar(leads, grupoCampo) : null;
@@ -275,8 +274,8 @@
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px">
         <h4> Leads capturados (${leads.length})</h4>
         <div class="btn-group">
-          <button class="btn btn-sm" id="h-exp-csv">⬇ CSV</button>
-          <button class="btn btn-sm" id="h-exp-json">⬇ JSON</button>
+          <button class="btn btn-sm" id="h-exp-csv">â¬‡ CSV</button>
+          <button class="btn btn-sm" id="h-exp-json">â¬‡ JSON</button>
           <button class="btn btn-sm btn-success" id="h-enviar-selecao" ${U.selecao.size ? '' : 'disabled'}> Enviar ${U.selecao.size || ''} para a fila</button>
           <button class="btn btn-sm btn-ghost" id="h-limpar-selecao">Limpar seleção</button>
         </div>
@@ -313,6 +312,11 @@
       // ações
       tableWrap.querySelectorAll('[data-ver]').forEach((b) => b.addEventListener('click', () => openLeadHunterDetail(b.dataset.ver)));
       tableWrap.querySelectorAll('[data-fila]').forEach((b) => b.addEventListener('click', () => {
+        const alvo = H.DB.leads.find((x) => x.id === b.dataset.fila);
+        if (alvo) {
+          const ver = verificacaoLead(alvo);
+          if (!ver.real) { toast('Bloqueado: ' + ver.faltando.join(', ') + '.', 'warn'); return; }
+        }
         const r = H.enviarParaFila(b.dataset.fila);
         if (r.ok) { toast('Na fila de aprovação do CRM ', 'success'); renderCacador(document.querySelector('.ecomim-content'), { reexibir: true }); }
         else if (r.code === 'SINTETICO_SEM_CONSENTIMENTO') toast('Contato de demonstração — abra o lead e registre o consentimento real antes de enviar ao CRM.', 'warn');
@@ -335,12 +339,14 @@
     if (envSelecao) envSelecao.addEventListener('click', async () => {
       const ids = Array.from(U.selecao);
       if (!ids.length) { toast('Selecione leads primeiro', 'warn'); return; }
-      let ok = 0, dups = 0, falhas = 0;
+      let ok = 0, dups = 0, falhas = 0, bloqueados = 0;
       ids.forEach((id) => {
+        const alvo = H.DB.leads.find((x) => x.id === id);
+        if (alvo && !verificacaoLead(alvo).real) { bloqueados++; return; }
         const r = H.enviarParaFila(id);
         if (r.ok) ok++; else if (r.code === 'DUPLICADO') dups++; else falhas++;
       });
-      toast(`${ok} enviado(s) para a fila ${dups ? ` · ${dups} duplicado(s)` : ''}${falhas ? ` · ${falhas} falha(s)` : ''}`, ok ? 'success' : 'warn');
+      toast(`${ok} enviado(s) para a fila ${dups ? ` · ${dups} duplicado(s)` : ''}${bloqueados ? ` · ${bloqueados} bloqueado(s) sem contato real` : ''}${falhas ? ` · ${falhas} falha(s)` : ''}`, ok ? 'success' : 'warn');
       U.selecao.clear();
       renderCacador(document.querySelector('.ecomim-content'), { reexibir: true });
       if (ok) inlineInsight(` **${ok} lead(s)** enviados à fila de aprovação do CRM (${dups} duplicados ignorados).\nPróximo passo: revisar e aprovar na ** Fila de aprovação** — a IA sugere follow-ups para cada um.`);
@@ -351,7 +357,7 @@
     // Histórico de pesquisas — discreto (detalhe recolhível) com opção de apagar
     const hist = D.pesquisas.slice(0, 10);
     const histCard = el('div', 'card', `
-      <h4 style="display:flex;align-items:center;gap:8px;cursor:pointer" data-hist-toggle> Histórico de pesquisas <span class="text-muted" style="font-size:11px;font-weight:400">(${D.pesquisas.length}) ▾</span></h4>
+      <h4 style="display:flex;align-items:center;gap:8px;cursor:pointer" data-hist-toggle> Histórico de pesquisas <span class="text-muted" style="font-size:11px;font-weight:400">(${D.pesquisas.length}) â–¾</span></h4>
       <div data-hist-body style="display:none">
         ${D.pesquisas.length ? `<div style="text-align:right;margin:6px 0"><button class="btn btn-xs btn-danger" id="h-hist-limpar"> Apagar histórico</button></div>` : ''}
         <div data-hist-list></div>
@@ -363,8 +369,8 @@
       const aberto = histBody.style.display !== 'none';
       histBody.style.display = aberto ? 'none' : 'block';
       histToggle.innerHTML = aberto
-        ? ' Histórico de pesquisas <span class="text-muted" style="font-size:11px;font-weight:400">(' + D.pesquisas.length + ') ▸</span>'
-        : ' Histórico de pesquisas <span class="text-muted" style="font-size:11px;font-weight:400">(' + D.pesquisas.length + ') ▾</span>';
+        ? ' Histórico de pesquisas <span class="text-muted" style="font-size:11px;font-weight:400">(' + D.pesquisas.length + ') â–¸</span>'
+        : ' Histórico de pesquisas <span class="text-muted" style="font-size:11px;font-weight:400">(' + D.pesquisas.length + ') â–¾</span>';
     });
     const histApagar = histCard.querySelector('#h-hist-limpar');
     if (histApagar) histApagar.addEventListener('click', () => {
@@ -403,7 +409,6 @@
         tipo,
         cidade: inp('h-cidade') ? inp('h-cidade').value : '',
         estado: inp('h-estado') ? inp('h-estado').value : '',
-        ddd: inp('h-ddd') ? inp('h-ddd').value : '',
         profissao: inp('h-profissao') ? inp('h-profissao').value : '',
         cargo: inp('h-cargo') ? inp('h-cargo').value : '',
         segmento: inp('h-segmento') ? inp('h-segmento').value : '',
@@ -451,9 +456,33 @@
   }
 
   function BadgeTel(phone) {
-    const ddd = phone.slice(0, 2);
-    const resto = phone.length > 10 ? phone.slice(2) : phone.slice(2);
-    return `<span class="mini"> (${ddd}) ${resto}</span>`;
+    const F = window.ECOMIM && ECOMIM.foneBR;
+    const txt = F ? F.formatar(phone) : `(${phone.slice(0, 2)}) ${phone.slice(2)}`;
+    return `<span class="mini"> ${esc(txt)}</span>`;
+  }
+
+  /* ── Verificação de lead REAL: o que existe/está disponível vs. o que falta ── */
+  function verificacaoLead(l) {
+    const F = window.ECOMIM && ECOMIM.foneBR;
+    const telOk = !!(F ? F.valido(l.whats || l.phone || '') : (l.phone && String(l.phone).length >= 10));
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(l.email || '').trim());
+    const sintetico = !!l.sintetico;
+    const disponiveis = [];
+    const faltando = [];
+    if (telOk) disponiveis.push('telefone'); else faltando.push('telefone indisponível ou incompleto');
+    if (emailOk) disponiveis.push('e-mail'); else faltando.push('e-mail indisponível');
+    if (l.website) disponiveis.push('site'); else faltando.push('site indisponível');
+    if (l.instagram) disponiveis.push('instagram'); else faltando.push('instagram indisponível');
+    return { real: (telOk || emailOk) && !sintetico, sintetico, telOk, emailOk, disponiveis, faltando };
+  }
+
+  /** Pequeno report junto ao lead: o que está disponível e o que não está. */
+  function relatorioHtml(v) {
+    const chips = [];
+    if (v.sintetico) chips.push('<span class="h-rep h-rep-demo" title="Gerado para demonstração — nunca entra no CRM">demonstração</span>');
+    v.faltando.forEach((f) => chips.push(`<span class="h-rep" title="Não encontrado na fonte pública">${esc(f)}</span>`));
+    if (v.real) chips.unshift('<span class="h-rep h-rep-ok">contato verificado</span>');
+    return chips.join(' ') || '';
   }
 
   function inlineInsight(texto, titulo) {
@@ -540,13 +569,19 @@
     return card;
   }
 
-  /* ── Ícones de contato elegantes ── */
+  /* â”€â”€ Ãcones de contato elegantes â”€â”€ */
   function iconContato(l, ctx) {
-    const tipo = (w) => (w ? 'cel' : 'tel');
+    const F = (window.ECOMIM && ECOMIM.foneBR) || null;
     const chunks = [];
-    if (l.phone) chunks.push(`<a class="ci" title="${l.phone}" href="tel:+55${l.phone}"></a>`);
-    if (l.whats) chunks.push(`<a class="ci ci-wa" title="WhatsApp ${l.whats}" href="https://wa.me/55${l.whats}" target="_blank" rel="noopener"></a>`);
-    if (l.email) chunks.push(`<a class="ci" title="${l.email}" href="mailto:${esc(l.email)}"></a>`);
+    if (l.phone) {
+      const telLink = F ? ('tel:+' + (F.normalizar(l.phone) || F.digits(l.phone))) : 'tel:+55' + String(l.phone).replace(/\D/g, '');
+      chunks.push(`<a class="ci" title="${F ? esc(F.formatar(l.phone)) : esc(l.phone)}" href="${telLink}"></a>`);
+    }
+    if (l.whats || l.phone) {
+      const wa = F ? F.waLink(l.whats || l.phone) : null;
+      if (wa) chunks.push(`<a class="ci ci-wa" title="WhatsApp ${esc(F.formatar(l.whats || l.phone))}" href="${wa}" target="_blank" rel="noopener"></a>`);
+    }
+    if (l.email) chunks.push(`<a class="ci" title="${esc(l.email)}" href="mailto:${esc(l.email)}"></a>`);
     if (l.instagram) chunks.push(`<a class="ci" title="Instagram" href="https://${esc(l.instagram)}" target="_blank" rel="noopener"></a>`);
     if (l.linkedin) chunks.push(`<a class="ci" title="LinkedIn" href="https://${esc(l.linkedin)}" target="_blank" rel="noopener"></a>`);
     if (l.facebook) chunks.push(`<a class="ci" title="Facebook" href="https://${esc(l.facebook)}" target="_blank" rel="noopener"></a>`);
@@ -558,17 +593,18 @@
   function linhaLead(l) {
     const tr = el('tr', 'hunter-row', '');
     if (U.selecao.has(l.id)) tr.classList.add('selected-row');
+    const ver = verificacaoLead(l);
     tr.innerHTML = `
       <td><input type="checkbox" data-sel="${esc(l.id)}" ${U.selecao.has(l.id) ? 'checked' : ''} /></td>
       <td><span class="h-name">${esc(l.name || '—')}${badgeSintetico(l)}</span>
         <div class="h-contatos">${l.lead_type === 'person' ? ' pessoa' : ' empresa'}${l.status === 'na_fila' ? ' · <span class="badge badge-violet">na fila</span>' : ''}</div>
       </td>
       <td><div>${esc(l.profession || '—')}</div><div class="h-contatos">${esc(l.job_title || '')} ${l.company ? '· ' + esc(l.company) : ''}</div></td>
-      <td>${esc(l.city || '—')} ${esc(l.state || '')}${l.ddd ? '<div class="h-contatos">DDD ' + esc(l.ddd) + '</div>' : ''}</td>
+      <td>${esc(l.city || '—')} ${esc(l.state || '')}</td>
       <td class="h-contatos">
         ${l.phone ? `${BadgeTel(l.phone)} ` : ''}
         <div class="nz-ci-row">${iconContato(l)}</div>
-        <div class="hunter-chips">${(l._warnings || []).slice(0, 3).map((w) => `<span class="mini"> ${esc(w)}</span>`).join(' ')}</div>
+        <div class="h-reports">${relatorioHtml(ver)}</div>
       </td>
       <td>
         <div class="score-wrap">
@@ -583,7 +619,7 @@
       <td>
         <div class="btn-group">
           <button class="btn btn-xs" data-ver="${esc(l.id)}">Ver</button>
-          <button class="btn btn-xs btn-success" data-fila="${esc(l.id)}" ${l.status === 'na_fila' ? 'disabled' : ''}>Enviar p/ fila</button>
+          <button class="btn btn-xs btn-success" data-fila="${esc(l.id)}" ${(l.status === 'na_fila' || !ver.real) ? 'disabled' : ''} title="${ver.real ? 'Enviar para aprovao' : 'Bloqueado: ' + esc(ver.faltando.join(', '))}">Enviar p/ fila</button>
           <button class="btn btn-xs btn-danger" data-del="${esc(l.id)}" title="Excluir lead" aria-label="Excluir lead">${ICONS.lixo}</button>
         </div>
       </td>`;
@@ -672,14 +708,19 @@
             <div class="hlead-item"><span class="k">Empresa:</span><span>${fmt(lead.company)}</span></div>
             <div class="hlead-item"><span class="k">Segmento:</span><span>${fmt(lead.segment)}</span></div>
             <div class="hlead-item"><span class="k">Cidade:</span><span>${fmt(lead.city)} ${esc(lead.state || '')}</span></div>
-            <div class="hlead-item"><span class="k">DDD:</span><span>${fmt(lead.ddd)}</span></div>
-            <div class="hlead-item"><span class="k">Telefone:</span><span>${lead.phone ? esc('(' + lead.phone.slice(0, 2) + ') ' + lead.phone.slice(2)) : '—'}</span></div>
+            <div class="hlead-item"><span class="k">Telefone:</span><span>${lead.phone ? BadgeTel(lead.phone) : '—'}</span></div>
             <div class="hlead-item"><span class="k">E-mail:</span><span>${lead.email ? `<a href="mailto:${esc(lead.email)}">${esc(lead.email)}</a>` : '—'}</span></div>
             <div class="hlead-item"><span class="k">Site:</span><span>${lead.website ? `<a href="${esc(lead.website)}" target="_blank" rel="noopener">${esc(lead.website)}</a>` : '—'}</span></div>
             <div class="hlead-item"><span class="k">Instagram:</span><span>${lead.instagram ? `<a href="https://${esc(lead.instagram)}" target="_blank" rel="noopener">${esc(lead.instagram)}</a>` : '—'}</span></div>
             <div class="hlead-item"><span class="k">LinkedIn:</span><span>${lead.linkedin ? `<a href="https://${esc(lead.linkedin)}" target="_blank" rel="noopener">${esc(lead.linkedin)}</a>` : '—'}</span></div>
             <div class="hlead-item"><span class="k">Facebook:</span><span>${lead.facebook ? `<a href="https://${esc(lead.facebook)}" target="_blank" rel="noopener">${esc(lead.facebook)}</a>` : '—'}</span></div>
           </div>
+        </div>
+        <div class="ldp-section"><h4>Verificação do lead — o que existe e o que falta</h4>
+          <div class="h-reports" style="margin-top:4px">${relatorioHtml(verificacaoLead(lead))}</div>
+          ${verificacaoLead(lead).real
+            ? '<div class="hunter-note" style="color:var(--e-green);margin-top:6px">Este lead tem contato real e pode ir à fila.</div>'
+            : '<div class="hunter-note" style="color:var(--e-warning);margin-top:6px">Bloqueado para envio: só entra no sistema o lead com telefone completo ou e-mail válido, e que não seja de demonstração.</div>'}
         </div>
         <div class="ldp-section"><h4>Origem</h4>
           <div class="hlead-item"><span class="k">Fonte:</span><span>${esc((lead.source && lead.source.type) || '—')}</span></div>
@@ -693,7 +734,7 @@
         <div class="ldp-section">
           <div class="btn-group" style="flex-wrap:wrap;gap:6px">
             <button class="btn btn-sm btn-success" data-fila> Enviar p/ fila do CRM</button>
-            <button class="btn btn-sm" data-csv>⬇ Exportar CSV</button>
+            <button class="btn btn-sm" data-csv>â¬‡ Exportar CSV</button>
             <button class="btn btn-sm" data-whats ${lead.phone ? '' : 'disabled'}> WhatsApp</button>
             <button class="btn btn-sm" data-ia> IA: primeiro contato</button>
             <button class="btn btn-sm btn-danger" data-del> Remover</button>
@@ -706,6 +747,8 @@
     document.body.appendChild(panel);
     panel.querySelector('[data-close]').addEventListener('click', () => panel.remove());
     panel.querySelector('[data-fila]').addEventListener('click', () => {
+      const ver = verificacaoLead(lead);
+      if (!ver.real) { toast('Bloqueado: ' + ver.faltando.join(', ') + '. Só entra no sistema lead com informação real.', 'warn'); return; }
       const r = H.enviarParaFila(lead.id);
       if (r.ok) { toast('Na fila de aprovação ', 'success'); panel.remove(); renderCacadorView(); }
       else if (r.code === 'SINTETICO_SEM_CONSENTIMENTO') toast('Contato de demonstração — registre o consentimento real (campo abaixo) antes de enviar ao CRM.', 'warn');
@@ -724,7 +767,10 @@
     });
     panel.querySelector('[data-csv]').addEventListener('click', () => H.exportar([lead], 'csv', null));
     panel.querySelector('[data-whats]').addEventListener('click', () => {
-      if (lead.phone) window.open('https://wa.me/55' + lead.phone, '_blank');
+      const F = window.ECOMIM && ECOMIM.foneBR;
+      const wa = F ? F.waLink(lead.whats || lead.phone) : (lead.phone ? 'https://wa.me/55' + String(lead.phone).replace(/\D/g, '') : null);
+      if (!wa) { toast('Número sem DDD válido — complete o contato antes', 'warn'); return; }
+      window.open(wa, '_blank');
     });
     panel.querySelector('[data-del]').addEventListener('click', () => {
       H.removerLead(lead.id);
@@ -755,12 +801,12 @@
     if (!leadsAlvo.length) { toast('Nada para exportar', 'warn'); return; }
     const modal = el('div', 'modal', `
       <div class="modal-box">
-        <h3>⬇ Exportar ${leadsAlvo.length} lead(s)</h3>
+        <h3>â¬‡ Exportar ${leadsAlvo.length} lead(s)</h3>
         <p class="text-muted">Escolha os campos e o formato:</p>
         <div id="exp-campos" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px;margin:10px 0;font-size:12.5px"></div>
         <div class="btn-group">
-          <button class="btn btn-primary" data-formato="csv">⬇ CSV</button>
-          <button class="btn btn-primary" data-formato="json">⬇ JSON</button>
+          <button class="btn btn-primary" data-formato="csv">â¬‡ CSV</button>
+          <button class="btn btn-primary" data-formato="json">â¬‡ JSON</button>
           <button class="btn btn-ghost" data-close>Cancelar</button>
         </div>
       </div>
@@ -782,7 +828,7 @@
       const campos = Array.from(camposBox.querySelectorAll('input:checked')).map((x) => x.value);
       if (!campos.length) { toast('Selecione ao menos um campo', 'warn'); return; }
       const r = H.exportar(leadsAlvo, b.dataset.formato, campos);
-      if (r.ok) toast(`Exportado ${r.contagem} lead(s) ${b.dataset.formato.toUpperCase()} ⬇`, 'success');
+      if (r.ok) toast(`Exportado ${r.contagem} lead(s) ${b.dataset.formato.toUpperCase()} â¬‡`, 'success');
       modal.remove();
     }));
   }

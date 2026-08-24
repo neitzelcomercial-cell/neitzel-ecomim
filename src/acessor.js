@@ -128,9 +128,9 @@ const NEITZEL_ACESSOR = (() => {
           const nome = partes[0] || '';
           const empresa = partes[1] || '';
           if (nome) {
-            const r = E.modules.leads.addToQueue({ nome, empresa, origem: 'acessor_whatsapp', consentimento: !!st.consentimentoAcessor });
-            if (r.ok) { resposta = `Lead encaminhado para a fila de aprovação: ${nome}${empresa ? ' (' + empresa + ')' : ''}.`; acao = 'criar_lead'; registrarInteracao('Ação', `Criar lead: ${nome}${empresa ? ', ' + empresa : ''}`, 'ok'); }
-            else if (r.code === 'DUPLICADO_FILA' || r.code === 'DUPLICADO') { resposta = `Lead duplicado: já existe um registro com esses dados.`; acao = 'duplicado'; registrarInteracao('Ação', `Criar lead: ${nome}`, 'duplicado'); }
+            const r = E.modules.leads.addLead({ nome, empresa, origem: 'acessor_whatsapp', consentimento: !!st.consentimentoAcessor });
+            if (r.ok) { resposta = `Lead criado no CRM: ${nome}${empresa ? ' (' + empresa + ')' : ''}.`; acao = 'criar_lead'; registrarInteracao('Ação', `Criar lead: ${nome}${empresa ? ', ' + empresa : ''}`, 'ok'); }
+            else if (r.code === 'DUPLICADO') { resposta = `Lead duplicado: já existe um registro com esses dados.`; acao = 'duplicado'; registrarInteracao('Ação', `Criar lead: ${nome}`, 'duplicado'); }
             else resposta = 'Não foi possível criar o lead. Verifique os dados e tente novamente.';
           } else resposta = 'Informe o nome do lead. Ex.: "Criar lead: Maria Silva, Pizzaria X".';
         } else resposta = 'Seu perfil não tem permissão para criar leads (nível 2 necessário).';

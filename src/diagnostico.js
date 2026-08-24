@@ -1,4 +1,4 @@
-/* ============================================================================
+﻿/* ============================================================================
  * NEITZEL — CENTRAL DE DIAGNÓSTICO & REPORT DE PROBLEMAS
  * Monitora o ambiente e registra ocorrências automaticamente:
  *   - Conexão: offline / online / sinal lento (effectiveType, downlink)
@@ -21,9 +21,16 @@
 
   const SEVERIDADE = { critico: 'badge-red', atencao: 'badge-orange', info: 'badge-gray' };
 
-  /** Balão central: mostra o report na tela por 3 segundos. */
-  function balaoProblema(severidade, tipo, mensagem) {
+  /** Balão central: mostra o report na tela por 3 segundos.
+   * NUNCA aparece enquanto o sistema estiver bloqueado (login/primeira senha) —
+   * pessoas de fora não podem ver notificações sem colocar a senha.
+   * Erros de carregamento/promessa rejeitada ficam apenas no registro silencioso. */
+  function balaoProblema(severidade, tipo, mensagem, opts) {
     try {
+      const o = opts || {};
+      if (o.silencioso) return;
+      const bloqueado = !!(document.querySelector('.ecomim-login') || document.querySelector('.nz-onboarding'));
+      if (bloqueado) return;
       let cont = document.getElementById('nz-balao-problemas');
       if (!cont) {
         cont = document.createElement('div');
@@ -50,19 +57,19 @@
     } catch (e) { /* nunca atrapalhar o fluxo */ }
   }
 
-  function registrar(tipo, severidade, mensagem, detalhe) {
+  function registrar(tipo, severidade, mensagem, detalhe, opts) {
     const lista = lsGet(KEY, []);
     lista.unshift({ id: 'p-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), tipo, severidade, mensagem: String(mensagem || '').slice(0, 300), detalhe: String(detalhe || '').slice(0, 600), ts: new Date().toISOString() });
     if (lista.length > MAX) lista.length = MAX;
     lsSet(KEY, lista);
-    balaoProblema(severidade, tipo, mensagem);
+    balaoProblema(severidade, tipo, mensagem, opts);
     try {
       const E = window.ECOMIM;
       if (E && E.modules && E.modules.notificacoes && severidade !== 'info') {
         E.modules.notificacoes.add({ tipo: 'diagnostico', titulo: 'Diagnóstico: ' + tipo, corpo: mensagem, aviso: 'Central de Problemas' });
       }
     } catch (e) {}
-    if (window.ECOMIM_APP && document.querySelector('[data-view="suporte"].active')) window.ECOMIM_APP.renderView('suporte');
+    if (window.ECOMIM_APP && document.querySelector('[data-view="seguranca"].active')) window.ECOMIM_APP.renderView('seguranca');
   }
 
   /* ------------------------- monitores automáticos ---------------------- */
@@ -117,10 +124,10 @@
 
   function instalarHooksDeErro() {
     window.addEventListener('error', (ev) => {
-      registrar('Erro do sistema', 'critico', ev.message || 'Erro inesperado', (ev.filename || '') + ':' + (ev.lineno || '') + '\n' + (ev.error && ev.error.stack ? String(ev.error.stack).slice(0, 400) : ''));
+      registrar('Erro do sistema', 'critico', ev.message || 'Erro inesperado', (ev.filename || '') + ':' + (ev.lineno || '') + '\n' + (ev.error && ev.error.stack ? String(ev.error.stack).slice(0, 400) : ''), { silencioso: true });
     });
     window.addEventListener('unhandledrejection', (ev) => {
-      registrar('Erro do sistema', 'critico', 'Operação falhou (promessa rejeitada)', String(ev.reason && (ev.reason.stack || ev.reason.message) || ev.reason).slice(0, 400));
+      registrar('Erro do sistema', 'critico', 'Operação falhou (promessa rejeitada)', String(ev.reason && (ev.reason.stack || ev.reason.message) || ev.reason).slice(0, 400), { silencioso: true });
     });
   }
 
@@ -142,7 +149,6 @@
 
   function render(c) {
     c.innerHTML = '';
-    c.appendChild(Object.assign(document.createElement('div'), { className: 'page-header', innerHTML: '<h1>Central de Diagnóstico</h1><p>Saúde do ambiente em tempo real e registro de problemas — bateria, internet, erros e anomalias do sistema.</p>' }));
 
     // Status ao vivo
     let bat = 'n/d';

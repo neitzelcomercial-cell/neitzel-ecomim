@@ -30,14 +30,19 @@ const ECOMIM_HUNTER = (() => {
   /** Normalização de texto: minúsculas, sem acentos, compacto. */
   const normTxt = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
 
-  /** Normalização de telefone brasileiro: apenas dígitos, DDD separado. */
+  /** Normalização de telefone brasileiro — delega ao foneBR do núcleo
+   * (trata +55, zeros à esquerda e fixos de 12 dígitos corretamente). */
   const normPhone = (s) => {
+    const F = (typeof window !== 'undefined' && window.ECOMIM && window.ECOMIM.foneBR) ? window.ECOMIM.foneBR : null;
+    if (F) return F.tentar(s);
     const d = String(s || '').replace(/\D/g, '');
     if (d.length === 10 || d.length === 11) return d;
     if (d.length > 11 && d.slice(-11).startsWith('55')) return d.slice(-11);
     if (d.length > 11) return d.slice(-11);
     return d;
   };
+
+  const capitalize = (s) => String(s || '').replace(/(^|\s)\S/g, (m) => m.toUpperCase());
 
   const normEmail = (s) => String(s || '').toLowerCase().trim();
 
@@ -112,13 +117,14 @@ const ECOMIM_HUNTER = (() => {
    * ------------------------------------------------------------------ */
 
   const FONTES_DISPONIVEIS = [
-    { id: 'google', tipo: 'pessoa|empresa', nome: 'Google', icone: '', desc: 'Busca pública (com operadores quando apropriado).', demoraMs: 1200 },
-    { id: 'maps', tipo: 'empresa|pessoa', nome: 'Google Maps', icone: '', desc: 'Comércios e prestadores de serviço com telefone/site públicos.', demoraMs: 1800 },
-    { id: 'instagram', tipo: 'pessoa|empresa', nome: 'Instagram', icone: '', desc: 'Perfis públicos, hashtags e bios públicas.', demoraMs: 1400 },
-    { id: 'linkedin', tipo: 'pessoa', nome: 'LinkedIn', icone: '', desc: 'Perfis públicos com cargo e empresa.', demoraMs: 1400 },
-    { id: 'facebook', tipo: 'pessoa|empresa', nome: 'Facebook', icone: '', desc: 'Páginas públicas com contato.', demoraMs: 1200 },
-    { id: 'sites', tipo: 'pessoa|empresa', nome: 'Sites', icone: '', desc: 'Páginas de contato/sobre/equipe/autores.', demoraMs: 1500 },
-    { id: 'diretorios', tipo: 'pessoa|empresa', nome: 'Diretórios', icone: '', desc: 'Diretórios profissionais e guias locais públicos.', demoraMs: 1300 },
+    { id: 'google', tipo: 'pessoa|empresa', nome: 'Google (real)', icone: '', desc: 'Busca aberta real + leitura das páginas encontradas para extrair telefone/e-mail/WhatsApp.', demoraMs: 6000 },
+    { id: 'maps', tipo: 'empresa|pessoa', nome: 'Google Maps / Mapa público', icone: '', desc: 'Estabelecimentos REAIS no mapa público com telefone/site quando existem.', demoraMs: 8000 },
+    { id: 'instagram', tipo: 'pessoa|empresa', nome: 'Instagram', icone: '', desc: 'Perfis públicos reais encontrados na busca — lê e traz o link verdadeiro.', demoraMs: 4000 },
+    { id: 'facebook', tipo: 'pessoa|empresa', nome: 'Facebook', icone: '', desc: 'Páginas públicas reais encontradas na busca.', demoraMs: 4000 },
+    { id: 'linkedin', tipo: 'pessoa', nome: 'LinkedIn', icone: '', desc: 'Perfis públicos reais de profissionais encontrados na busca.', demoraMs: 4000 },
+    { id: 'sites', tipo: 'pessoa|empresa', nome: 'Sites', icone: '', desc: 'Lê os sites encontrados (home + página de contato) e extrai os contatos publicados.', demoraMs: 9000 },
+    { id: 'diretorios', tipo: 'empresa|pessoa', nome: 'Diretórios', icone: '', desc: 'Listagens reais em Apontador, GuiaMais, Solutudo e Telelistas.', demoraMs: 5000 },
+    { id: 'openstreetmap', tipo: 'empresa|pessoa', nome: 'Mapa aberto (OSM)', icone: '', desc: 'Fonte pública adicional do mapa com contatos cadastrados por voluntários.', demoraMs: 8000 },
   ];
 
   function fontesAplicaveis(tipo) {
@@ -127,12 +133,14 @@ const ECOMIM_HUNTER = (() => {
 
   function getFonteMeta(id) { return FONTES_DISPONIVEIS.find((f) => f.id === id) || null; }
 
-  /** Garante que todas as fontes do catálogo existam na persistência. */
+  /** Garante o catálogo completo de fontes REAIS (remove ids antigos desconhecidos). */
   function garantirFontes() {
+    const validas = new Set(FONTES_DISPONIVEIS.map((f) => f.id));
+    const preservadas = DB.sources.filter((s) => validas.has(s.id));
+    DB.sources = [];
     FONTES_DISPONIVEIS.forEach((f) => {
-      if (!DB.sources.find((s) => s.id === f.id)) {
-        DB.sources.push(Object.assign({ ativo: true, ultimaExecucao: null, total: 0, erros: [] }, f));
-      }
+      const antiga = preservadas.find((s) => s.id === f.id);
+      DB.sources.push(Object.assign({ ativo: true, ultimaExecucao: null, total: 0, erros: [] }, f, antiga ? { ativo: antiga.ativo, ultimaExecucao: antiga.ultimaExecucao, total: antiga.total || 0 } : {}));
     });
     save();
   }
@@ -149,130 +157,66 @@ const ECOMIM_HUNTER = (() => {
    * 4. PIPELINE: coleta + normalização + validação + dedup + score
    * ------------------------------------------------------------------ */
 
-  /**
-   * Coleta SIMULADA de uma fonte — pré-coleta determinística para
-   * validação humana. IMPORTANTE (LGPD): os contatos gerados aqui são
-   * sintéticos (nomes/telefones/e-mails compostos por fórmula) e são
-   * SEMPRE marcados com `sintetico: true` para que a UI os rotule como
-   * "contato de demonstração" e para que NUNCA sejam promovidos ao CRM
-   * com consentimento presumido. No lugar de um scraper externo (que
-   * exigiria backend/credenciais), a fonte é um motor independente que
-   * retorna { leads, erros }.
+  /** Coleta REAL via backend local — o SERVIDOR lê as fontes na internet
+   * (busca aberta, mapa público, redes sociais, sites, diretórios) e devolve
+   * apenas o que existe de verdade. Nada é inventado no navegador.
    */
-  function coletarDaFonte(fonte, params, seed) {
-    const meta = getFonteMeta(fonte.id);
-    const count = Math.max(2, Math.min(12, Math.round((params.quantidade || 50) / 8)));
-    const erros = [];
-    const out = [];
+  async function coletarDaFonte(fonte, params) {
     const cidade = delim(params.cidade);
     const estado = normUf(params.estado);
-    const palavraChave = delim(params.palavraChave) || delim(params.segmento) || 'mercado';
+    const termo = delim(params.palavraChave) || delim(params.segmento) || delim(params.profissao) || '';
+    if (!cidade && !estado) throw new Error('Informe a cidade (e UF) para buscar contatos reais');
 
-    for (let i = 1; i <= count; i++) {
-      const n = seed * 101 + i * 13;
-      const nome = (fonte.id === 'maps' || fonte.id === 'diretorios')
-        ? `${capitalize(palavraChave)} ${sufixos[(n * 3) % sufixos.length]} ${i}`
-        : `${NOMES[(n * 5 + i) % NOMES.length]} ${SOBRENOMES[(n * 11 + i * 3) % SOBRENOMES.length]}`;
-      const lead = {
-        id: uid(),
-        sintetico: true, // contato de demonstração — rotulado na UI, nunca com consentimento presumido
-        lead_type: fonte.tipo === 'pessoa' ? 'person' : 'company',
-        name: nome,
-        profession: (fonte.id === 'maps' || fonte.id === 'diretorios') ? capitalize(palavraChave) : PROFISSOES[(n * 3) % PROFISSOES.length],
-        job_title: (fonte.id === 'linkedin') ? CARGOS[(n * 5) % CARGOS.length] : null,
-        company: (fonte.id === 'linkedin' || fonte.id === 'sites' || fonte.id === 'facebook') ? `${capitalize(palavraChave)} ${SUFIXOS_EMPRESA[(n * 11) % SUFIXOS_EMPRESA.length]}` : null,
-        segment: delim(params.segmento) || null,
-        city: cidade || null,
-        state: estado || null,
-        country: 'BR',
-        ddd: delim(params.ddd) || null,
-        phone: null,
-        whats: null,
-        email: null,
-        website: null,
-        instagram: null,
-        facebook: null,
-        linkedin: null,
-        description: `Encontrado via ${meta.nome} — dados públicos de ${cidade || 'sua região'} (segmento: ${delim(params.segmento) || 'geral'}).`,
-        score: 0,
-        quality: 'pendente',
-        source: { type: fonte.id, url: null, found_at: nowISO(), data: { } },
-        status: 'novo',
-        created_at: nowISO(),
-        updated_at: nowISO(),
-      };
-
-      // Distribui dados públicos por fonte, de forma determinística e plausível
-      if (fonte.id === 'maps' || fonte.id === 'diretorios') {
-        lead.phone = gerarTelefonePublico(cidade, estado, n);
-        if (n % 2 === 0) lead.website = nomeToSite(nome, palavraChave);
-        if (n % 3 === 0) lead.instagram = `insta_${palavraChave}_${n}`;
-      }
-      if (fonte.id === 'google') {
-        lead.website = nomeToSite(nome, palavraChave);
-        if (n % 2 === 0) lead.email = gerarEmailPublico(nome, palavraChave);
-        if (n % 3 === 0) lead.description = 'Perfil/lista encontrado em pesquisa pública.';
-      }
-      if (fonte.id === 'instagram') {
-        lead.instagram = `@${normTxt(nome).replace(/\s+/g, '.')}`;
-        if (n % 2 === 0) lead.description = `Bio pública: ${capitalize(palavraChave)} — ${PROFISSOES[(n * 3) % PROFISSOES.length]}`;
-      }
-      if (fonte.id === 'linkedin') {
-        lead.linkedin = `linkedin.com/in/${normTxt(nome).replace(/\s+/g, '-')}-${n}`;
-        lead.company = `${capitalize(palavraChave)} ${SUFIXOS_EMPRESA[(n * 11) % SUFIXOS_EMPRESA.length]}`;
-      }
-      if (fonte.id === 'facebook') {
-        lead.facebook = `facebook.com/${normTxt(nome).replace(/\s+/g, '.')}`;
-        lead.phone = gerarTelefonePublico(cidade, estado, n + 5);
-      }
-      if (fonte.id === 'sites') {
-        lead.website = nomeToSite(nome, palavraChave);
-        lead.email = gerarEmailPublico(nome, palavraChave);
-      }
-
-      out.push(lead);
+    const base = (typeof window !== 'undefined' && typeof window.NEITZEL_API_BASE === 'string')
+      ? window.NEITZEL_API_BASE
+      : '';
+    if (!base && typeof location !== 'undefined' && location.protocol === 'file:') {
+      throw new Error('Abra o sistema pelo servidor local (Abrir Sistema.bat) para buscar contatos reais na internet.');
     }
 
-    // Alguns resultados podem falhar/duplicar internamente — simula erros reais de fonte (ex.: página ausente)
-    if (fonte.id === 'instagram' && seed % 5 === 0) erros.push('Perfil privado ignorado (sem acesso)');
-    if (fonte.id === 'linkedin' && seed % 4 === 0) erros.push('1 perfil exigia login — ignorado');
+    const url = base + '/api/cacador/pesquisar?limite=25'
+      + '&cidade=' + encodeURIComponent(cidade)
+      + '&uf=' + encodeURIComponent(estado)
+      + '&termo=' + encodeURIComponent(termo)
+      + '&empresa=' + encodeURIComponent(delim(params.empresa))
+      + '&fonte=' + encodeURIComponent(fonte.id);
 
-    // Aplica "pre-veter" de qualidade: sem telefone/email no Maps é raro; mantém realismo
-    return { leads: out, erros };
+    let resp;
+    try {
+      resp = await fetch(url, (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) ? { signal: AbortSignal.timeout(120000) } : {});
+    } catch (e) {
+      throw new Error('Sem comunicação com o servidor de busca. Abra o sistema pelo servidor local e verifique a internet.');
+    }
+    if (!resp.ok) {
+      let msg = 'Serviço de busca indisponível agora (' + resp.status + ').';
+      try {
+        const j2 = await resp.json();
+        if (j2 && j2.message) msg = j2.message;
+        else if (j2 && j2.code === 'CIDADE_NAO_ENCONTRADA') msg = 'Cidade não encontrada na base pública — confira nome/UF.';
+      } catch (e) {}
+      throw new Error(msg);
+    }
+    const dados = await resp.json();
+    const agora = nowISO();
+    const leads = (dados.leads || []).map((l) => Object.assign(l, {
+      id: uid(),
+      sintetico: false,
+      lead_type: l.lead_type || 'company',
+      segment: delim(params.segmento) || null,
+      score: 0,
+      quality: 'pendente',
+      status: 'novo',
+      created_at: agora,
+      updated_at: agora,
+      source: l.source || { type: fonte.id, url: null, found_at: agora, data: {} },
+    }));
+    const errosFonte = (dados.erros || [])
+      .filter((e) => !e.fonte || e.fonte === fonte.id)
+      .map((e) => (typeof e === 'string' ? e : e.erro));
+    return { leads, erros: errosFonte, info: dados.aviso ? [dados.aviso] : [], local: dados.local };
   }
 
-  /** Nomes públicos comuns (apenas catálogo determinístico para a pré-coleta). */
-  const NOMES = ['Ana', 'Bruno', 'Carla', 'Diego', 'Elaine', 'Felipe', 'Gabriela', 'Henrique', 'Isabela', 'João', 'Karina', 'Lucas', 'Mariana', 'Nelson', 'Patrícia', 'Rafael', 'Sandra', 'Thiago', 'Vanessa', 'Wagner', 'Amanda', 'Beatriz', 'Caio', 'Daniela', 'Eduardo', 'Fernanda', 'Gustavo', 'Helena', 'Igor', 'Julia', 'Kaique', 'Larissa', 'Mateus', 'Natália', 'Otávio', 'Paula', 'Renato', 'Sabrina', 'Tatiane', 'Vitor'];
-  const SOBRENOMES = ['Silva', 'Santos', 'Oliveira', 'Souza', 'Pereira', 'Costa', 'Rodrigues', 'Almeida', 'Nascimento', 'Lima', 'Araújo', 'Fernandes', 'Carvalho', 'Gomes', 'Martins', 'Rocha', 'Ribeiro', 'Alves', 'Monteiro', 'Cardoso', 'Barbosa', 'Freitas', 'Moreira', 'Teixeira', 'Melo', 'Correia', 'Pinto', 'Campos', 'Dias', 'Abreu'];
-  const PROFISSOES = ['Médico', 'Advogado', 'Engenheiro', 'Contador', 'Arquiteto', 'Fisioterapeuta', 'Psicólogo', 'Dentista', 'Nutricionista', 'Personal Trainer', 'Designer', 'Consultor', 'Corretor', 'Professor', 'Veterinário', 'Fotógrafo', 'Cabeleireiro', 'Eletricista', 'Encanador', 'Chef de Cozinha'];
-  const CARGOS = ['Sócio-Diretor', 'Gerente Comercial', 'Coordenador', 'Analista Sênior', 'CEO', 'Fundador', 'Supervisor', 'Especialista'];
-  const SUFIXOS_EMPRESA = ['Comércio', 'Serviços', 'Assessoria', 'Consultoria', 'Studio', 'Clínica', 'oficina', 'Distribuidora', 'Atelier'];
-  const sufixos = ['Comércio', 'Serviços', 'Studio', 'Clínica', 'Distribuidora', 'Atelier', 'Oficina'];
-
-  const capitalize = (s) => String(s || '').replace(/(^|\s)\S/g, (m) => m.toUpperCase());
-
-  /** Composição determinística de telefone BR com formato real (10–11 dígitos: DDD + 8/9 dígitos). */
-  function gerarTelefonePublico(cidade, estado, n) {
-    const ddd = ['11', '12', '13', '14', '15', '16', '17', '18', '19', '21', '22', '24', '27', '28', '31', '32', '33', '34', '35', '37', '38', '41', '42', '43', '44', '45', '46', '47', '48', '49', '51', '53', '54', '55', '61', '62', '63', '64', '65', '66', '67', '68', '69', '71', '73', '74', '75', '77', '79', '81', '82', '83', '84', '85', '86', '87', '88', '89', '91', '92', '93', '94', '95', '96', '97', '98', '99'][(n * 13) % 63];
-    // Padrão BR: celular = 9 + 8 dígitos (11 total) · fixo = 8 dígitos (10 total)
-    const first = n % 2 === 0 ? '9' : '';
-    const rest = String((n * 8128 + 4000000) % 100000000).padStart(8, '0');
-    return ddd + first + rest;
-  }
-
-  /** Slug de site a partir do nome normalizado. */
-  function nomeToSite(nome, palavraChave) {
-    const base = normTxt(nome).replace(/\s+/g, '') || normTxt(palavraChave).replace(/\s+/g, '');
-    return `https://www.${base}.com.br`;
-  }
-
-  function gerarEmailPublico(nome, palavraChave) {
-    const base = normTxt(nome).replace(/\s+/g, '.');
-    const dom = normTxt(palavraChave).replace(/\s+/g, '') + '.com.br';
-    return `${base}@${dom}`;
-  }
-
-  /* ------------------------------------------------------------------ *
+/* ------------------------------------------------------------------ *
    * 5. NORMALIZAÇÃO / VALIDAÇÃO / SCORE
    * ------------------------------------------------------------------ */
 
@@ -286,10 +230,10 @@ const ECOMIM_HUNTER = (() => {
     l.segment = delim(l.segment || l.segmento);
     l.city = capitalize(delim(l.city || l.cidade));
     l.state = normUf(l.state || l.uf) || null;
-    l.ddd = dddOf(l.phone) || delim(l.ddd) || null;
     l.phone = normPhone(l.phone || l.telefone) || null;
     // WhatsApp = contato direto do telefone público (padrão BR: mesmo número)
     l.whats = normPhone(l.whats || l.whatsapp || l.phone) || null;
+    delete l.ddd; // número inteiro, sem separação de DDD
     l.email = normEmail(l.email) || null;
     l.website = normUrl(l.website || l.site) || null;
     l.instagram = delim(l.instagram || l.insta) || null;
@@ -304,8 +248,7 @@ const ECOMIM_HUNTER = (() => {
   /** Validações por campo — retorna lista de avisos (nunca inventa). */
   function validar(lead) {
     const warnings = [];
-    if (lead.phone && lead.phone.length < 10) warnings.push('Telefone incompleto');
-    if (lead.ddd && !validDDD(lead.ddd)) warnings.push('DDD inválido');
+    if (lead.phone && lead.phone.length < 10) warnings.push('Telefone incompleto (sem DDD?)');
     if (lead.email && !validEmail(lead.email)) warnings.push('E-mail com formato inválido');
     if (lead.website && !validUrl(lead.website)) warnings.push('URL inválida');
     if (!lead.phone && !lead.email) warnings.push('Sem contato direto');
@@ -472,7 +415,6 @@ const ECOMIM_HUNTER = (() => {
     });
     emitChange();
 
-    const arg = Date.now() % 9973;
     const todosLeads = [];
 
     if (ativo.status !== 'rodando' && ativo.status !== 'cancelado') ativo.status = 'rodando';
@@ -485,11 +427,15 @@ const ECOMIM_HUNTER = (() => {
       emitChange();
 
       if (fonte.total) { /* */ }
-      // Coleta — seed varia por fonte para gerar resultados distintos e plausíveis
+      // Coleta REAL — falha honesta se a fonte pública não responder
       try {
-        const res = await new Promise((resolve) => setTimeout(() => resolve(coletarDaFonte(fonte, params, (arg + fi * 7 + 1) % 97 + 1)), 350));
+        const res = await coletarDaFonte(fonte, params);
         ativo.progresso += 1; emitChange();
-        const res2 = await new Promise((resolve) => setTimeout(() => resolve(res), 220));
+        const res2 = res;
+        if (res2.info && res2.info.length) {
+          ativo.detalhe = res2.info.join(' ');
+          res2.erros.push(...res2.info);
+        }
         // Normalização
         res2.leads.forEach((l) => normalizar(l));
         ativo.progresso += 1; emitChange();
@@ -743,7 +689,6 @@ const ECOMIM_HUNTER = (() => {
       if (f.tipo && l.lead_type !== f.tipo) return false;
       if (f.cidade && !(q(l.city).includes(q(f.cidade)))) return false;
       if (f.estado && q(l.state) !== q(f.estado)) return false;
-      if (f.ddd && (l.ddd || dddOf(l.phone)) !== f.ddd) return false;
       if (f.profissao && !(q(l.profession).includes(q(f.profissao)) || q(l.description || '').includes(q(f.profissao)))) return false;
       if (f.segmento && !(q(l.segment).includes(q(f.segmento)) || q(l.profession).includes(q(f.segmento)))) return false;
       if (f.fonte && (l.source && l.source.type) !== f.fonte) return false;

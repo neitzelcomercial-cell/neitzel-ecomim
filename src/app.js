@@ -46,8 +46,37 @@ const toast = (msg, tipo = 'info') => {
   setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 4200);
 };
 
-/** Insight de IA inline — mostra uma caixa de sugestão no topo da view atual. */
+/** Balão de boas-vindas premium — arte com identidade NEITZEL (brilho, brinde e selo). */
+function toastHero(titulo, subtitulo) {
+  const c = document.getElementById('toast-container');
+  if (!c) return;
+  const hora = new Date().getHours();
+  const saudacao = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
+  const t = el('div', 'toast-hero', '');
+  t.innerHTML = `
+    <div class="th-shine" aria-hidden="true"></div>
+    <div class="th-head">
+      <span class="th-selo">N</span>
+      <div class="th-titulos">
+        <b>${esc(titulo || saudacao + '!')}</b>
+        ${subtitulo ? `<span>${esc(subtitulo)}</span>` : '<span>Sistema Digital · tudo operando em casa</span>'}
+      </div>
+      <button class="th-x" title="Fechar" aria-label="Fechar">×</button>
+    </div>
+    <div class="th-foot"><span class="th-dot"></span>NEITZEL — Sistema Empresarial Digital</div>`;
+  c.appendChild(t);
+  requestAnimationFrame(() => t.classList.add('show'));
+  const fechar = () => { t.classList.remove('show'); setTimeout(() => t.remove(), 420); };
+  t.querySelector('.th-x').addEventListener('click', fechar);
+  setTimeout(fechar, 6500);
+}
+
+/** Insight de IA inline — mostra uma caixa de sugestão no topo da view atual.
+ *  Respeita as configurações de IA & Agentes (pode ser desligado pelo usuário). */
 function inlineInsight(texto, titulo = 'Insight da IA') {
+  const ap = lerAparencia();
+  if (ap.iaAtiva === false || ap.agentesAtivos === false) return;
+  if (!ap.notificacoesIA && titulo !== 'Insight da IA') return;
   const content = document.querySelector('.ecomim-content');
   if (!content) return;
   const box = el('div', 'ai-insight', `<div class="ai-insight-head">${esc(titulo)}</div><span class="ai-mini-typing"><span></span><span></span><span></span></span>`);
@@ -151,8 +180,6 @@ const VIEWS = [
   { id: 'dashboard', nome: 'Painel', icone: 'dashboard' },
   { id: 'leads', nome: 'Leads & CRM', icone: 'leads' },
   { id: 'funil', nome: 'Funil', icone: 'funil' },
-  { id: 'cacador', nome: 'Caçador de Leads', icone: 'cacador' },
-  { id: 'fila', nome: 'Fila de aprovação', icone: 'fila' },
   { id: 'planner', nome: 'Planner', icone: 'agenda' },
   { id: 'agenda', nome: 'Agenda', icone: 'agenda' },
   { id: 'servicos', nome: 'Serviços', icone: 'projetos' },
@@ -167,24 +194,19 @@ const VIEWS = [
   { id: 'rh', nome: 'RH', icone: 'rh' },
   { id: 'bi', nome: 'BI & Analytics', icone: 'bi' },
   { id: 'inteligencia', nome: 'Centro de Inteligência', icone: 'ai' },
-  { id: 'automacoes', nome: 'Automações', icone: 'automacoes' },
-  { id: 'comunicacao', nome: 'Comunicação', icone: 'comunicacao' },
-  { id: 'acessor', nome: 'Acessor WhatsApp', icone: 'comunicacao' },
-  { id: 'seu_acessor', nome: 'Seu Acessor', icone: 'comunicacao' },
-  { id: 'portal', nome: 'Portal do Cliente', icone: 'comunicacao' },
-  { id: 'memoria', nome: 'Memória', icone: 'memoria' },
-  { id: 'suporte', nome: 'Diagnóstico', icone: 'seguranca' },
-  { id: 'seguranca', nome: 'Segurança', icone: 'seguranca' },
+  { id: 'estrategia', nome: 'Estratégia & Previsão', icone: 'bi' },
+  { id: 'memoria', nome: 'Atividades & Memória', icone: 'memoria' },
+  { id: 'seguranca', nome: 'Segurança & Diagnóstico', icone: 'seguranca' },
   { id: 'config', nome: 'Configurações', icone: 'config' },
 ];
 
 const NAV_SECTIONS = [
-  { nome: 'Operação', itens: ['dashboard', 'leads', 'funil', 'cacador', 'fila'] },
+  { nome: 'Operação', itens: ['dashboard', 'leads', 'funil'] },
   { nome: 'Agenda', itens: ['planner', 'agenda'] },
   { nome: 'Catálogo', itens: ['servicos', 'produtos', 'estoque'] },
   { nome: 'Operação & Gestão', itens: ['atendimento_ops', 'financeiro', 'atendimento', 'clientes', 'projetos', 'marketing', 'rh'] },
-  { nome: 'Inteligência', itens: ['bi', 'inteligencia', 'automacoes', 'comunicacao', 'acessor', 'seu_acessor'] },
-  { nome: 'Sistema', itens: ['portal', 'memoria', 'suporte', 'seguranca', 'config'] },
+  { nome: 'Inteligência', itens: ['bi', 'inteligencia', 'estrategia'] },
+  { nome: 'Sistema', itens: ['memoria', 'seguranca', 'config'] },
 ];
 
 /* ------------------------------------------------------------------ *
@@ -233,10 +255,11 @@ function abrirGrupoDe(itemEl) {
 }
 
 function renderSidebar() {
+  const apNav = lerAparencia();
   const navItens = [];
   NAV_SECTIONS.forEach((sec) => {
     // Grupo recolhível (redesign: menos itens visíveis, hierarquia clara)
-    const fechado = gruposFechados().includes(sec.nome);
+    const fechado = apNav.menu === 'topo' ? false : gruposFechados().includes(sec.nome);
     const group = el('div', 'nav-group' + (fechado ? ' closed' : ''));
     const head = el('button', 'nav-group-head',
       `<span class="ng-title">${esc(sec.nome)}</span><span class="nav-chev" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>`
@@ -259,6 +282,10 @@ function renderSidebar() {
       if (!v) return; // defesa: view desconhecida não quebra a navegação
       const navBtn = el('button', 'ecomim-nav-item' + (id === 'dashboard' ? ' active' : ''), `<span class="nav-icon">${ICONS[v.icone] || ''}</span><span class="nav-label">${esc(v.nome)}</span><span class="nav-count" data-count="${id}"></span>`);
       navBtn.dataset.view = id;
+      // Tooltip com a essência do espaço (1ª frase da dica, sem tags)
+      const dicaBruta = HELP_DICAS[id] || '';
+      const resumoDica = dicaBruta.replace(/<[^>]*>/g, '').split(/(?<=\.)\s/)[0] || '';
+      if (resumoDica) navBtn.title = resumoDica.slice(0, 160);
       // Botão de ajuda "?" — dica de como usar o espaço
       const help = el('button', 'ecomim-nav-help', '?');
       help.title = `Como usar ${v.nome}`;
@@ -275,9 +302,18 @@ function renderSidebar() {
     group.appendChild(body);
     navItens.push(group);
   });
-  const brand = el('div', 'ecomim-brand', `<div class="ecomim-brand-logo ecomim-brand-logo-nz">N</div><div><div class="ecomim-brand-name">${esc(I18N.titulo)}</div><div class="ecomim-brand-sub">${esc(I18N.sufixo)}</div></div>`);
-  const footer = el('div', 'ecomim-sidebar-footer', `<button class="btn btn-sm btn-ghost" data-action="collapse">◀ Colapsar</button>`);
-  return el('aside', 'ecomim-sidebar', '', brand, ...navItens, footer);
+  const apLogo = lerAparencia();
+  const logoHtml = apLogo.logoDataUrl
+    ? `<img class="ecomim-brand-logo ecomim-brand-img" src="${apLogo.logoDataUrl}" alt="logo" />`
+    : `<div class="ecomim-brand-logo ecomim-brand-logo-nz">N</div>`;
+  const nomeEmpresa = String(apLogo.empresa || '').trim() || String((E.db.get().config && E.db.get().config.empresa && E.db.get().config.empresa.nome) || '').trim();
+  const subtituloBrand = nomeEmpresa || I18N.sufixo;
+  const brand = el('div', 'ecomim-brand', `${logoHtml}<div><div class="ecomim-brand-name">${esc(I18N.titulo)}</div><div class="ecomim-brand-sub">${esc(subtituloBrand)}</div></div>`);
+  const footer = el('div', 'ecomim-sidebar-footer', `
+    <button class="btn btn-sm btn-ghost" data-action="cmdk-buscar" title="Buscar em tudo (Ctrl+K)" style="width:100%;justify-content:center;margin-bottom:6px">⌕ Buscar · Ctrl+K</button>
+    <button class="btn btn-sm btn-ghost" data-action="collapse">◀ Colapsar</button>`);
+  const aside = el('aside', 'ecomim-sidebar' + (apLogo.menu === 'compacta' ? ' collapsed' : ''), '', brand, ...navItens, footer);
+  return aside;
 }
 
 function renderMain() {
@@ -293,9 +329,17 @@ function renderMain() {
   `);
   const content = el('main', 'ecomim-content', '');
   const main = el('div', 'ecomim-main', '', topbar, content);
+  // Obra de fundo: a logo da empresa transformada em arte (duotone + aurora viva).
+  const fundoArte = el('div', 'nz-fundo-arte', `
+    <div class="fa-foto" aria-hidden="true"></div>
+    <div class="fa-aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+    <canvas class="fa-chuva" aria-hidden="true"></canvas>
+  `);
+  main.insertBefore(fundoArte, main.firstChild);
+  iniciarChuvaCodigo(fundoArte.querySelector('.fa-chuva'));
   // Fundo discreto do sistema: particulas suaves + brilho diagonal raro (CSS puro)
   const fundoSuave = el('div', 'fundo-suave', '<span class="fp f1"></span><span class="fp f2"></span><span class="fp f3"></span><span class="fp f4"></span><span class="fp f5"></span><span class="fs-brilho"></span>');
-  main.insertBefore(fundoSuave, main.firstChild);
+  main.insertBefore(fundoSuave, fundoArte.nextSibling);
 
   // Balão flutuante de IA no canto inferior direito
   const floatingAiButton = el('button', 'ecomim-ai-floating', `
@@ -309,6 +353,90 @@ function renderMain() {
   main.appendChild(floatingAiButton);
 
   return main;
+}
+
+/* ------------------------------------------------------------------ *
+ * CHUVA DE CÓDIGO — letras/números pequenos caindo sobre a arte de
+ * fundo (clima hacker/programação). Leve: pausa quando a aba fica
+ * oculta, quando o fundo é "padrão" e respeita no-anim.
+ * ------------------------------------------------------------------ */
+
+function iniciarChuvaCodigo(canvas) {
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const GLIFOS = '01<>{}[]#$%&*+=/\\|?~^;:0123456789ABCDEF';
+  let W = 0, H = 0, raf = 0, t = 0, visivel = true;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const reduzir = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function dimensionar() {
+    W = canvas.clientWidth; H = canvas.clientHeight;
+    canvas.width = Math.max(1, Math.round(W * dpr));
+    canvas.height = Math.max(1, Math.round(H * dpr));
+    criarColunas();
+  }
+
+  let colunas = [];
+  function criarColunas() {
+    const passo = 18 * dpr;
+    const n = Math.max(1, Math.floor(canvas.width / passo));
+    colunas = Array.from({ length: n }, (__, i) => ({
+      x: i * passo,
+      y: Math.random() * -canvas.height,
+      vel: (0.9 + Math.random() * 1.6),
+      rastro: 5 + Math.floor(Math.random() * 7),
+      ativa: Math.random() < 0.55, // nem toda coluna cai ao mesmo tempo
+      troca: Math.random(),
+    }));
+  }
+
+  function corBase() {
+    const COR_TEMA = document.documentElement.getAttribute('data-theme') === 'light';
+    const POR_COR = { ambar: [245, 158, 11], oceano: [56, 189, 248], vinho: [244, 63, 94], roxo: [167, 139, 250], matrix: [74, 222, 128] };
+    const cor = POR_COR[document.documentElement.getAttribute('data-arte-cor') || ''];
+    if (cor) {
+      // no claro, escurece para manter contraste sobre papel
+      return COR_TEMA ? cor.map((v) => Math.round(v * 0.55)) : cor;
+    }
+    return COR_TEMA ? [17, 113, 74] : [62, 207, 142];
+  }
+
+  function frame() {
+    if (!canvas.isConnected) { cancelAnimationFrame(raf); return; }
+    raf = requestAnimationFrame(frame);
+    t++;
+    if (!visivel || document.hidden || reduzir) return;
+    if (document.documentElement.getAttribute('data-fundo') === 'padrao') return;
+    if (document.documentElement.classList.contains('no-anim')) return;
+    if (W !== canvas.clientWidth || H !== canvas.clientHeight) dimensionar();
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    const [r, g, b] = corBase();
+    ctx.font = `600 ${Math.round(11 * dpr)}px ui-monospace, Consolas, monospace`;
+    ctx.textAlign = 'center';
+    for (const c of colunas) {
+      if (!c.ativa) { if (Math.random() < 0.0015) { c.ativa = true; c.y = Math.random() * -H * 0.4; } continue; }
+      c.y += c.vel * dpr;
+      if (c.troca < 0.06 && Math.random() < 0.04) c.ativa = false; // desliga sozinha às vezes
+      const glyphY = c.y / dpr;
+      if (glyphY - c.rastro > H + 20) { c.y = Math.random() * -H * 0.3; c.vel = 0.9 + Math.random() * 1.6; }
+      for (let k = 0; k < c.rastro; k++) {
+        const yy = glyphY - k * 13;
+        if (yy < -14 || yy > H + 14) continue;
+        const alfa = (1 - k / c.rastro) * (k === 0 ? 0.95 : 0.42);
+        ctx.fillStyle = `rgba(${r},${g},${b},${alfa.toFixed(3)})`;
+        const gi = ((t + c.x | 0) * 31 + k * 17 + (yy | 0)) % GLIFOS.length;
+        const glifo = GLIFOS[Math.abs(gi)];
+        if (k === 0 || Math.random() > 0.25) ctx.fillText(glifo, c.x / dpr, yy);
+      }
+    }
+  }
+
+  document.addEventListener('visibilitychange', () => { visivel = !document.hidden; });
+  window.addEventListener('resize', dimensionar, { passive: true });
+  dimensionar();
+  frame();
 }
 
 /* ------------------------------------------------------------------ *
@@ -415,7 +543,11 @@ function showLogin() {
     if (r.ok) {
       overlay.remove();
       initApp(true);
-    } else toast('Senha incorreta', 'danger');
+    } else {
+      // Sem notificação de erro na tela de login — apenas limpa o campo.
+      input.value = '';
+      input.focus();
+    }
   };
   btn.addEventListener('click', submit);
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
@@ -494,8 +626,9 @@ async function showRecoveryFlow() {
     if (nova !== repete) { msg.textContent = 'As senhas não conferem.'; return; }
     const rr = await sec.resetPassword(code, nova);
     if (!rr.ok) { msg.textContent = rr.message || rr.code; return; }
-    toast('Senha redefinida com sucesso ', 'success');
-    showLogin();
+    msg.style.color = 'var(--e-green)';
+    msg.textContent = 'Senha redefinida com sucesso. Volte e entre com a nova senha.';
+    setTimeout(showLogin, 1200);
   });
   container.querySelector('#reco-voltar2').addEventListener('click', showLogin);
   container.querySelector('#reco-x').addEventListener('click', showLogin);
@@ -513,13 +646,18 @@ function splashBoasVindas() {
       'Você construindo, o NEITZEL crescendo com você.'
     ];
     const reduz = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const apSplash = lerAparencia();
     const s = document.createElement('div');
     s.id = 'nz-splash';
+    s.style.pointerEvents = 'none'; // decorativo: nunca bloqueia cliques do sistema
+    const splashLogo = apSplash.logoDataUrl
+      ? '<img class="splash-logo ecomim-brand-img" src="' + apSplash.logoDataUrl + '" alt="logo" style="width:74px;height:74px;object-fit:contain" />'
+      : '<div class="splash-logo">N</div>';
     s.innerHTML =
       '<div class="splash-card">' +
         '<div class="splash-logo-wrap">' +
           '<span class="splash-ring r1"></span><span class="splash-ring r2"></span>' +
-          '<div class="splash-logo">N</div>' +
+          splashLogo +
         '</div>' +
         '<h2 class="splash-titulo" aria-label="Bem-vindo">' + 'BEM-VINDO'.split('').map((ch, i) =>
           '<span style="animation-delay:' + (0.45 + i * 0.045) + 's">' + ch + '</span>').join('') + '</h2>' +
@@ -532,8 +670,8 @@ function splashBoasVindas() {
       s.classList.add('saindo');
       setTimeout(() => s.remove(), reduz ? 120 : 480);
     };
-    s.addEventListener('click', fechar);
-    setTimeout(fechar, reduz ? 1600 : 3400);
+  // splash é pointer-events:none — fecha só pelo temporizador
+  setTimeout(fechar, reduz ? 1600 : 3400);
   } catch (e) { /* nunca bloquear entrada */ }
 }
 
@@ -555,6 +693,7 @@ function bindShell() {
   shell.querySelectorAll('[data-action="collapse"]').forEach((b) => b.addEventListener('click', () => {
     document.querySelector('.ecomim-sidebar')?.classList.toggle('collapsed');
   }));
+  shell.querySelectorAll('[data-action="cmdk-buscar"]').forEach((b) => b.addEventListener('click', () => openCmdk()));
   shell.querySelector('[data-action="mobile-nav"]')?.addEventListener('click', () => {
     document.querySelector('.ecomim-sidebar')?.classList.toggle('mobile-open');
   });
@@ -590,6 +729,7 @@ function toggleTheme() {
   const atual = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
   html.setAttribute('data-theme', atual);
   try { localStorage.setItem('ecomim_theme', atual); } catch (e) {}
+  try { salvarAparencia({ tema: atual }); } catch (e) {}
   const btn = document.getElementById('btn-tema');
   if (btn) {
     btn.innerHTML = atual === 'dark' ? ICONS.lua : ICONS.sol;
@@ -597,18 +737,31 @@ function toggleTheme() {
   }
 }
 
-function applySavedTheme() {
-  try {
-    const t = localStorage.getItem('ecomim_theme');
-    if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
-  } catch (e) {}
-}
-
 function refreshNavCounts() {
+  let agendaHoje = 0;
+  try { agendaHoje = E.modules.agenda.today().length; } catch (e) {}
+  let ticketsAbertos = 0;
+  try {
+    const atd = E.modules.atendimento;
+    const lista = atd && (atd.tickets || (atd.listar && atd.listar()) || []);
+    ticketsAbertos = (lista || []).filter((t) => t && !['resolvido', 'fechado'].includes(String(t.status))).length;
+  } catch (e) {}
+  let estoqueBaixo = 0;
+  try {
+    const O = window.NEITZEL_OPS;
+    if (O && O.produtos && typeof O.produtos.ativos === 'function') {
+      estoqueBaixo = (O.produtos.ativos() || []).filter((p) => Number(p.estoque || 0) <= Number(p.estoqueMinimo || p.minimo || 0)).length;
+    }
+  } catch (e) {}
   const counts = {
     fila: E.db.get().fila.length,
     leads: E.db.get().leads.length,
     tarefas: E.modules.tarefas.pendentes().length,
+    planner: E.modules.tarefas.pendentes().length,
+    agenda: agendaHoje,
+    atendimento: ticketsAbertos,
+    atendimento_ops: ticketsAbertos,
+    estoque: estoqueBaixo,
   };
   Object.entries(counts).forEach(([id, n]) => {
     const c = document.querySelector(`[data-count="${id}"]`);
@@ -625,14 +778,12 @@ function refreshNavCounts() {
  * ------------------------------------------------------------------ */
 
 function renderView(id) {
+  // Redirecionamentos de compatibilidade (views unificadas)
+  if (id === 'atividades' || id === 'suporte') id = id === 'suporte' ? 'seguranca' : 'memoria';
   ui.view = id;
   document.querySelectorAll('.ecomim-nav-item').forEach((b) => {
-    const label = b.querySelector('.nav-label');
-    const active = label && (label.textContent.trim().toLowerCase() === id.toLowerCase() || (id === 'dashboard' && label.textContent.trim().toLowerCase() === 'painel'));
-    if (active !== undefined) b.classList.toggle('active', !!active);
+    b.classList.toggle('active', b.dataset.view === id);
   });
-  // Menu em modo acordeão: grupos só abrem pelo clique do usuário
-  // (abrirGrupoDe disponível caso queira reativar a abertura automática).
   const title = VIEWS.find((v) => v.id === id)?.nome || 'Painel';
   const titleEl = document.getElementById('topbar-title');
   if (titleEl) titleEl.textContent = title;
@@ -644,8 +795,6 @@ function renderView(id) {
     case 'dashboard': renderDashboard(content); break;
     case 'leads': renderLeads(content); break;
     case 'funil': renderFunil(content); break;
-    case 'cacador': renderCacador(content); break;
-    case 'fila': renderFila(content); break;
     case 'planner': renderPlanner(content); break;
     case 'agenda': renderAgenda(content); break;
     case 'servicos': renderServicos(content); break;
@@ -660,13 +809,8 @@ function renderView(id) {
     case 'rh': renderRh(content); break;
     case 'bi': renderBi(content); break;
     case 'inteligencia': renderInteligencia(content); break;
-    case 'automacoes': renderAutomacoes(content); break;
-    case 'comunicacao': renderComunicacao(content); break;
-    case 'acessor': renderAcessor(content); break;
-    case 'seu_acessor': if (window.SEU_ACESSOR && window.SEU_ACESSOR.renderSeuAcessor) { window.SEU_ACESSOR.renderSeuAcessor(content); } else content.appendChild(el('div', 'empty', 'Seu Acessor indisponível (seu-acessor.js não carregou).')); break;
-    case 'portal': if (window.NEITZEL_PORTAL_ADMIN && window.NEITZEL_PORTAL_ADMIN.render) { window.NEITZEL_PORTAL_ADMIN.render(content); } else content.appendChild(el('div', 'empty', 'Painel do Portal indisponível (portal-admin.js não carregou).')); break;
-    case 'memoria': if (window.NEITZEL_MEMORIA && window.NEITZEL_MEMORIA.render) { window.NEITZEL_MEMORIA.render(content); } else content.appendChild(el('div','empty','Memória indisponível (memoria.js não carregou).')); break;
-    case 'suporte': if (window.NEITZEL_DIAG && window.NEITZEL_DIAG.render) { window.NEITZEL_DIAG.render(content); } else content.appendChild(el('div','empty','Diagnóstico indisponível (diagnostico.js não carregou).')); break;
+    case 'estrategia': renderEstrategia(content); break;
+    case 'memoria': renderMemoria(content); break;
     case 'seguranca': renderSeguranca(content); break;
     case 'config': renderConfig(content); break;
   }
@@ -711,79 +855,694 @@ function iniciarDashFX(container) {
   raf = requestAnimationFrame(frame);
 }
 
+/* ------------------------------------------------------------------ *
+ * DASHBOARD EXECUTIVO (arte + dados, interligado ao sistema real)
+ * ------------------------------------------------------------------ */
+
+const DBX_ATIVIDADE = {
+  'lead.criado': ['L', 'Lead cadastrado', 'e-brand'],
+  'lead.atualizado': ['L', 'Lead atualizado', 'e-brand'],
+  'lead.etapa': ['F', 'Lead mudou de etapa', 'e-violet'],
+  'lead.excluido': ['L', 'Lead excluído', 'e-danger'],
+  'lead.fila_aprovado': ['OK', 'Lead aprovado da fila', 'e-green'],
+  'lead.fila_rejeitado': ['X', 'Lead rejeitado da fila', 'e-danger'],
+  'cliente.criado': ['C', 'Novo cliente', 'e-green'],
+  'cliente.atualizado': ['C', 'Cliente atualizado', 'e-green'],
+  'agenda.criado': ['A', 'Agendamento criado', 'e-cyan'],
+  'agenda.atualizado': ['A', 'Agendamento atualizado', 'e-cyan'],
+  'financeiro.conta_criada': ['$', 'Lançamento financeiro', 'e-orange'],
+  'financeiro.conta_atualizada': ['$', 'Conta atualizada', 'e-orange'],
+  'payment.completed': ['$', 'Pagamento recebido', 'e-green'],
+  'servico.criado': ['S', 'Serviço criado', 'e-violet'],
+  'servico.atualizado': ['S', 'Serviço atualizado', 'e-violet'],
+  'produto.criado': ['P', 'Produto criado', 'e-cyan'],
+  'estoque.movimentado': ['E', 'Estoque movimentado', 'e-orange'],
+  'projeto.criado': ['J', 'Projeto criado', 'e-violet'],
+  'ticket_criado': ['T', 'Ticket aberto', 'e-orange'],
+  'atendimento.ticket_criado': ['T', 'Ticket aberto', 'e-orange'],
+  'sistema.iniciado': ['N', 'Sistema iniciado', 'e-brand'],
+};
+
+/** Curva suave (Catmull-Rom → Bézier) para linhas orgânicas. */
+function dbxSuave(pts) {
+  if (!pts.length) return '';
+  if (pts.length < 3) return pts.map((p, i) => (i ? 'L' : 'M') + p[0] + ',' + p[1]).join('');
+  let path = `M${pts[0][0]},${pts[0][1]}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(pts.length - 1, i + 2)];
+    const c1x = p1[0] + (p2[0] - p0[0]) / 6, c1y = p1[1] + (p2[1] - p0[1]) / 6;
+    const c2x = p2[0] - (p3[0] - p1[0]) / 6, c2y = p2[1] - (p3[1] - p1[1]) / 6;
+    path += `C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+  }
+  return path;
+}
+
+function dbxCurto(cents) {
+  const v = cents / 100;
+  if (Math.abs(v) >= 1000000) return 'R$' + (v / 1000000).toFixed(1).replace('.', ',') + 'M';
+  if (Math.abs(v) >= 1000) return 'R$' + (v / 1000).toFixed(1).replace('.', ',') + 'k';
+  return 'R$' + Math.round(v);
+}
+
+/** Contagem animada (count-up) até o valor final. */
+function dbxContar(elm, alvo, tipo) {
+  const dur = 950, t0 = performance.now();
+  const passo = (t) => {
+    const k = Math.min(1, (t - t0) / dur);
+    const e = 1 - Math.pow(1 - k, 3);
+    const v = alvo * e;
+    elm.textContent = tipo === 'money' ? E.fmtMoney(v) : String(Math.round(v));
+    if (k < 1) requestAnimationFrame(passo);
+  };
+  requestAnimationFrame(passo);
+}
+
+/** Fundo vivo do painel: rede de nós conectados em deriva lenta. */
+function iniciarDashBg(canvas) {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  let W = 0, H = 0, raf = 0;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const reduced = (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) || document.documentElement.classList.contains('no-anim');
+  const nos = Array.from({ length: 34 }, () => ({
+    x: Math.random(), y: Math.random(),
+    vx: (Math.random() - 0.5) * 0.00035, vy: (Math.random() - 0.5) * 0.00035,
+    r: Math.random() * 1.6 + 0.7,
+  }));
+  function resize() {
+    W = canvas.clientWidth; H = canvas.clientHeight;
+    canvas.width = W * dpr; canvas.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  resize();
+  window.addEventListener('resize', resize, { passive: true });
+  const cor = () => getComputedStyle(document.documentElement).getPropertyValue('--e-brand').trim() || '#22c55e';
+  function frame() {
+    ctx.clearRect(0, 0, W, H);
+    const c = cor();
+    nos.forEach((n) => { n.x += n.vx; n.y += n.vy; if (n.x < 0 || n.x > 1) n.vx *= -1; if (n.y < 0 || n.y > 1) n.vy *= -1; });
+    for (let i = 0; i < nos.length; i++) {
+      for (let j = i + 1; j < nos.length; j++) {
+        const dx = (nos[i].x - nos[j].x) * W, dy = (nos[i].y - nos[j].y) * H;
+        const dist = Math.hypot(dx, dy);
+        if (dist < 150) {
+          ctx.strokeStyle = c; ctx.globalAlpha = (1 - dist / 150) * 0.09; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(nos[i].x * W, nos[i].y * H); ctx.lineTo(nos[j].x * W, nos[j].y * H); ctx.stroke();
+        }
+      }
+      ctx.fillStyle = c; ctx.globalAlpha = 0.16;
+      ctx.beginPath(); ctx.arc(nos[i].x * W, nos[i].y * H, nos[i].r, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    if (!reduced) raf = requestAnimationFrame(frame);
+  }
+  frame();
+}
+
+/** Gráfico principal: área dupla entradas × saídas com tooltip. */
+function dbxChartFluxo(container, serie, periodo) {
+  const N = serie.length;
+  const W = 640, H = 250, L = 46, R = 14, T = 16, B = 28;
+  const pw = W - L - R, ph = H - T - B;
+  const maxV = Math.max(1, ...serie.map((s) => Math.max(s.entradas, s.saidas)));
+  const x = (i) => L + (N <= 1 ? pw / 2 : (i * pw) / (N - 1));
+  const y = (v) => T + ph - (v / maxV) * ph;
+  const pin = serie.map((s, i) => [x(i), y(s.entradas)]);
+  const pout = serie.map((s, i) => [x(i), y(s.saidas)]);
+  const linIn = dbxSuave(pin), linOut = dbxSuave(pout);
+  const areaIn = linIn + `L${x(N - 1)},${T + ph}L${x(0)},${T + ph}Z`;
+  const areaOut = linOut + `L${x(N - 1)},${T + ph}L${x(0)},${T + ph}Z`;
+  const passosY = 4;
+  let grade = '';
+  for (let g = 0; g <= passosY; g++) {
+    const vy = y((maxV * g) / passosY);
+    grade += `<line class="dbx-axis" x1="${L}" y1="${vy}" x2="${W - R}" y2="${vy}" opacity="${g ? 0.6 : 1}" />`;
+    grade += `<text class="dbx-axis-txt" x="${L - 7}" y="${vy + 3}" text-anchor="end">${dbxCurto((maxV * g) / passosY)}</text>`;
+  }
+  let rotulos = '';
+  const cada = periodo === 'semana' ? 1 : Math.ceil(N / 6);
+  serie.forEach((s, i) => {
+    if (i % cada !== 0 && i !== N - 1) return;
+    const lbl = s.data.toLocaleDateString('pt-BR', periodo === 'semana' ? { weekday: 'short' } : { day: '2-digit', month: '2-digit' });
+    rotulos += `<text class="dbx-axis-txt" x="${x(i)}" y="${H - 8}" text-anchor="middle">${lbl}</text>`;
+  });
+  container.innerHTML = `
+    <svg class="dbx-chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="aspect-ratio:${W}/${H}">
+      <defs>
+        <linearGradient id="dbxAIn" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="var(--e-green)" stop-opacity=".30" /><stop offset="100%" stop-color="var(--e-green)" stop-opacity="0" />
+        </linearGradient>
+        <linearGradient id="dbxAOut" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="var(--e-danger)" stop-opacity=".24" /><stop offset="100%" stop-color="var(--e-danger)" stop-opacity="0" />
+        </linearGradient>
+      </defs>
+      ${grade}${rotulos}
+      <path class="dbx-area" d="${areaOut}" fill="url(#dbxAOut)" />
+      <path class="dbx-area" d="${areaIn}" fill="url(#dbxAIn)" />
+      <path class="dbx-line" style="stroke:var(--e-danger)" d="${linOut}" />
+      <path class="dbx-line" style="stroke:var(--e-green);animation-delay:.25s" d="${linIn}" />
+      <circle class="dbx-dot-hl" r="4.5" fill="var(--e-green)" stroke="var(--surface)" stroke-width="2" opacity="0" />
+    </svg>`;
+  const tip = el('div', 'dbx-tip', '');
+  container.appendChild(tip);
+  const hl = container.querySelector('.dbx-dot-hl');
+  const svg = container.querySelector('svg');
+  svg.addEventListener('mousemove', (ev) => {
+    const rect = svg.getBoundingClientRect();
+    const rel = ((ev.clientX - rect.left) / rect.width) * W;
+    const i = Math.max(0, Math.min(N - 1, Math.round(((rel - L) / pw) * (N - 1))));
+    const s = serie[i];
+    tip.innerHTML = `<b>${s.data.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</b>
+      <div class="row"><span><i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--e-green);margin-right:5px"></i>Entradas</span><span>${E.fmtMoney(s.entradas)}</span></div>
+      <div class="row"><span><i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--e-danger);margin-right:5px"></i>Saídas</span><span>${E.fmtMoney(s.saidas)}</span></div>`;
+    const px = (x(i) / W) * rect.width, py = (y(Math.max(s.entradas, s.saidas)) / H) * rect.height;
+    tip.style.left = Math.min(rect.width - 140, px + 12) + 'px';
+    tip.style.top = Math.max(4, py - 20) + 'px';
+    tip.classList.add('show');
+    if (hl) { hl.setAttribute('cx', x(i)); hl.setAttribute('cy', y(s.entradas)); hl.setAttribute('opacity', '1'); }
+  });
+  svg.addEventListener('mouseleave', () => { tip.classList.remove('show'); if (hl) hl.setAttribute('opacity', '0'); });
+}
+
+/** Donut do funil de leads. */
+function dbxDonut(container, fatias) {
+  const total = fatias.reduce((a, f) => a + f.valor, 0) || 1;
+  const R = 52, C = 2 * Math.PI * R;
+  let acc = 0;
+  const segs = fatias.map((f) => {
+    const frac = f.valor / total;
+    const seg = { ...f, dash: frac * C, gap: C - frac * C, off: -acc * C };
+    acc += frac;
+    return seg;
+  }).filter((s) => s.dash > 0.5);
+  container.innerHTML = `
+    <svg class="dbx-chart" viewBox="0 0 160 160" style="max-width:190px;margin:0 auto">
+      ${segs.map((s, i) => `<circle class="dbx-donut-seg" cx="80" cy="80" r="${R}" fill="none" stroke-width="17"
+        stroke="${s.cor}" stroke-linecap="butt"
+        stroke-dasharray="0 ${C}" stroke-dashoffset="0" transform="rotate(-90 80 80)"
+        data-final="${s.dash.toFixed(2)} ${(C - s.dash).toFixed(2)}" data-off="${s.off.toFixed(2)}"
+        style="animation-delay:${i * 90}ms"><title>${esc(s.nome)}: ${s.valor}</title></circle>`).join('')}
+      <text class="dbx-donut-center v" x="80" y="82">${total}</text>
+      <text class="dbx-donut-center l" x="80" y="98">leads no funil</text>
+    </svg>`;
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    container.querySelectorAll('.dbx-donut-seg').forEach((c) => {
+      c.setAttribute('stroke-dasharray', c.dataset.final);
+      c.setAttribute('stroke-dashoffset', c.dataset.off);
+    });
+  }));
+}
+
+/** Barras: agendamentos por dia da semana no período. */
+function dbxBarras(container, porDiaSemana) {
+  const nomes = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+  const vals = [1, 2, 3, 4, 5, 6, 0].map((dw) => porDiaSemana[dw] || 0);
+  const maxV = Math.max(1, ...vals);
+  const W = 320, H = 170, B = 22, T = 10, bw = 30, gap = (W - 14 - 7 * bw) / 6;
+  container.innerHTML = `
+    <svg class="dbx-chart" viewBox="0 0 ${W} ${H}">
+      <defs><linearGradient id="dbxBarFill" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="var(--e-brand)" /><stop offset="100%" stop-color="var(--e-brand)" stop-opacity=".35" />
+      </linearGradient></defs>
+      <line class="dbx-axis" x1="8" y1="${H - B}" x2="${W - 6}" y2="${H - B}" />
+      ${vals.map((v, i) => {
+        const hh = Math.max(2, (v / maxV) * (H - B - T));
+        const xx = 14 + i * (bw + gap);
+        return `<rect class="dbx-bar" x="${xx}" y="${H - B - hh}" width="${bw}" height="${hh}" style="animation-delay:${i * 70}ms"><title>${v}</title></rect>
+          <text class="dbx-axis-txt" x="${xx + bw / 2}" y="${H - 7}" text-anchor="middle">${nomes[i]}</text>
+          <text class="dbx-axis-txt" x="${xx + bw / 2}" y="${H - B - hh - 4}" text-anchor="middle" opacity=".85">${v || ''}</text>`;
+      }).join('')}
+    </svg>`;
+}
+
+/** Sparkline de KPI. */
+function dbxSpark(vals, cor) {
+  const W = 150, H = 34, maxV = Math.max(...vals, 1), minV = Math.min(...vals, 0);
+  const pts = vals.map((v, i) => [vals.length <= 1 ? W / 2 : (i * W) / (vals.length - 1), H - 3 - ((v - minV) / (maxV - minV || 1)) * (H - 7)]);
+  const linha = dbxSuave(pts);
+  const area = linha + `L${W},${H}L0,${H}Z`;
+  return `<svg class="dbx-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    <defs><linearGradient id="dbxSparkFill-${cor.replace(/[^a-z]/gi, '')}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${cor}" stop-opacity=".28"/><stop offset="100%" stop-color="${cor}" stop-opacity="0"/>
+    </linearGradient></defs>
+    <path d="${area}" fill="url(#dbxSparkFill-${cor.replace(/[^a-z]/gi, '')})"/>
+    <path d="${linha}" fill="none" stroke="${cor}" stroke-width="1.8" stroke-linecap="round"/>
+  </svg>`;
+}
+
 function renderDashboard(c) {
-  const b = E.modules.bi;
-  const s = E.modules.financeiro.saldo();
-  const d = E.db.get();
-  // Redesign (prompt item 9): visão geral = Leads, Oportunidades, Vendas,
-  // Tarefas pendentes, Agenda e Atendimento — o resto vive nos módulos.
-  let agendaHoje = 0;
-  try {
-    const ops = window.NEITZEL_OPS;
-    if (ops && ops.atendimentos && ops.atendimentos.hoje) agendaHoje = ops.atendimentos.hoje().length;
-  } catch (e) { /* ops indisponível */ }
-  const kpis = [
-    { label: 'Leads no funil', valor: d.leads.length, icone: 'leads', cor: 'blue' },
-    { label: 'Tarefas pendentes', valor: E.modules.tarefas.pendentes().length, icone: 'fila', cor: 'orange' },
-    { label: 'Agenda de hoje', valor: agendaHoje, icone: 'agenda', cor: 'violet' },
-    { label: 'MRR', valor: E.fmtMoney(b.mrr()), icone: 'financeiro', cor: 'green' },
-    { label: 'Valor em andamento', valor: E.fmtMoney(b.valorPrevisto()), icone: 'bi', cor: 'cyan' },
-    { label: 'Tickets abertos', valor: E.modules.atendimento.abertos().length, icone: 'atendimento', cor: 'red' },
-  ];
-  c.appendChild(el('div', 'page-header', `<h1>Painel do NEITZEL</h1><p>Visão geral da sua operação — todos os dados são reais e locais.</p>`));
-  const kpiGrid = el('div', 'kpi-grid', '');
-  kpis.forEach((k) => kpiGrid.appendChild(el('div', `card kpi-card kpi-${k.cor}`, `
-    <div style="display:flex;align-items:center;gap:10px"><span class="kpi-ico">${ICONS[k.icone] || ''}</span><div><div class="kpi-value">${esc(String(k.valor))}</div><div class="kpi-label">${esc(k.label)}</div></div></div>
-  `)));
-  c.appendChild(kpiGrid);
-  // Fundo digital vivo do Painel (bem sutil, pausa com reduced-motion)
-  try { iniciarDashFX(content); } catch (e) {}
-  // IA: análise rápida do painel (sempre que o painel abre)
-  inlineInsight(panelInsight(d, b, s), 'Leitura rápida da IA');
-  // Ações rápidas (logo após a visão geral — ação principal sempre à mão)
-  const q = el('div', 'card', `<h4> Ações rápidas</h4><div class="btn-group" style="margin-top:8px"></div>`);
-  const qBtns = q.querySelector('.btn-group');
-  if (qBtns) {
-    const hBtn = el('button', 'btn btn-sm btn-primary', 'Caçador de Leads');
-    if (hBtn.addEventListener) hBtn.addEventListener('click', () => { if (window.ECOMIM_HUNTER) window.ECOMIM_HUNTER.init(); renderView('cacador'); });
-    qBtns.appendChild(hBtn);
-    [['Novo lead', () => openLeadModal()], [' Nova tarefa', () => openTarefaModal()], ['Assistente IA', () => toggleAiPanel()], ['Importar backup', () => openImportModal()]].forEach(([label, fn]) => {
-      const b2 = el('button', 'btn btn-sm', esc(label));
-      if (b2.addEventListener) b2.addEventListener('click', fn);
-      qBtns.appendChild(b2);
+  (window.__dbxTimers || []).forEach(clearInterval);
+  window.__dbxTimers = [];
+  const estado = { periodo: window.__dbxPeriodo || 'mes' };
+
+  const wrap = el('div', 'dbx-wrap', '');
+  wrap.appendChild(el('div', 'dbx-orb dbx-orb-1', ''));
+  wrap.appendChild(el('div', 'dbx-orb dbx-orb-2', ''));
+  wrap.appendChild(el('div', 'dbx-orb dbx-orb-3', ''));
+  const bg = el('canvas', 'dbx-bg', '');
+  wrap.appendChild(bg);
+  const palco = el('div', '', '');
+  wrap.appendChild(palco);
+  c.appendChild(wrap);
+
+  /** Coleta os dados REAIS do sistema para o período. */
+  function dados(periodo) {
+    const dias = periodo === 'semana' ? 7 : 30;
+    const base = new Date(); base.setHours(0, 0, 0, 0);
+    const inicio = new Date(base.getTime() - (dias - 1) * 86400000);
+    const serie = Array.from({ length: dias }, (_, i) => ({
+      data: new Date(inicio.getTime() + i * 86400000),
+      entradas: 0, saidas: 0, leads: 0, clientes: 0, agendamentos: 0,
+    }));
+    const idxDe = (iso) => {
+      if (!iso) return -1;
+      const dt = new Date(iso); if (isNaN(dt)) return -1; dt.setHours(0, 0, 0, 0);
+      const i = Math.round((dt.getTime() - inicio.getTime()) / 86400000);
+      return i >= 0 && i < dias ? i : -1;
+    };
+    try { E.modules.financeiro.contas.forEach((ct) => { const i = idxDe(ct.pagoEm || ct.vencimento); if (i >= 0) { if (ct.tipo === 'receber') serie[i].entradas += ct.valor; else serie[i].saidas += ct.valor; } }); } catch (e) {}
+    try { d().leads.forEach((l) => { const i = idxDe(l.created); if (i >= 0) serie[i].leads++; }); } catch (e) {}
+    try { (E.modules.clientes.clientes || []).forEach((cl) => { const i = idxDe(cl.created); if (i >= 0) serie[i].clientes++; }); } catch (e) {}
+    try { E.modules.agenda.events.forEach((ev) => { const i = idxDe(ev.quando); if (i >= 0) serie[i].agendamentos++; }); } catch (e) {}
+
+    const iniAnt = new Date(inicio.getTime() - dias * 86400000);
+    const noPeriodo = (iso, ini, fim) => { if (!iso) return false; const dt = new Date(iso); return !isNaN(dt) && dt >= ini && dt < fim; };
+    const fim = new Date(inicio.getTime() + dias * 86400000);
+    const contasAtuais = E.modules.financeiro.contas.filter((ct) => noPeriodo(ct.pagoEm || ct.vencimento, inicio, fim));
+    const contasAntes = E.modules.financeiro.contas.filter((ct) => noPeriodo(ct.pagoEm || ct.vencimento, iniAnt, inicio));
+    const soma = (arr, tp) => arr.filter((c) => c.tipo === tp).reduce((a, c) => a + c.valor, 0);
+    const resumo = {
+      entradas: soma(contasAtuais, 'receber'), saidas: soma(contasAtuais, 'pagar'),
+      lucro: soma(contasAtuais, 'receber') - soma(contasAtuais, 'pagar'),
+      leads: serie.reduce((a, s) => a + s.leads, 0),
+      clientes: serie.reduce((a, s) => a + s.clientes, 0),
+      agendamentos: serie.reduce((a, s) => a + s.agendamentos, 0),
+      ant: {
+        entradas: soma(contasAntes, 'receber'), saidas: soma(contasAntes, 'pagar'),
+        leads: d().leads.filter((l) => noPeriodo(l.created, iniAnt, inicio)).length,
+        clientes: (E.modules.clientes.clientes || []).filter((cl) => noPeriodo(cl.created, iniAnt, inicio)).length,
+        agendamentos: E.modules.agenda.events.filter((ev) => noPeriodo(ev.quando, iniAnt, inicio)).length,
+      },
+      porDiaSemana: {},
+    };
+    serie.forEach((s) => { const dw = s.data.getDay(); resumo.porDiaSemana[dw] = (resumo.porDiaSemana[dw] || 0) + s.agendamentos; });
+    return { serie, resumo, dias };
+  }
+
+  function tendencia(atual, antes, bomQuandoSobe) {
+    if (!antes && !atual) return { txt: '=', cls: 'flat' };
+    if (!antes) return { txt: ' novo', cls: (bomQuandoSobe ? 'up' : 'down') };
+    const pct = Math.round(((atual - antes) / antes) * 100);
+    if (pct === 0) return { txt: '= 0%', cls: 'flat' };
+    const sobe = pct > 0;
+    const bom = bomQuandoSobe ? sobe : !sobe;
+    return { txt: `${sobe ? '' : ''} ${Math.abs(pct)}%`, cls: bom ? 'up' : 'down' };
+  }
+
+  function desenhar() {
+    palco.innerHTML = '';
+    const { serie, resumo, dias } = dados(estado.periodo);
+    const b = E.modules.bi;
+
+    /* Hero */
+    const hora = new Date().getHours();
+    const saudacao = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
+    const hero = el('div', 'dbx-hero dbx-in', '');
+    hero.innerHTML = `
+      <div class="dbx-hello">
+        <h1>${saudacao}. Este é o seu painel.</h1>
+        <p>Visão executiva ${estado.periodo === 'semana' ? 'dos últimos 7 dias' : 'dos últimos 30 dias'} — tudo calculado dos seus dados reais.</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span class="dbx-clock"><span class="dbx-live-dot"></span><span id="dbx-hora">${new Date().toLocaleTimeString('pt-BR')}</span></span>
+        <div class="dbx-toggle ${estado.periodo === 'mes' ? 'mes' : ''}" id="dbx-tgl">
+          <button data-p="semana" class="${estado.periodo === 'semana' ? 'on' : ''}">Semana</button>
+          <button data-p="mes" class="${estado.periodo === 'mes' ? 'on' : ''}">Mês</button>
+        </div>
+      </div>`;
+    palco.appendChild(hero);
+    const tgl = hero.querySelector('#dbx-tgl');
+    tgl.querySelectorAll('button').forEach((bt) => bt.addEventListener('click', () => {
+      estado.periodo = bt.dataset.p; window.__dbxPeriodo = bt.dataset.p; desenhar();
+    }));
+
+    /* KPIs */
+    const kpis = [
+      { label: 'Novos clientes', val: resumo.clientes, ant: resumo.ant.clientes, sobeBom: true, cor: 'var(--e-green)', spark: serie.map((s) => s.clientes), icone: ICONS.clientes, tipo: 'n', clique: 'clientes' },
+      { label: 'Agendamentos', val: resumo.agendamentos, ant: resumo.ant.agendamentos, sobeBom: true, cor: 'var(--e-cyan)', spark: serie.map((s) => s.agendamentos), icone: ICONS.agenda, tipo: 'n', clique: 'planner' },
+      { label: 'Entradas', val: resumo.entradas, ant: resumo.ant.entradas, sobeBom: true, cor: 'var(--e-brand)', spark: serie.map((s) => s.entradas), icone: ICONS.financeiro, tipo: 'money', clique: 'financeiro' },
+      { label: 'Saídas', val: resumo.saidas, ant: resumo.ant.saidas, sobeBom: false, cor: 'var(--e-danger)', spark: serie.map((s) => s.saidas), icone: ICONS.financeiro, tipo: 'money', clique: 'financeiro' },
+      { label: 'Resultado', val: resumo.lucro, ant: null, sobeBom: true, cor: 'var(--e-violet)', spark: serie.map((s) => s.entradas - s.saidas), icone: ICONS.bi, tipo: 'money' },
+      { label: 'Novos leads', val: resumo.leads, ant: resumo.ant.leads, sobeBom: true, cor: 'var(--e-orange)', spark: serie.map((s) => s.leads), icone: ICONS.leads, tipo: 'n', clique: 'leads' },
+    ];
+    const gridK = el('div', 'dbx-kpis', '');
+    kpis.forEach((k, i) => {
+      const tr = tendencia(k.val, k.ant, k.sobeBom);
+      const card = el('div', 'dbx-kpi dbx-in', '');
+      card.style.animationDelay = (i * 70) + 'ms';
+      card.style.setProperty('--kpi-c', k.cor);
+      card.innerHTML = `
+        <div class="dbx-kpi-top">
+          <span class="dbx-kpi-ico">${k.icone || ''}</span>
+          <span class="dbx-trend ${tr.cls}">${tr.txt}</span>
+        </div>
+        <div class="dbx-kpi-value">—</div>
+        <div class="dbx-kpi-label">${esc(k.label)} · ${estado.periodo === 'semana' ? '7d' : '30d'}</div>
+        ${dbxSpark(k.spark, k.cor)}`;
+      dbxContar(card.querySelector('.dbx-kpi-value'), k.tipo === 'money' ? k.val / 100 : k.val, k.tipo === 'money' ? 'money' : 'n');
+      if (k.clique) { card.style.cursor = 'pointer'; card.title = 'Abrir ' + k.label; card.addEventListener('click', () => renderView(k.clique)); }
+      gridK.appendChild(card);
+    });
+    palco.appendChild(gridK);
+
+    /* Linha 2: fluxo de caixa + funil donut */
+    const grid1 = el('div', 'dbx-grid', '');
+    const cFluxo = el('div', 'dbx-card dbx-in', `<h4>Fluxo de caixa</h4><p class="dbx-sub">Entradas × saídas por dia — valores lançados no Financeiro.</p>`);
+    cFluxo.style.animationDelay = '120ms';
+    const boxFluxo = el('div', '', ''); cFluxo.appendChild(boxFluxo);
+    dbxChartFluxo(boxFluxo, serie, estado.periodo);
+    cFluxo.querySelector('.dbx-sub').insertAdjacentHTML('afterend',
+      `<div class="dbx-legend"><span><i style="background:var(--e-green)"></i>Entradas</span><span><i style="background:var(--e-danger)"></i>Saídas</span><span style="margin-left:auto"><b>${E.fmtMoney(resumo.lucro)}</b> de resultado no período</span></div>`);
+    grid1.appendChild(cFluxo);
+
+    const cFunil = el('div', 'dbx-card dbx-in', `<h4>Funil de leads</h4><p class="dbx-sub">Distribuição atual por etapa.</p>`);
+    cFunil.style.animationDelay = '190ms';
+    const boxDonut = el('div', '', ''); cFunil.appendChild(boxDonut);
+    const fatias = d().funil.map((f) => ({ nome: f.nome, valor: d().leads.filter((l) => l.etapa === f.id).length, cor: f.cor }));
+    dbxDonut(boxDonut, fatias);
+    cFunil.appendChild(el('div', 'dbx-legend', fatias.map((f) => `<span title="${esc(f.nome)}"><i style="background:${f.cor}"></i>${esc(f.nome)} <b>${f.valor}</b></span>`).join('')));
+    grid1.appendChild(cFunil);
+    palco.appendChild(grid1);
+
+    /* Linha 3: agendamentos por dia · evolução de clientes · IA + prioridades */
+    const grid2 = el('div', 'dbx-grid2', '');
+
+    const cAgd = el('div', 'dbx-card dbx-in', `<h4>Ritmo de agendamentos</h4><p class="dbx-sub">Concentração por dia da semana no período.</p>`);
+    cAgd.style.animationDelay = '240ms';
+    const boxBar = el('div', '', ''); cAgd.appendChild(boxBar);
+    dbxBarras(boxBar, resumo.porDiaSemana);
+    grid2.appendChild(cAgd);
+
+    const cCli = el('div', 'dbx-card dbx-in', `<h4>Evolução de clientes</h4><p class="dbx-sub">${resumo.clientes >= resumo.ant.clientes ? 'Base em crescimento' : 'Atenção: ritmo abaixo do período anterior'} na base de Clientes & CS.</p>`);
+    cCli.style.animationDelay = '300ms';
+    const acum = []; let runTot = 0;
+    serie.forEach((s) => { runTot += s.clientes; acum.push(runTot); });
+    cCli.insertAdjacentHTML('beforeend', dbxSpark(acum, 'var(--e-violet)'));
+    cCli.insertAdjacentHTML('beforeend', `<div style="margin-top:12px;display:flex;gap:18px;font-size:12px;color:var(--text-muted)">
+      <span>No período: <b style="color:var(--text);font-size:15px">${resumo.clientes}</b></span>
+      <span>Total na base: <b style="color:var(--text);font-size:15px">${(E.modules.clientes.clientes || []).length}</b></span>
+      <span>MRR: <b style="color:var(--text);font-size:15px">${E.fmtMoney(b.mrr())}</b></span></div>`);
+    grid2.appendChild(cCli);
+
+    const prioridades = [];
+    try { const v = E.modules.financeiro.vencidas(); if (v.length) prioridades.push(`${v.length} conta(s) vencida(s)`); } catch (e) {}
+    try { if (E.modules.atendimento.slaEmRisco().length) prioridades.push(`SLA em risco nos atendimentos`); } catch (e) {}
+    try { if (E.modules.projetos.atrasados().length) prioridades.push(`${E.modules.projetos.atrasados().length} projeto(s) atrasado(s)`); } catch (e) {}
+    const cIA = el('div', 'dbx-card dbx-in', `<h4>Inteligência do painel</h4><p class="dbx-sub">Leitura rápida da IA sobre o momento.</p>`);
+    cIA.style.animationDelay = '360ms';
+    const ins = el('div', 'text-muted', esc(panelInsight(d(), b, E.modules.financeiro.saldo())));
+    ins.style.cssText = 'font-size:12.5px;line-height:1.65;white-space:pre-line';
+    cIA.appendChild(ins);
+    if (prioridades.length) {
+      cIA.insertAdjacentHTML('beforeend', `<div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--border)">
+        <b style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--e-orange)">Prioridades</b>
+        ${prioridades.map((p) => `<div style="font-size:12.5px;margin-top:6px;color:var(--text-muted)">• ${esc(p)}</div>`).join('')}</div>`);
+    }
+    const acoes = el('div', 'dbx-actions', '');
+    [['Possível Cenário', 'cenario'], ['Novo lead', null], ['Nova tarefa', null]].forEach(([label]) => {
+      const bt = el('button', 'btn btn-sm btn-primary', esc(label));
+      bt.addEventListener('click', () => {
+        if (label === 'Possível Cenário') { if (window.NEITZEL_CENARIO) window.NEITZEL_CENARIO.open(); }
+        else if (label === 'Novo lead') openLeadModal();
+        else openTarefaModal();
+      });
+      acoes.appendChild(bt);
+    });
+    cIA.appendChild(acoes);
+    grid2.appendChild(cIA);
+    palco.appendChild(grid2);
+
+    /* Feed ao vivo — memória do sistema em tempo real */
+    const cFeed = el('div', 'dbx-card dbx-in', `<h4><span class="dbx-live-dot" style="display:inline-block;margin-right:8px;vertical-align:-1px"></span>Memória do sistema — ao vivo</h4><p class="dbx-sub">Tudo que acontece fica registrado aqui com data e hora.</p>`);
+    cFeed.style.animationDelay = '420ms';
+    const feedBox = el('div', 'dbx-feed', '');
+    cFeed.appendChild(feedBox);
+    const pintarFeed = () => {
+      const lista = (E.audit.list ? E.audit.list() : []).slice(-9).reverse();
+      feedBox.innerHTML = lista.map((ev, i) => {
+        const info = DBX_ATIVIDADE[ev.action] || [null, ev.action.replace(/[._]/g, ' '), 'e-brand'];
+        const dt = new Date(ev.ts);
+        const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+        const mesmoDia = dt >= hoje;
+        const horaTxt = (mesmoDia ? '' : dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' · ') +
+          dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        return `<div class="dbx-feed-row" style="animation-delay:${i * 55}ms">
+          <span class="dbx-feed-ico" style="color:var(--${info[2]});border:1px solid var(--border)">${info[0] || '•'}</span>
+          <span><b>${esc(info[1])}</b>${ev.after && ev.after.nome ? ` — ${esc(String(ev.after.nome).slice(0, 42))}` : ''}</span>
+          <span class="dbx-feed-time">${horaTxt}</span>
+        </div>`;
+      }).join('') || '<div class="text-muted" style="padding:8px">Nenhuma atividade registrada ainda.</div>';
+    };
+    pintarFeed();
+    window.__dbxTimers.push(setInterval(pintarFeed, 8000));
+    palco.appendChild(cFeed);
+
+    /* Relógio ao vivo */
+    const horaEl = palco.querySelector('#dbx-hora');
+    if (horaEl) window.__dbxTimers.push(setInterval(() => { horaEl.textContent = new Date().toLocaleTimeString('pt-BR'); }, 1000));
+  }
+
+  desenhar();
+  iniciarDashBg(bg);
+  // Limpeza ao sair da view
+  const obs = new MutationObserver(() => {
+    if (!document.body.contains(wrap)) {
+      (window.__dbxTimers || []).forEach(clearInterval);
+      window.__dbxTimers = [];
+      obs.disconnect();
+    }
+  });
+  obs.observe(document.body, { childList: true, subtree: true });
+}
+
+/* ------------------------------------------------------------------ *
+ * VIEW: ATIVIDADES & MEMÓRIA (memória viva + ciclo automático)
+ * Tudo que acontece no sistema fica aqui com data e hora; a memória
+ * captura as atividades do mês e arquiva sozinha (30d → arquivo,
+ * 60d → PDF pronto).
+ * ------------------------------------------------------------------ */
+
+const ATIV_ROTULOS = {
+  'lead.criado': ['Lead', 'Lead cadastrado no CRM'],
+  'lead.atualizado': ['Lead', 'Dados do lead atualizados'],
+  'lead.etapa': ['Lead', 'Lead mudou de etapa'],
+  'lead.excluido': ['Lead', 'Lead excluído'],
+  'lead.duplicado_recusado': ['Lead', 'Tentativa de lead duplicado recusada'],
+  'lead.fila_aprovado': ['Fila', 'Lead aprovado da fila para o CRM'],
+  'lead.fila_rejeitado': ['Fila', 'Lead rejeitado na fila'],
+  'lead.fila_encaminhado': ['Fila', 'Lead enviado para aprovação'],
+  'cliente.criado': ['Cliente', 'Novo cliente cadastrado'],
+  'cliente.atualizado': ['Cliente', 'Dados do cliente atualizados'],
+  'agenda.criado': ['Agenda', 'Agendamento/evento criado'],
+  'agenda.atualizado': ['Agenda', 'Agendamento atualizado'],
+  'agenda.excluido': ['Agenda', 'Agendamento excluído'],
+  'tarefa.criada': ['Tarefa', 'Nova tarefa criada'],
+  'tarefa.atualizada': ['Tarefa', 'Tarefa atualizada'],
+  'financeiro.conta_criada': ['Financeiro', 'Lançamento financeiro criado'],
+  'financeiro.conta_atualizada': ['Financeiro', 'Conta atualizada (pagamento/status)'],
+  'financeiro.conta_removida': ['Financeiro', 'Conta removida'],
+  'payment.completed': ['Financeiro', 'Pagamento concluído'],
+  'servico.criado': ['Serviços', 'Serviço criado no catálogo'],
+  'servico.atualizado': ['Serviços', 'Serviço atualizado'],
+  'produto.criado': ['Produtos', 'Produto criado'],
+  'produto.atualizado': ['Produtos', 'Produto atualizado'],
+  'estoque.movimentado': ['Estoque', 'Movimentação de estoque'],
+  'projeto.criado': ['Projetos', 'Projeto criado'],
+  'projeto.atualizado': ['Projetos', 'Projeto atualizado'],
+  'atendimento.ticket_criado': ['Atendimento', 'Ticket aberto'],
+  'atendimento.ticket_atualizado': ['Atendimento', 'Ticket atualizado'],
+  'marketing.campanha_criada': ['Marketing', 'Campanha criada'],
+  'rh.colaborador_criado': ['RH', 'Colaborador cadastrado'],
+  'sistema.iniciado': ['Sistema', 'Sistema iniciado'],
+  'sistema.telefones_migrados': ['Sistema', 'Telefones migrados para o padrão DDD + número'],
+  'config.empresa': ['Config', 'Dados da empresa atualizados'],
+  'config.aparencia': ['Config', 'Aparência alterada'],
+};
+
+/* ------------------------------------------------------------------ *
+ * CRONÔMETRO VIVO DAS MEMÓRIAS — quanto tempo passou até cada etapa.
+ * Um único timer global atualiza todos os selos .cron-chip na tela.
+ * ------------------------------------------------------------------ */
+
+function cronFormato(ms) {
+  if (!isFinite(ms) || ms < 0) ms = 0;
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return s + 's';
+  const m = Math.floor(s / 60);
+  if (m < 60) return m + 'min ' + String(s % 60).padStart(2, '0') + 's';
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + 'h ' + String(m % 60).padStart(2, '0') + 'min';
+  const d = Math.floor(h / 24);
+  return d + 'd ' + (h % 24) + 'h';
+}
+
+function cronChipHtml(ts, titulo) {
+  const t = Number(ts);
+  if (!t) return '';
+  return `<span class="cron-chip" data-ts="${t}" title="${esc(titulo || 'Cronômetro: tempo desde o registro')}"><span class="cron-dot"></span><span class="cron-val">${cronFormato(Date.now() - t)}</span></span>`;
+}
+
+setInterval(() => {
+  document.querySelectorAll('.cron-chip[data-ts]').forEach((chip) => {
+    const span = chip.querySelector('.cron-val');
+    if (span) span.textContent = cronFormato(Date.now() - Number(chip.dataset.ts));
+  });
+  const sessao = document.querySelector('#cron-sessao');
+  if (sessao && window.__NZ_SESSAO_INICIO) sessao.textContent = cronFormato(Date.now() - window.__NZ_SESSAO_INICIO);
+}, 1000);
+
+function renderMemoria(c) {
+  /* ---------- PARTE 1: ATIVIDADES AO VIVO ---------- */
+  c.appendChild(el('div', 'page-header', `<h1>Atividades & Memória</h1><p>Tudo o que acontece fica anotado aqui com data e hora — e a memória guarda o mês automaticamente.</p>`));
+  const barra = el('div', 'card', `
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <span style="display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text-muted)"><span class="dbx-live-dot" style="width:8px;height:8px;border-radius:50%;background:var(--e-green);animation:pulse 1.6s infinite"></span>Capturando atividades em tempo real</span>
+      <input class="input" id="at-busca" placeholder="Buscar por pessoa, ação ou detalhe..." style="flex:1;min-width:220px" />
+      <select class="input" id="at-filtro" style="max-width:210px">
+        <option value="">Todas as categorias</option>
+        <option>Lead</option><option>Cliente</option><option>Agenda</option>
+        <option>Tarefa</option><option>Financeiro</option><option>Serviços</option><option>Produtos</option>
+        <option>Estoque</option><option>Projetos</option><option>Atendimento</option><option>Marketing</option>
+        <option>RH</option><option>Sistema</option><option>Config</option>
+      </select>
+      <button class="btn btn-sm" id="at-atualizar">Atualizar</button>
+    </div>
+  `);
+  c.appendChild(barra);
+
+  /* Cronômetros: sessão aberta, primeiro registro de hoje e último evento */
+  const agoraHoje = new Date(); agoraHoje.setHours(0, 0, 0, 0);
+  const eventosTodos = E.audit.list();
+  const ultimoEv = eventosTodos.length ? eventosTodos[eventosTodos.length - 1] : null;
+  const primeiroHoje = eventosTodos.find((ev) => new Date(ev.ts) >= agoraHoje);
+  const cardCron = el('div', 'card', `
+    <h4>Cronômetro do tempo</h4>
+    <p class="text-muted" style="font-size:12px;margin:2px 0 10px">O tempo corre ao vivo: quanto tempo o sistema está aberto e quanto tempo se passou até cada etapa registrada.</p>
+    <div style="display:flex;gap:26px;flex-wrap:wrap">
+      <div><div class="kpi-value" style="font-variant-numeric:tabular-nums" id="cron-sessao">${cronFormato(window.__NZ_SESSAO_INICIO ? Date.now() - window.__NZ_SESSAO_INICIO : 0)}</div><div class="text-muted" style="font-size:12px">sessão atual aberta</div></div>
+      <div>${cronChipHtml(primeiroHoje ? new Date(primeiroHoje.ts).getTime() : null, 'Tempo desde o primeiro registro de hoje') || '<div class="kpi-value">—</div>'}<div class="text-muted" style="font-size:12px">desde o 1º registro de hoje</div></div>
+      <div>${cronChipHtml(ultimoEv ? new Date(ultimoEv.ts).getTime() : null, 'Tempo desde a última atividade') || '<div class="kpi-value">—</div>'}<div class="text-muted" style="font-size:12px">desde a última atividade</div></div>
+    </div>
+  `);
+  c.appendChild(cardCron);
+
+  const lista = el('div', 'card', '');
+  c.appendChild(lista);
+
+  function pintar() {
+    const busca = (c.querySelector('#at-busca')?.value || '').toLowerCase();
+    const filtro = c.querySelector('#at-filtro')?.value || '';
+    const eventos = E.audit.list().slice().reverse();
+    const filtrados = eventos.filter((ev) => {
+      const info = ATIV_ROTULOS[ev.action] || [null, ev.action];
+      if (filtro && info[0] !== filtro) return false;
+      if (!busca) return true;
+      const alvo = `${info[1]} ${ev.action} ${JSON.stringify(ev.after || {})} ${JSON.stringify(ev.before || {})}`.toLowerCase();
+      return alvo.includes(busca);
+    });
+    lista.innerHTML = `<h4>${filtrados.length} registro(s) este mês · alimentam a memória automaticamente</h4>
+      <table class="table"><thead><tr><th>Data / Hora</th><th>Cronômetro</th><th>Categoria</th><th>O que aconteceu</th><th>Quem fez</th></tr></thead><tbody>${
+        filtrados.slice(0, 400).map((ev) => {
+          const info = ATIV_ROTULOS[ev.action] || ['', ev.action.replace(/[._]/g, ' ')];
+          let detalhe = '';
+          try {
+            const after = ev.after || {};
+            detalhe = after.nome || after.descricao || (after.id ? String(after.id).slice(0, 12) : '');
+          } catch (e) {}
+          const dt = new Date(ev.ts);
+          const dataTxt = dt.toLocaleDateString('pt-BR') + ' ' + dt.toLocaleTimeString('pt-BR');
+          return `<tr><td style="white-space:nowrap;font-variant-numeric:tabular-nums">${dataTxt}</td>
+            <td>${cronChipHtml(dt.getTime(), 'Há quanto tempo aconteceu')}</td>
+            <td><span class="badge badge-green">${esc(info[0])}</span></td>
+            <td><b>${esc(info[1])}</b>${detalhe ? ` <span class="text-muted">— ${esc(String(detalhe))}</span>` : ''}</td>
+            <td class="text-muted">${esc((ev.actorRole === 'sistema' || !ev.actor) ? 'sistema' : ev.actor)}</td></tr>`;
+        }).join('') || '<tr><td colspan="5" class="text-muted">Nenhum registro encontrado.</td></tr>'
+      }</tbody></table>`;
+  }
+  pintar();
+  barra.querySelector('#at-busca').addEventListener('input', pintar);
+  barra.querySelector('#at-filtro').addEventListener('change', pintar);
+  barra.querySelector('#at-atualizar').addEventListener('click', () => { pintar(); toast('Atividades atualizadas', 'info'); });
+
+  /* Diários salvos — registro escrito de cada dia, gerado às 23:58 */
+  const diarioMod = E.modules.diario;
+  const cardDiario = el('div', 'card', `<h4>Diários salvos</h4><p class="text-muted" style="margin:2px 0 10px;font-size:12px">Todo dia às 23:58 o sistema guarda por escrito tudo o que aconteceu — com processo completo de salvamento.</p>`);
+  const acoesD = el('div', 'btn-group', '');
+  const btnGerarHoje = el('button', 'btn btn-sm btn-primary', 'Gerar registro de hoje agora');
+  btnGerarHoje.addEventListener('click', () => {
+    const r = diarioMod.gerar();
+    if (r.ok) { toast('Registro do dia salvo na memória', 'success'); renderView('memoria'); }
+    else toast(r.code === 'JA_EXISTE' ? 'O registro de hoje já existe.' : r.message || 'Não foi possível gerar', 'info');
+  });
+  acoesD.appendChild(btnGerarHoje);
+  cardDiario.appendChild(acoesD);
+  const listaD = el('div', '', '');
+  listaD.style.cssText = 'display:flex;flex-direction:column;gap:6px;margin-top:10px';
+  const entradas = (diarioMod.entradas || []).slice().reverse();
+  if (!entradas.length) {
+    listaD.appendChild(el('div', 'text-muted', 'Nenhum diário salvo ainda — o primeiro será gerado automaticamente às 23:58.'));
+  } else {
+    entradas.slice(0, 60).forEach((en) => {
+      const row = el('div', 'dbx-feed-row', '');
+      const dt = new Date(en.data + 'T12:00:00');
+      row.innerHTML = `<span class="dbx-feed-ico" style="color:var(--e-brand);border:1px solid var(--border)">D</span>
+        <span><b>${dt.toLocaleDateString('pt-BR')}</b> <span class="text-muted">· ${en.totalEventos} evento(s) registrados por escrito</span></span>
+        <span class="dbx-feed-time"><button class="btn btn-xs" data-ver-diario="${esc(en.id)}">Ler</button></span>`;
+      row.querySelector('[data-ver-diario]').addEventListener('click', () => openDiarioModal(en));
+      listaD.appendChild(row);
     });
   }
-  c.appendChild(q);
-  // Prioridades de hoje (atividade que precisa de atenção agora)
-  const alertas = [];
-  if (d.fila.length) alertas.push(` ${d.fila.length} lead(s) aguardando aprovação na fila`);
-  if (s.aReceber > 0) alertas.push(` ${E.fmtMoney(s.aReceber)} a receber (${E.modules.financeiro.vencidas().length} vencidas)`);
-  if (b.mrr() === 0) alertas.push('Nenhuma receita recorrente (MRR) cadastrada');
-  if (E.modules.atendimento.slaEmRisco().length) alertas.push(' SLA estourado em atendimentos');
-  if (E.modules.projetos.atrasados().length) alertas.push(` ${E.modules.projetos.atrasados().length} projetos atrasados`);
-  if (alertas.length) {
-    const box = el('div', 'card', `<h4> Prioridades de hoje</h4>`);
-    alertas.slice(0, 5).forEach((a) => box.appendChild(el('div', 'text-muted', esc(a))));
-    c.appendChild(box);
+  cardDiario.appendChild(listaD);
+  c.appendChild(cardDiario);
+
+  /* ---------- PARTE 2: CICLO DA MEMÓRIA (30d → arquivo · 60d → PDF) ---------- */
+  const secaoMem = el('div', '', '');
+  c.appendChild(secaoMem);
+  if (window.NEITZEL_MEMORIA && window.NEITZEL_MEMORIA.render) {
+    window.NEITZEL_MEMORIA.render(secaoMem);
+  } else {
+    secaoMem.appendChild(el('div', 'empty', 'Ciclo da memória indisponível (memoria.js não carregou).'));
   }
-  // Gráfico do funil
-  const funil = E.modules.bi.funnelCounts();
-  const total = d.leads.length || 1;
-  const funnelBox = el('div', 'card', `<h4> Funil</h4><div class="funnel" style="margin-top:8px"></div>`);
-  d.funil.forEach((f) => {
-    const n = funil[f.id] || 0;
-    const pct = Math.round((n / total) * 100);
-    const row = el('div', 'funnel-row', '');
-    const bar = el('div', 'funnel-bar', `${pct}%`);
-    row.appendChild(el('div', 'funnel-label', esc(f.nome)));
-    row.appendChild(bar);
-    bar.style.width = Math.max(4, pct) + '%';
-    bar.style.background = f.cor;
-    row.appendChild(el('div', 'funnel-count', String(n)));
-    const funnelEl = funnelBox.querySelector('.funnel');
-    if (funnelEl) funnelEl.appendChild(row);
+}
+
+/** Modal de leitura do diário de um dia (texto integral). */
+function openDiarioModal(en) {
+  const dt = new Date(en.data + 'T12:00:00');
+  const modal = el('div', 'modal', `
+    <div class="modal-box" style="max-width:760px">
+      <h3>Registro diário — ${dt.toLocaleDateString('pt-BR')}</h3>
+      <pre id="diario-texto" style="white-space:pre-wrap;font-family:Consolas,monospace;font-size:12px;line-height:1.55;max-height:56vh;overflow:auto;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:14px;color:var(--text)"></pre>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" data-close>Fechar</button>
+        <button class="btn btn-sm" id="diario-copiar">Copiar texto</button>
+        <button class="btn btn-sm btn-primary" id="diario-baixar">Baixar .txt</button>
+      </div>
+    </div>
+  `);
+  document.body.appendChild(modal);
+  modal.querySelector('#diario-texto').textContent = en.texto;
+  modal.querySelector('[data-close]').addEventListener('click', () => modal.remove());
+  modal.querySelector('#diario-copiar').addEventListener('click', () => {
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(en.texto);
+    toast('Texto copiado', 'success');
   });
-  c.appendChild(funnelBox);
+  modal.querySelector('#diario-baixar').addEventListener('click', () => {
+    const blob = new Blob([en.texto], { type: 'text/plain;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `NEITZEL-registro-${en.data}.txt`;
+    a.click();
+  });
 }
 
 /* ------------------------------------------------------------------ *
@@ -795,20 +1554,93 @@ function renderLeads(c) {
   const etapaNome2 = (id) => (d().funil.find((f) => f.id === id) || {}).nome || id;
   const header = el('div', 'page-header', `<h1>Leads & CRM</h1><p>${d().leads.length} leads · clique para abrir a ficha.</p><div style="margin-top:8px"><button class="btn btn-primary btn-sm" id="btn-novo-lead">Novo lead</button></div>`);
   box.appendChild(header);
+
+  /* Barra de filtros: busca, etapa, origem, cidade, valor mínimo e ordenação */
+  const filtros = el('div', 'card', `
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <input class="input" id="lf-busca" placeholder="Buscar nome, empresa, e-mail..." style="flex:1;min-width:200px" />
+      <select class="input" id="lf-etapa" style="max-width:170px">
+        <option value="">Todas as etapas</option>
+        ${d().funil.map((f) => `<option value="${f.id}">${esc(f.nome)}</option>`).join('')}
+      </select>
+      <select class="input" id="lf-origem" style="max-width:150px">
+        <option value="">Toda origem</option>
+        ${Array.from(new Set(d().leads.map((l) => l.origem).filter(Boolean))).sort().map((o) => `<option>${esc(o)}</option>`).join('')}
+      </select>
+      <input class="input" id="lf-cidade" placeholder="Cidade" style="max-width:130px" />
+      <input class="input" id="lf-valor" placeholder="Valor mín. R$" inputmode="decimal" style="max-width:130px" />
+      <select class="input" id="lf-ordem" style="max-width:180px">
+        <option value="recentes">Mais recentes</option>
+        <option value="valor">Maior valor</option>
+        <option value="score">Maior score</option>
+        <option value="nome">Nome (A-Z)</option>
+      </select>
+      <button class="btn btn-sm btn-ghost" id="lf-limpar">Limpar</button>
+    </div>
+  `);
+  box.appendChild(filtros);
+  const contagem = el('div', 'text-muted', '');
+  contagem.style.cssText = 'font-size:12.5px;margin:8px 2px';
+  box.appendChild(contagem);
   const grid = el('div', 'card', '');
-  const table = el('table', 'table', `<thead><tr><th>Nome</th><th>Etapa</th><th>Cidade</th><th>Valor</th><th>Score</th><th>Origem</th></tr></thead><tbody></tbody>`);
-  const tbody = table.querySelector('tbody');
-  if (tbody) {
-    d().leads.slice(0, 100).forEach((l) => {
-      const tr = el('tr', 'lead-row', '');
-      tr.innerHTML = `<td><b>${esc(l.nome || l.empresa || '—')}</b><div class="text-muted">${esc(l.empresa || '')}${l.whats ? ' ·  ' + esc(l.whats) : ''}</div></td><td>${esc(etapaNome2(l.etapa))}</td><td>${esc(l.cidade || '')}</td><td>${E.fmtMoney(l.valor)}</td><td>${l.score != null ? l.score : ''}</td><td>${esc(l.origem || '')}</td>`;
-      if (tr.addEventListener) tr.addEventListener('click', () => openLeadDetail(l.id));
-      tbody.appendChild(tr);
+
+  function leadsFiltrados() {
+    const q = (filtros.querySelector('#lf-busca')?.value || '').toLowerCase().trim();
+    const etapa = filtros.querySelector('#lf-etapa')?.value || '';
+    const origem = filtros.querySelector('#lf-origem')?.value || '';
+    const cidade = (filtros.querySelector('#lf-cidade')?.value || '').toLowerCase().trim();
+    const valorMin = parseBRLNumber(filtros.querySelector('#lf-valor')?.value || '') * 100;
+    const ordem = filtros.querySelector('#lf-ordem')?.value || 'recentes';
+    let lista = d().leads.filter((l) => {
+      if (etapa && l.etapa !== etapa) return false;
+      if (origem && (l.origem || '') !== origem) return false;
+      if (cidade && !(l.cidade || '').toLowerCase().includes(cidade)) return false;
+      if (valorMin > 0 && (Number(l.valor) || 0) < valorMin) return false;
+      if (q) {
+        const alvo = `${l.nome || ''} ${l.empresa || ''} ${l.email || ''} ${l.telefone || ''} ${l.whats || ''}`.toLowerCase();
+        if (!alvo.includes(q)) return false;
+      }
+      return true;
     });
+    if (ordem === 'valor') lista.sort((a, b) => (b.valor || 0) - (a.valor || 0));
+    else if (ordem === 'score') lista.sort((a, b) => (E.modules.leads.scoring(b).score || 0) - (E.modules.leads.scoring(a).score || 0));
+    else if (ordem === 'nome') lista.sort((a, b) => String(a.nome || a.empresa || '').localeCompare(String(b.nome || b.empresa || ''), 'pt-BR'));
+    else lista.sort((a, b) => new Date(b.created || 0) - new Date(a.created || 0));
+    return lista;
   }
-  grid.appendChild(table);
+
+  function pintarTabela() {
+    const lista = leadsFiltrados();
+    const total = d().leads.length;
+    contagem.innerHTML = lista.length === total
+      ? `Mostrando <b>${total}</b> lead(s)`
+      : `Mostrando <b>${lista.length}</b> de ${total} lead(s) (com filtros ativos)`;
+    grid.innerHTML = '';
+    const table = el('table', 'table', `<thead><tr><th>Nome</th><th>Etapa</th><th>Cidade</th><th>Valor</th><th>Score</th><th>Origem</th></tr></thead><tbody></tbody>`);
+    const tbody = table.querySelector('tbody');
+    if (tbody) {
+      if (!lista.length) tbody.innerHTML = '<tr><td colspan="6" class="text-muted">Nenhum lead encontrado com esses filtros.</td></tr>';
+      lista.slice(0, 200).forEach((l) => {
+        const tr = el('tr', 'lead-row', '');
+        tr.innerHTML = `<td><b>${esc(l.nome || l.empresa || '—')}</b><div class="text-muted">${esc(l.empresa || '')}${l.whats ? ' · ' + esc(E.foneBR.formatar(l.whats)) : ''}</div></td><td>${esc(etapaNome2(l.etapa))}</td><td>${esc(l.cidade || '')}</td><td>${E.fmtMoney(l.valor)}</td><td>${l.score != null ? l.score : ''}</td><td>${esc(l.origem || '')}</td>`;
+        if (tr.addEventListener) tr.addEventListener('click', () => openLeadDetail(l.id));
+        tbody.appendChild(tr);
+      });
+    }
+    grid.appendChild(table);
+  }
+  pintarTabela();
+  ['lf-busca'].forEach((idc) => filtros.querySelector('#' + idc)?.addEventListener('input', pintarTabela));
+  ['lf-etapa', 'lf-origem', 'lf-ordem'].forEach((idc) => filtros.querySelector('#' + idc)?.addEventListener('change', pintarTabela));
+  ['lf-cidade', 'lf-valor'].forEach((idc) => filtros.querySelector('#' + idc)?.addEventListener('change', pintarTabela));
+  filtros.querySelector('#lf-limpar')?.addEventListener('click', () => {
+    ['#lf-busca', '#lf-etapa', '#lf-origem', '#lf-cidade', '#lf-valor'].forEach((s) => { const i = filtros.querySelector(s); if (i) i.value = ''; });
+    const o = filtros.querySelector('#lf-ordem'); if (o) o.value = 'recentes';
+    pintarTabela();
+  });
   box.appendChild(grid);
   c.appendChild(box);
+  c.querySelector('#btn-novo-lead')?.addEventListener('click', () => openLeadModal());
 }
 
 function d() { return E.db.get(); }
@@ -816,19 +1648,17 @@ function d() { return E.db.get(); }
 /** Análise rápida gerada pela IA a partir dos dados reais do painel. */
 function panelInsight(d, b, s) {
   const linhas = [];
-  const fila = d.fila.length;
   const leads = d.leads.length;
   const aReceber = s.aReceber;
   const vencidasCount = E.modules.financeiro.vencidas().length;
   const slaRisco = E.modules.atendimento.slaEmRisco().length;
   const atrasados = E.modules.projetos.atrasados().length;
-  if (fila > 0) linhas.push(` **${fila} lead(s)** aguardam aprovação na fila — revisar agora acelera seu funil.`);
   if (vencidasCount > 0) linhas.push(` **${vencidasCount} conta(s) vencida(s)** somando ${E.fmtMoney(aReceber)} a receber — priorize cobrança.`);
   if (slaRisco > 0) linhas.push(` **${slaRisco} atendimento(s)** com SLA em risco — precisa de resposta urgente.`);
   if (atrasados > 0) linhas.push(` **${atrasados} projeto(s) atrasado(s)** — verifique prazos para evitar retrabalho.`);
-  if (leads === 0) linhas.push(' Sem leads ainda: use o **Caçador de Leads** para capturar contatos públicos e alimentar o funil.');
+  if (leads === 0) linhas.push(' Sem leads ainda: cadastre o primeiro lead em **Leads & CRM** para alimentar o funil.');
   if (b.mrr() === 0) linhas.push(' MRR zerado: cadastre clientes com planos recorrentes para gerar receita previsível.');
-  if (!linhas.length) return 'Tudo tranquilo! Nenhuma pendência crítica no momento. Aproveite para revisar o funil ou usar o Caçador de Leads. ';
+  if (!linhas.length) return 'Tudo tranquilo! Nenhuma pendência crítica no momento. Aproveite para revisar o funil ou abrir um **Possível Cenário** na área de Estratégia.';
   return linhas.join('\n');
 }
 
@@ -854,7 +1684,25 @@ function openLeadModal() {
   `);
   document.body.appendChild(modal);
   modal.querySelector('[data-close]').addEventListener('click', () => modal.remove());
+  // Formatação ao vivo: o número inteiro fica no padrão profissional
+  const inpTel = modal.querySelector('#m-telefone');
+  const dicaTel = el('div', 'text-muted', '');
+  dicaTel.style.cssText = 'font-size:11px;margin-top:-4px';
+  if (inpTel) {
+    inpTel.addEventListener('blur', () => {
+      const F = E.foneBR;
+      const norm = F.normalizar(inpTel.value);
+      if (inpTel.value.trim() && norm) { inpTel.value = F.formatar(norm); dicaTel.textContent = 'Gravado como número inteiro: ' + norm; dicaTel.style.color = 'var(--e-green)'; }
+      else if (inpTel.value.trim()) { dicaTel.textContent = 'Número incompleto — informe o número inteiro com DDD (ex.: 51 99999-8888).'; dicaTel.style.color = 'var(--e-warning)'; }
+      else dicaTel.textContent = '';
+    });
+    inpTel.insertAdjacentElement('afterend', dicaTel);
+  }
+  const errBox = el('div', 'text-muted', '');
+  errBox.style.cssText = 'color:var(--e-danger);font-size:12px;margin-top:6px;min-height:14px';
+  modal.querySelector('.modal-actions').insertAdjacentElement('beforebegin', errBox);
   modal.querySelector('#m-salvar').addEventListener('click', () => {
+    errBox.textContent = '';
     const dados = {
       nome: modal.querySelector('#m-nome').value,
       empresa: modal.querySelector('#m-empresa').value,
@@ -869,17 +1717,19 @@ function openLeadModal() {
       consentimento: modal.querySelector('#m-consentimento').checked,
     };
     if (!dados.nome.trim() && !dados.telefone.trim() && !dados.email.trim()) {
-      toast('Informe ao menos nome ou um contato', 'warn');
+      errBox.textContent = 'Informe ao menos nome ou um contato.';
       return;
     }
     const res = E.modules.leads.addLead(dados);
-    if (!res.ok) toast(res.message || `Não foi possível salvar (${res.code})`, 'danger');
-    else {
-      toast('Lead criado ', 'success');
-      modal.remove();
-      renderView('leads');
-      inlineInsight(` **${res.lead.nome || res.lead.empresa || 'Lead'}** criado na etapa "${(d().funil.find((f) => f.id === res.lead.etapa) || {}).nome || res.lead.etapa}".\nScore atual: **${E.modules.leads.scoring(res.lead).score}/100**.\nSugestão: use o botão ** Sugerir follow-up** na ficha do lead para redigir o primeiro contato com a IA.`);
+    if (!res.ok) { errBox.textContent = res.message || `Não foi possível salvar (${res.code})`; return; }
+    if (!res.verificacao.contatoReal) {
+      toast('Lead salvo, mas SEM contato real verificado — ' + res.verificacao.problemas.join(' e '), 'warn');
+    } else {
+      toast('Lead criado e verificado', 'success');
     }
+    modal.remove();
+    renderView('leads');
+    inlineInsight(` **${res.lead.nome || res.lead.empresa || 'Lead'}** criado na etapa "${(d().funil.find((f) => f.id === res.lead.etapa) || {}).nome || res.lead.etapa}".\nScore atual: **${E.modules.leads.scoring(res.lead).score}/100**.\nSugestão: use o botão ** Sugerir follow-up** na ficha do lead para redigir o primeiro contato com a IA.`);
   });
 }
 
@@ -900,8 +1750,8 @@ function openLeadDetail(id) {
     <div class="ldp-body">
       <div class="ldp-section"><h4>Dados</h4>
         <div class="ldp-field"><span class="k">Etapa:</span><span>${esc(l.etapa)}</span></div>
-        <div class="ldp-field"><span class="k">Telefone:</span><span>${esc(l.telefone || '—')}</span></div>
-        <div class="ldp-field"><span class="k">WhatsApp:</span><span>${esc(l.whats || '—')}</span></div>
+        <div class="ldp-field"><span class="k">Telefone:</span><span>${esc(l.telefone ? E.foneBR.formatar(l.telefone) : '—')}</span></div>
+        <div class="ldp-field"><span class="k">WhatsApp:</span><span>${l.whats ? `${esc(E.foneBR.formatar(l.whats))} <button class="btn btn-xs btn-success" data-whats-inline style="margin-left:6px">Abrir WhatsApp</button>` : '—'}</span></div>
         <div class="ldp-field"><span class="k">E-mail:</span><span>${esc(l.email || '—')}</span></div>
         <div class="ldp-field"><span class="k">Valor:</span><span>${E.fmtMoney(l.valor)}</span></div>
         <div class="ldp-field"><span class="k">Score:</span><span>${score.score}/100 <span class="text-muted">(${score.reasons.join(', ')})</span></span></div>
@@ -923,10 +1773,14 @@ function openLeadDetail(id) {
   const closeBtn = panel.querySelector('[data-close]');
   if (closeBtn) closeBtn.addEventListener('click', () => panel.remove());
   const whatsBtn = panel.querySelector('[data-whats]');
-  if (whatsBtn) whatsBtn.addEventListener('click', () => {
-    if (l.whats) { window.open(`https://wa.me/55${l.whats}`, '_blank'); }
-    else toast('Sem WhatsApp registrado', 'warn');
-  });
+  const abrirWhatsLead = () => {
+    const link = E.foneBR.waLink(l.whats || l.telefone);
+    if (link) window.open(link, '_blank');
+    else toast('WhatsApp inválido ou incompleto — informe DDD + número', 'warn');
+  };
+  if (whatsBtn) whatsBtn.addEventListener('click', abrirWhatsLead);
+  const whatsInline = panel.querySelector('[data-whats-inline]');
+  if (whatsInline) whatsInline.addEventListener('click', abrirWhatsLead);
   const fuBtn = panel.querySelector('[data-followup]');
   if (fuBtn) fuBtn.addEventListener('click', () => {
     const r = E.modules.ia.suggestFollowUp(l.id);
@@ -996,56 +1850,84 @@ function openLeadDetail(id) {
 function renderFunil(c) {
   const head = el('div', 'page-header', `<h1>Funil de vendas</h1><p>Arraste os cards entre etapas — tudo fica registrado no histórico.</p>`);
   c.appendChild(head);
+  /* Filtros do funil: busca, origem e cidade */
+  const filtros = el('div', 'card', `
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <input class="input" id="fn-busca" placeholder="Buscar lead no funil..." style="flex:1;min-width:180px" />
+      <select class="input" id="fn-origem" style="max-width:150px">
+        <option value="">Toda origem</option>
+        ${Array.from(new Set(d().leads.map((l) => l.origem).filter(Boolean))).sort().map((o) => `<option>${esc(o)}</option>`).join('')}
+      </select>
+      <input class="input" id="fn-cidade" placeholder="Cidade" style="max-width:140px" />
+      <button class="btn btn-sm btn-ghost" id="fn-limpar">Limpar</button>
+    </div>
+  `);
+  c.appendChild(filtros);
   const kanban = el('div', 'kanban', '');
-  d().funil.forEach((f) => {
-    const col = el('div', 'kanban-col', '');
-    col.dataset.stage = f.id;
-    col.appendChild(el('div', 'kanban-col-head', `<span class="dot" style="background:${f.cor}"></span><span>${esc(f.nome)}</span><span class="count">${d().leads.filter((l) => l.etapa === f.id).length}</span>`));
-    d().leads.filter((l) => l.etapa === f.id).forEach((l) => {
-      const card = el('div', 'kanban-card', `<div class="kc-name">${esc(l.nome || l.empresa || '—')}</div><div class="kc-meta"><span>${esc(l.empresa || '')}</span><span>${E.fmtMoney(l.valor)}</span></div>`);
-      card.draggable = true;
-      card.dataset.lead = l.id;
-      card.addEventListener('dragstart', () => card.classList.add('dragging'));
-      card.addEventListener('dragend', () => card.classList.remove('dragging'));
-      card.addEventListener('click', () => openLeadDetail(l.id));
-      col.appendChild(card);
-    });
-    col.addEventListener('dragover', (e) => { e.preventDefault(); col.classList.add('drop-target'); });
-    col.addEventListener('dragleave', () => col.classList.remove('drop-target'));
-    col.addEventListener('drop', (e) => {
-      e.preventDefault();
-      col.classList.remove('drop-target');
-      const card = col.querySelector('.kanban-card.dragging');
-      if (card) {
-        const res2m = E.modules.leads.moveStage(card.dataset.lead, f.id, 'Movido via drag & drop');
-        if (res2m.ok) {
-          renderFunil(document.querySelector('.ecomim-content'));
-          const l2 = d().leads.find((x) => x.id === card.dataset.lead);
-          if (l2) {
-            inlineInsight(f.id === 'ganho'
-              ? ` **${l2.nome || l2.empresa || 'Lead'}** ganho! Valor: ${E.fmtMoney(l2.valor)}.\nRegistre a cobrança em Financeiro (contas a receber) para acompanhar o recebimento.`
-              : f.id === 'perdido'
-                ? ` **${l2.nome || l2.empresa || 'Lead'}** marcado como perdido.\nReveja o motivo (histórico da ficha) e considere reativar depois — leads perdidos podem voltar.`
-                : ` **${l2.nome || l2.empresa || 'Lead'}** movido para "${f.nome}".\nPróximo passo: ${f.id === 'contato' ? 'qualificar o contato e registrar os dados coletados.' : f.id === 'qualificado' ? 'montar a proposta com valores reais.' : f.id === 'proposta' ? 'acompanhar o envio e preparar a negociação.' : 'manter o lead aquecido com follow-ups.'}`);
+
+  function passaFiltros(l) {
+    const q = (filtros.querySelector('#fn-busca')?.value || '').toLowerCase().trim();
+    const origem = filtros.querySelector('#fn-origem')?.value || '';
+    const cidade = (filtros.querySelector('#fn-cidade')?.value || '').toLowerCase().trim();
+    if (origem && (l.origem || '') !== origem) return false;
+    if (cidade && !(l.cidade || '').toLowerCase().includes(cidade)) return false;
+    if (q) {
+      const alvo = `${l.nome || ''} ${l.empresa || ''} ${l.email || ''} ${l.telefone || ''}`.toLowerCase();
+      if (!alvo.includes(q)) return false;
+    }
+    return true;
+  }
+
+  function pintarKanban() {
+    kanban.innerHTML = '';
+    d().funil.forEach((f) => {
+      const col = el('div', 'kanban-col', '');
+      col.dataset.stage = f.id;
+      const leadsDaEtapa = d().leads.filter((l) => l.etapa === f.id && passaFiltros(l));
+      const totalEtapa = d().leads.filter((l) => l.etapa === f.id).length;
+      col.appendChild(el('div', 'kanban-col-head', `<span class="dot" style="background:${f.cor}"></span><span>${esc(f.nome)}</span><span class="count">${leadsDaEtapa.length}${totalEtapa !== leadsDaEtapa.length ? '/' + totalEtapa : ''}</span>`));
+      leadsDaEtapa.forEach((l) => {
+        const card = el('div', 'kanban-card', `<div class="kc-name">${esc(l.nome || l.empresa || '—')}</div><div class="kc-meta"><span>${esc(l.empresa || '')}</span><span>${E.fmtMoney(l.valor)}</span></div>`);
+        card.draggable = true;
+        card.dataset.lead = l.id;
+        card.addEventListener('dragstart', () => card.classList.add('dragging'));
+        card.addEventListener('dragend', () => card.classList.remove('dragging'));
+        card.addEventListener('click', () => openLeadDetail(l.id));
+        col.appendChild(card);
+      });
+      col.addEventListener('dragover', (e) => { e.preventDefault(); col.classList.add('drop-target'); });
+      col.addEventListener('dragleave', () => col.classList.remove('drop-target'));
+      col.addEventListener('drop', (e) => {
+        e.preventDefault();
+        col.classList.remove('drop-target');
+        const card = col.querySelector('.kanban-card.dragging');
+        if (card) {
+          const res2m = E.modules.leads.moveStage(card.dataset.lead, f.id, 'Movido via drag & drop');
+          if (res2m.ok) {
+            pintarKanban();
+            const l2 = d().leads.find((x) => x.id === card.dataset.lead);
+            if (l2) {
+              inlineInsight(f.id === 'ganho'
+                ? ` **${l2.nome || l2.empresa || 'Lead'}** ganho! Valor: ${E.fmtMoney(l2.valor)}.\nRegistre a cobrança em Financeiro (contas a receber) para acompanhar o recebimento.`
+                : f.id === 'perdido'
+                  ? ` **${l2.nome || l2.empresa || 'Lead'}** marcado como perdido.\nReveja o motivo (histórico da ficha) e considere reativar depois — leads perdidos podem voltar.`
+                  : ` **${l2.nome || l2.empresa || 'Lead'}** movido para "${f.nome}".\nPróximo passo: ${f.id === 'contato' ? 'qualificar o contato e registrar os dados coletados.' : f.id === 'qualificado' ? 'montar a proposta com valores reais.' : f.id === 'proposta' ? 'acompanhar o envio e preparar a negociação.' : 'manter o lead aquecido com follow-ups.'}`);
+            }
           }
         }
-      }
+      });
+      kanban.appendChild(col);
     });
-    kanban.appendChild(col);
+  }
+  pintarKanban();
+  filtros.querySelector('#fn-busca')?.addEventListener('input', pintarKanban);
+  filtros.querySelector('#fn-origem')?.addEventListener('change', pintarKanban);
+  filtros.querySelector('#fn-cidade')?.addEventListener('change', pintarKanban);
+  filtros.querySelector('#fn-limpar')?.addEventListener('click', () => {
+    ['#fn-busca', '#fn-origem', '#fn-cidade'].forEach((s) => { const i = filtros.querySelector(s); if (i) i.value = ''; });
+    pintarKanban();
   });
   c.appendChild(kanban);
-}
-
-/* ------------------------------------------------------------------ *
- * VIEW: CAÇADOR DE LEADS (delegada ao hunter-ui.js)
- * ------------------------------------------------------------------ */
-
-function renderCacador(c) {
-  if (window.ECOMIM_APP_HUNTER) {
-    window.ECOMIM_APP_HUNTER.renderCacador(c, { reexibir: true });
-    return;
-  }
-  c.appendChild(el('div', 'empty', 'Caçador de Leads indisponível (hunter-ui.js não carregou).'));
 }
 
 /* ------------------------------------------------------------------ *
@@ -1083,90 +1965,290 @@ function renderInteligencia(c) {
 }
 
 /* ------------------------------------------------------------------ *
+ * VIEW: ESTRATÉGIA & PREVISÃO (o sistema pensa pelos vocês)
+ * - Clientes sem movimentação (25 dias padrão) → Manter / Apagar
+ * - Clientes que mais/menos geram receita
+ * - Produtos e serviços que mais/menos vendem
+ * - Previsão de movimento de clientes (tendência semanal)
+ * - Botão "Possível Cenário" — agente pesquisa fontes reais
+ * ------------------------------------------------------------------ */
+
+/** Configuração do sistema com padrões sensatos. */
+function lerConfigSistema() {
+  const s = (d().config && d().config.sistema) || {};
+  return {
+    pais: s.pais || 'Brasil',
+    estado: s.estado || '',
+    cidade: s.cidade || '',
+    segmento: s.segmento || 'barbearia',
+    diasInatividadeCliente: Number(s.diasInatividadeCliente) || 25,
+    capturaAutoAtividades: s.capturaAutoAtividades !== false,
+  };
+}
+
+/** Última movimentação real de um cliente: histórico + auditoria + financeiro + agendamentos. */
+function ultimaMovimentacaoCliente(cli, auditLista) {
+  let ultima = cli.ultimoAcesso ? new Date(cli.ultimoAcesso).getTime() : 0;
+  const nomeAlvo = String(cli.nome || cli.empresa || '').toLowerCase().trim();
+  if (Array.isArray(cli.historico)) {
+    cli.historico.forEach((h) => { const t = new Date(h.at).getTime(); if (t > ultima && h.tipo !== 'criacao') ultima = t; });
+  }
+  try {
+    E.modules.financeiro.contas.forEach((ct) => {
+      if (String(ct.cliente || '').toLowerCase().trim() === nomeAlvo && nomeAlvo) {
+        const t = new Date(ct.pagoEm || ct.vencimento || ct.criadaEm || 0).getTime();
+        if (t > ultima) ultima = t;
+      }
+    });
+  } catch (e) {}
+  try {
+    (auditLista || E.audit.list()).forEach((ev) => {
+      const blob = `${JSON.stringify(ev.after || '')} ${JSON.stringify(ev.before || '')}`.toLowerCase();
+      if (nomeAlvo && blob.includes(nomeAlvo)) {
+        if (!/cliente\.excluido/.test(ev.action)) {
+          const t = new Date(ev.ts).getTime();
+          if (t > ultima) ultima = t;
+        }
+      }
+    });
+  } catch (e) {}
+  return ultima;
+}
+
+/** Receita gerada por cliente (contas a receber pagas, agrupadas por nome). */
+function receitaPorCliente() {
+  const mapa = new Map();
+  try {
+    E.modules.financeiro.contas.forEach((ct) => {
+      const nome = String(ct.cliente || '').trim();
+      if (!nome) return;
+      const atual = mapa.get(nome.toLowerCase()) || { nome, recebido: 0, aberto: 0 };
+      if (ct.tipo === 'receber') {
+        if (ct.status === 'pago') atual.recebido += ct.valor;
+        else atual.aberto += ct.valor;
+      }
+      mapa.set(nome.toLowerCase(), atual);
+    });
+  } catch (e) {}
+  return Array.from(mapa.values()).sort((a, b) => b.recebido - a.recebido);
+}
+
+/** Vendas por produto (estoque: saídas; atendimentos: itens de produtos). */
+function vendasPorProduto() {
+  const mapa = new Map();
+  const somar = (nome, qtd, valor) => {
+    const k = String(nome || '—').trim() || '—';
+    const atual = mapa.get(k) || { nome: k, qtd: 0, valor: 0 };
+    atual.qtd += Math.abs(qtd || 1);
+    atual.valor += valor || 0;
+    mapa.set(k, atual);
+  };
+  try {
+    const movs = JSON.parse(localStorage.getItem('neitzel_estoque_mov_v1') || '[]');
+    movs.forEach((m) => { if ((m.tipo === 'saida' || m.tipo === 'utilizacao' || (m.quantidade || 0) < 0)) somar(m.produtoNome, m.quantidade, Math.abs(m.quantidade || 1) * (m.precoUnitario || m.preco || 0)); });
+  } catch (e) {}
+  try {
+    const atds = JSON.parse(localStorage.getItem('neitzel_atendimentos_v1') || '[]');
+    atds.forEach((a) => (a.itensProdutos || []).forEach((it) => somar(it.produtoNome || it.nome, it.quantidade || 1, (it.precoUnitario || it.preco || 0) * (it.quantidade || 1))));
+  } catch (e) {}
+  return Array.from(mapa.values()).sort((a, b) => b.qtd - a.qtd);
+}
+
+/** Uso de serviços (atendimentos concluídos por nome de serviço). */
+function usoDeServicos() {
+  const mapa = new Map();
+  try {
+    const atds = JSON.parse(localStorage.getItem('neitzel_atendimentos_v1') || '[]');
+    atds.forEach((a) => {
+      if (a.servicoNome) {
+        const k = a.servicoNome;
+        const atual = mapa.get(k) || { nome: k, qtd: 0, valor: 0 };
+        atual.qtd += 1;
+        atual.valor += a.servicoPreco || 0;
+        mapa.set(k, atual);
+      }
+    });
+  } catch (e) {}
+  return Array.from(mapa.values()).sort((a, b) => b.qtd - a.qtd);
+}
+
+/** Série semanal de novos clientes (últimas N semanas) + regressão linear simples. */
+function serieSemanalClientes(semanas) {
+  const N = semanas || 8;
+  const agora = new Date(); agora.setHours(0, 0, 0, 0);
+  const inicioUltima = new Date(agora.getTime() - (N * 7 - 1) * 86400000);
+  const serie = Array.from({ length: N }, () => 0);
+  try {
+    (E.modules.clientes.clientes || []).forEach((cl) => {
+      const dt = new Date(cl.created || 0);
+      if (isNaN(dt) || dt < inicioUltima) return;
+      const idx = N - 1 - Math.floor((agora - dt) / (7 * 86400000));
+      if (idx >= 0 && idx < N) serie[idx]++;
+    });
+  } catch (e) {}
+  // Regressão linear y = a + bx
+  const n = serie.length;
+  const sx = serie.reduce((a, _, i) => a + i, 0), sy = serie.reduce((a, v) => a + v, 0);
+  const sxx = serie.reduce((a, _, i) => a + i * i, 0), sxy = serie.reduce((a, v, i) => a + i * v, 0);
+  const denom = n * sxx - sx * sx;
+  const b = denom ? (n * sxy - sx * sy) / denom : 0;
+  const a0 = (sy - b * sx) / n;
+  return { serie, inclinacao: b, projetado: Math.max(0, a0 + b * n) };
+}
+
+function renderEstrategia(c) {
+  const cfg = lerConfigSistema();
+  c.appendChild(el('div', 'page-header', `
+    <h1>Estratégia & Previsão</h1>
+    <p>O sistema pensa com você: quem está esfriando, o que vende, para onde o movimento caminha.</p>
+    <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-primary" id="btn-cenario" style="background:linear-gradient(135deg,var(--e-brand),#0d5c38);box-shadow:0 6px 22px rgba(22,106,67,.35)">
+        Possível Cenário — analisar as próximas 8 semanas
+      </button>
+      <span class="text-muted" style="font-size:12px;align-self:center">Agente busca em notícias, índices e eventos reais de ${esc([cfg.cidade, cfg.estado, cfg.pais].filter(Boolean).join(' · ') || 'sua região')}</span>
+    </div>`));
+
+  /* ---------- A. Clientes sem movimentação ---------- */
+  const auditLista = E.audit.list();
+  const limiteMs = cfg.diasInatividadeCliente * 86400000;
+  const agoraT = Date.now();
+  const frios = (E.modules.clientes.clientes || [])
+    .map((cli) => ({ cli, ultima: ultimaMovimentacaoCliente(cli, auditLista) }))
+    .filter((x) => x.ultima > 0 && (agoraT - x.ultima) >= limiteMs)
+    .sort((a, b) => a.ultima - b.ultima);
+
+  const cardFrios = el('div', 'card', `
+    <h4>Clientes sem movimentação há ${cfg.diasInatividadeCliente}+ dias</h4>
+    <p class="text-muted" style="font-size:12px;margin:2px 0 10px">Detectado automaticamente cruzando histórico, financeiro e auditoria. Decida: manter ou apagar o contato.</p>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+      <span class="text-muted" style="font-size:12px">Alertar após</span>
+      <input class="input" id="et-dias" type="number" min="5" max="120" value="${Number(cfg.diasInatividadeCliente) || 25}" style="width:80px;padding:5px 8px" />
+      <span class="text-muted" style="font-size:12px">dias sem registro</span>
+      <button class="btn btn-xs" id="et-dias-salvar">Salvar</button>
+    </div>
+    <div id="frios-lista"></div>
+  `);
+  c.querySelector('#et-dias-salvar')?.addEventListener('click', () => {
+    const v = Math.min(120, Math.max(5, Number(c.querySelector('#et-dias')?.value) || 25));
+    const dbd = d();
+    dbd.config = dbd.config || {};
+    dbd.config.sistema = Object.assign({}, dbd.config.sistema, { diasInatividadeCliente: v });
+    E.db.save();
+    E.audit.record('config.sistema', 'sistema', null, { diasInatividadeCliente: v });
+    toast('Alerta de inatividade em ' + v + ' dias', 'success');
+    renderView('estrategia');
+  });
+  const friosLista = cardFrios.querySelector('#frios-lista');
+  if (!frios.length) {
+    friosLista.innerHTML = '<div class="empty">Nenhum cliente frio no momento — base aquecida.</div>';
+  } else {
+    frios.forEach(({ cli, ultima }) => {
+      const dias = Math.floor((agoraT - ultima) / 86400000);
+      const row = el('div', 'dbx-feed-row', '');
+      row.style.cssText = 'align-items:center;padding:8px 0;border-bottom:1px dashed var(--border)';
+      row.innerHTML = `
+        <span class="dbx-feed-ico" style="color:var(--e-warning);border:1px solid var(--border)">!</span>
+        <span style="flex:1"><b>${esc(cli.nome || cli.empresa || '—')}</b>
+          <span class="text-muted" style="font-size:11.5px"> · ${dias} dia(s) sem registro · MRR ${E.fmtMoney(cli.mrr)}</span></span>
+        <span class="btn-group">
+          <button class="btn btn-sm btn-success" data-manter="${esc(cli.id)}">Manter</button>
+          <button class="btn btn-sm btn-danger" data-apagar="${esc(cli.id)}">Apagar</button>
+        </span>`;
+      row.querySelector(`[data-manter]`)?.addEventListener('click', () => {
+        E.modules.clientes.updateCliente(cli.id, {
+          ultimoAcesso: E.nowISO(),
+          notas: (cli.notas ? cli.notas + ' | ' : '') + '[estratégia] contato mantido manualmente em ' + new Date().toLocaleDateString('pt-BR'),
+        });
+        toast(`${cli.nome || 'Cliente'} marcado como ativo por mais um ciclo`, 'success');
+        renderView('estrategia');
+      });
+      row.querySelector(`[data-apagar]`)?.addEventListener('click', () => {
+        if (!confirm(`Apagar definitivamente "${cli.nome || cli.empresa}"? A ação fica registrada na auditoria (LGPD).`)) return;
+        const r = E.modules.clientes.deleteCliente(cli.id, 'Inativo há ' + dias + ' dias — removido na área Estratégica');
+        if (r.ok) { toast('Contato apagado (registrado na auditoria)', 'info'); renderView('estrategia'); }
+        else toast('Não foi possível apagar', 'danger');
+      });
+      friosLista.appendChild(row);
+    });
+  }
+  c.appendChild(cardFrios);
+
+  /* ---------- B. Ranking de receita por cliente ---------- */
+  const receita = receitaPorCliente().filter((r) => r.recebido > 0 || r.aberto > 0);
+  const gridRank = el('div', 'grid-2', '');
+  const topReceita = receita.slice(0, 5);
+  const bottomReceita = receita.filter((r) => r.recebido === 0).slice(-5).reverse();
+  const cardTop = el('div', 'card', `<h4>Clientes que mais geram receita</h4>${
+    topReceita.length ? `<table class="table"><thead><tr><th>Cliente</th><th>Recebido</th><th>A receber</th></tr></thead><tbody>${
+      topReceita.map((r, i) => `<tr><td>${['\uD83E\uDD47','\uD83E\uDD48','\uD83E\uDD49'][i] || ''} ${esc(r.nome)}</td><td><b>${E.fmtMoney(r.recebido)}</b></td><td>${E.fmtMoney(r.aberto)}</td></tr>`).join('')
+    }</tbody></table>` : '<div class="empty">Sem receitas registradas ainda.</div>'}`);
+  const cardBottom = el('div', 'card', `<h4>Clientes que menos geram receita</h4>${
+    bottomReceita.length ? `<table class="table"><thead><tr><th>Cliente</th><th>Somente em aberto</th></tr></thead><tbody>${
+      bottomReceita.map((r) => `<tr><td>${esc(r.nome)}</td><td>${E.fmtMoney(r.aberto)}</td></tr>`).join('')
+    }</tbody></table><p class="text-muted" style="font-size:11.5px;margin:6px 0 0">Nada recebido ainda desses nomes — vale um follow-up.</p>`
+    : '<div class="empty">Todos os clientes com registro já geraram receita.</div>'}`);
+  gridRank.appendChild(cardTop); gridRank.appendChild(cardBottom);
+  c.appendChild(gridRank);
+
+  /* ---------- C. Produtos e serviços ---------- */
+  const prods = vendasPorProduto();
+  const servs = usoDeServicos();
+  const gridCat = el('div', 'grid-2', '');
+  const cardProd = el('div', 'card', `<h4>Produtos — mais e menos vendidos</h4>${
+    prods.length ? `
+      <table class="table"><thead><tr><th>Mais vendem</th><th>Qtd</th><th>Valor</th></tr></thead><tbody>${
+        prods.slice(0, 5).map((p) => `<tr><td>${esc(p.nome)}</td><td><b>${p.qtd}</b></td><td>${E.fmtMoney(p.valor)}</td></tr>`).join('')
+      }</tbody></table>
+      ${prods.length > 5 ? `<table class="table" style="margin-top:8px"><thead><tr><th>Menos vendem</th><th>Qtd</th></tr></thead><tbody>${
+        prods.slice(-3).reverse().map((p) => `<tr><td>${esc(p.nome)}</td><td>${p.qtd}</td></tr>`).join('')
+      }</tbody></table>` : ''}`
+    : '<div class="empty">Sem vendas de produtos registradas (estoque/atendimentos).</div>'}`);
+  const cardServ = el('div', 'card', `<h4>Serviços — mais e menos procurados</h4>${
+    servs.length ? `
+      <table class="table"><thead><tr><th>Mais realizados</th><th>Vezes</th><th>Total</th></tr></thead><tbody>${
+        servs.slice(0, 5).map((s) => `<tr><td>${esc(s.nome)}</td><td><b>${s.qtd}</b></td><td>${E.fmtMoney(s.valor)}</td></tr>`).join('')
+      }</tbody></table>
+      ${servs.length > 5 ? `<table class="table" style="margin-top:8px"><thead><tr><th>Menos procurados</th><th>Vezes</th></tr></thead><tbody>${
+        servs.slice(-3).reverse().map((s) => `<tr><td>${esc(s.nome)}</td><td>${s.qtd}</td></tr>`).join('')
+      }</tbody></table>` : ''}`
+    : '<div class="empty">Sem atendimentos de serviços registrados.</div>'}`);
+  gridCat.appendChild(cardProd); gridCat.appendChild(cardServ);
+  c.appendChild(gridCat);
+
+  /* ---------- D. Previsão de movimento de clientes ---------- */
+  const prev = serieSemanalClientes(8);
+  const total8 = prev.serie.reduce((a, v) => a + v, 0);
+  const media = total8 / 8;
+  const direcao = prev.inclinacao > 0.05 ? { txt: 'ALTA', cls: 'e-green', seta: '\u2197' } : prev.inclinacao < -0.05 ? { txt: 'BAIXA', cls: 'e-danger', seta: '\u2198' } : { txt: 'ESTÁVEL', cls: 'text-muted', seta: '\u2192' };
+  const cardPrev = el('div', 'card dbx-in', `
+    <h4>Previsão de movimento de clientes</h4>
+    <p class="text-muted" style="font-size:12px;margin:2px 0 8px">Regressão sobre as últimas 8 semanas de novos clientes — recalculado ao vivo dos seus dados.</p>
+    <div style="display:flex;gap:26px;flex-wrap:wrap;align-items:center">
+      <div><div class="kpi-value" style="color:var(--${direcao.cls})">${direcao.seta} ${direcao.txt}</div><div class="text-muted" style="font-size:12px">tendência da semana</div></div>
+      <div><div class="kpi-value">${prev.projetado.toFixed(1)}</div><div class="text-muted" style="font-size:12px">novos clientes projetados p/ próxima semana</div></div>
+      <div><div class="kpi-value">${media.toFixed(1)}</div><div class="text-muted" style="font-size:12px">média semanal (8 semanas)</div></div>
+    </div>
+    <div style="margin-top:10px">${dbxSpark(prev.serie.map((v) => v), 'var(--e-violet)')}</div>
+  `);
+  c.appendChild(cardPrev);
+
+  /* ---------- Histórico de cenários já calculados ---------- */
+  const histCard = window.NEITZEL_CENARIO ? window.NEITZEL_CENARIO.renderHistoricoCard() : null;
+  if (histCard) c.appendChild(histCard);
+
+  c.querySelector('#btn-cenario')?.addEventListener('click', () => {
+    if (window.NEITZEL_CENARIO) window.NEITZEL_CENARIO.open();
+    else toast('Módulo de cenários não carregou (cenario.js).', 'danger');
+  });
+}
+
+/* ------------------------------------------------------------------ *
  * VIEW: ACESSOR WHATSAPP (configuração do Acessor — acessor.js)
  * ------------------------------------------------------------------ */
 
 function renderAcessor(c) {
   if (window.NEITZEL_ACESSOR && window.NEITZEL_ACESSOR.renderAcessor) { window.NEITZEL_ACESSOR.renderAcessor(c); return; }
   c.appendChild(el('div', 'empty', 'Acessor indisponível (acessor.js não carregou).'));
-}
-
-/* ------------------------------------------------------------------ *
- * VIEW: FILA
- * ------------------------------------------------------------------ */
-
-function renderFila(c) {
-  const itens = d().fila;
-  c.appendChild(el('div', 'page-header', `<h1>Fila de aprovação</h1><p>${itens.length} aguardando revisão — revise e aprove (nada é aprovado sem você).</p><div style="margin-top:8px"><button class="btn btn-sm" id="btn-encaminhar">Encaminhar lead</button></div>`));
-  const grid = el('div', 'card', '');
-  if (!itens.length) grid.appendChild(el('div', 'empty', 'Fila vazia. Encaminhe contatos reais encontrados nas varreduras. '));
-  itens.forEach((f) => {
-    const card = el('div', 'fila-card', `
-      <div class="fila-head"><b>${esc(f.nome || f.empresa || '—')}</b><span class="badge badge-${f.fonte || 'manual'}">${esc(f.fonte || f.origem || '')}</span></div>
-      <div class="fila-meta">${esc(f.telefone || '')} ${esc(f.email || '')} · ${esc(f.cidade || '')}</div>
-      <div class="btn-group" style="margin-top:6px">
-        <button class="btn btn-sm btn-success" data-aprovar> Aprovar</button>
-        <button class="btn btn-sm btn-danger" data-rejeitar> Recusar</button>
-      </div>
-    `);
-    const aprovarBtn = card.querySelector('[data-aprovar]');
-    const rejeitarBtn = card.querySelector('[data-rejeitar]');
-    if (aprovarBtn) aprovarBtn.addEventListener('click', () => {
-      const r = E.modules.leads.approveQueueItem(f.id);
-      if (r.ok) {
-        toast('Lead aprovado e no CRM ', 'success');
-        renderFila(document.querySelector('.ecomim-content'));
-        inlineInsight(`**${f.nome || f.empresa || 'Lead'}** entrou no CRM na etapa "${(d().funil.find((x) => x.id === 'novo') || {}).nome || 'novo'}".\nPróximo passo sugerido: fazer o primeiro contato (a IA pode redigir a mensagem na ficha do lead — botão " Sugerir follow-up").`);
-      }
-      else toast('Falha: ' + (r.code || 'erro'), 'danger');
-    });
-    if (rejeitarBtn) rejeitarBtn.addEventListener('click', () => {
-      E.modules.leads.rejectQueueItem(f.id);
-      toast('Lead recusado', 'info');
-      renderFila(document.querySelector('.ecomim-content'));
-      inlineInsight(`**${f.nome || f.empresa || 'Lead'}** foi recusado e removido da fila.\nDica: se houver muitos recusados do mesmo segmento, ajuste os filtros do Caçador de Leads para capturar contatos mais qualificados.`);
-    });
-    grid.appendChild(card);
-  });
-  c.appendChild(grid);
-  c.querySelector('#btn-encaminhar')?.addEventListener('click', () => openEncaminharModal());
-}
-
-function openEncaminharModal() {
-  const modal = el('div', 'modal', `
-    <div class="modal-box">
-      <h3>Encaminhar lead</h3>
-      <div class="form-grid">
-        <label>Nome <input class="input" id="e-nome" /></label>
-        <label>Empresa <input class="input" id="e-empresa" /></label>
-        <label>Telefone <input class="input" id="e-telefone" /></label>
-        <label>E-mail <input class="input" id="e-email" /></label>
-        <label>Cidade <input class="input" id="e-cidade" /></label>
-        <label>Segmento <input class="input" id="e-segmento" /></label>
-        <label>Valor (R$) <input class="input" id="e-valor" inputmode="decimal" /></label>
-        <label>Fonte <input class="input" id="e-fonte" placeholder="ex.: Google Maps" /></label>
-      </div>
-      <div class="modal-actions"><button class="btn btn-ghost" data-close>Cancelar</button><button class="btn btn-primary" id="e-salvar">Enviar para a fila</button></div>
-    </div>
-  `);
-  document.body.appendChild(modal);
-  modal.querySelector('[data-close]').addEventListener('click', () => modal.remove());
-  modal.querySelector('#e-salvar').addEventListener('click', () => {
-    const r = E.modules.leads.addToQueue({
-      nome: modal.querySelector('#e-nome').value,
-      empresa: modal.querySelector('#e-empresa').value,
-      telefone: modal.querySelector('#e-telefone').value,
-      email: modal.querySelector('#e-email').value,
-      cidade: modal.querySelector('#e-cidade').value,
-      segmento: modal.querySelector('#e-segmento').value,
-      valor: parseBRLNumber(modal.querySelector('#e-valor').value),
-      origem: 'manual',
-      fonte: modal.querySelector('#e-fonte').value || 'manual',
-      consentimento: true,
-    });
-    if (!r.ok) toast(r.code === 'DUPLICADO_FILA' ? 'Já está na fila (duplicado)' : 'Falha ao encaminhar', 'warn');
-    else { toast('Na fila para aprovação ', 'success'); modal.remove(); renderView('fila'); }
-  });
 }
 
 /* ------------------------------------------------------------------ *
@@ -1234,6 +2316,52 @@ function openAgendaModal() {
       const hoje2 = E.modules.agenda.today();
       inlineInsight(` Compromisso **${r.item.titulo || ''}** agendado (${E.fmtDate(r.item.quando)} às ${E.fmtTime(r.item.quando)}).\nAgenda do dia: **${hoje2.length}** compromisso(s).\nDica: registre também tarefas de preparação para não chegar despreparado.`);
     }
+  });
+}
+
+/** Nova tarefa (usado pelo Painel e pela Agenda) — cria em modules.tarefas. */
+function openTarefaModal() {
+  const modal = el('div', 'modal', `
+    <div class="modal-box">
+      <h3>Nova tarefa</h3>
+      <div class="form-grid">
+        <label>Título da tarefa <input class="input" id="tf-titulo" placeholder="ex.: Ligar para cliente X" /></label>
+        <label>Detalhes <textarea class="input" id="tf-desc" rows="2" placeholder="Opcional"></textarea></label>
+        <label>Prazo <input class="input" type="date" id="tf-data" /></label>
+        <label>Hora <input class="input" type="time" id="tf-hora" value="09:00" /></label>
+        <label>Prioridade
+          <select class="input" id="tf-prio">
+            <option value="normal">Normal</option>
+            <option value="alta">Alta</option>
+            <option value="baixa">Baixa</option>
+          </select>
+        </label>
+      </div>
+      <div class="modal-actions"><button class="btn btn-ghost" data-close>Cancelar</button><button class="btn btn-primary" id="tf-salvar">Criar tarefa</button></div>
+    </div>
+  `);
+  document.body.appendChild(modal);
+  const hojeD = new Date();
+  modal.querySelector('#tf-data').value = `${hojeD.getFullYear()}-${String(hojeD.getMonth() + 1).padStart(2, '0')}-${String(hojeD.getDate()).padStart(2, '0')}`;
+  modal.querySelector('[data-close]').addEventListener('click', () => modal.remove());
+  modal.querySelector('#tf-salvar').addEventListener('click', () => {
+    const titulo = modal.querySelector('#tf-titulo').value.trim();
+    if (!titulo) { toast('Dê um título à tarefa', 'warn'); return; }
+    const data = modal.querySelector('#tf-data').value;
+    const hora = modal.querySelector('#tf-hora').value || '09:00';
+    const due = data ? new Date(`${data}T${hora}`).toISOString() : E.nowISO();
+    const r = E.modules.tarefas.add({
+      titulo,
+      desc: modal.querySelector('#tf-desc').value.trim(),
+      due,
+      prioridade: modal.querySelector('#tf-prio').value || 'normal',
+    });
+    if (!r.ok) { toast('Não foi possível criar a tarefa', 'danger'); return; }
+    toast('Tarefa criada', 'success');
+    modal.remove();
+    refreshNavCounts();
+    const atrasadas = E.modules.tarefas.atrasadas().length;
+    inlineInsight(` Tarefa **${r.tarefa.titulo}** criada com prazo ${E.fmtDateTime(r.tarefa.due)}.\nVocê tem **${E.modules.tarefas.pendentes().length}** tarefa(s) pendente(s)${atrasadas ? `, sendo ${atrasadas} atrasada(s)` : ''}.\nDica: conclua pelo Planner para manter o ritmo do dia.`);
   });
 }
 
@@ -1642,7 +2770,7 @@ function renderMarketing(c) {
       mk.registrarLead(cm.id);
       toast('Lead registrado na campanha', 'success');
       renderView('marketing');
-      inlineInsight(` Campanha **${cm.nome}** registrou +1 lead (total: ${cm.leadsObtidos}).\nConversão atual: ${cm.conversoes} (${cm.conversoes ? Math.round((cm.conversoes / cm.leadsObtidos) * 100) : 0}%).\nDica: alimente a campanha com o Caçador de Leads para escalar a captação.`);
+      inlineInsight(` Campanha **${cm.nome}** registrou +1 lead (total: ${cm.leadsObtidos}).\nConversão atual: ${cm.conversoes} (${cm.conversoes ? Math.round((cm.conversoes / cm.leadsObtidos) * 100) : 0}%).\nDica: cadastre novos contatos em Leads & CRM para escalar a captação.`);
     });
     const convBtn = card.querySelector('[data-conv]');
     if (convBtn) convBtn.addEventListener('click', () => {
@@ -2025,6 +3153,37 @@ function renderSeguranca(c) {
     <div id="sync-msg" class="text-muted" style="font-size:12px;margin-top:6px"></div>
   `);
   c.appendChild(sincCard);
+
+  // ————— Modo offline: relatório honesto do que funciona sem rede —————
+  const rel = relatorioOffline();
+  const estadoTxt = rel.estado.online
+    ? (rel.estado.servidor ? 'Online · internet + servidor OK' : 'Internet OK · servidor fechado')
+    : 'Sem internet';
+  const cardOffline = el('div', 'card', `
+    <h4>Modo offline &amp; conexão</h4>
+    <p class="text-muted" style="font-size:12px;margin:2px 0 10px">O sistema nasceu local-first: sua operação continua de pé mesmo sem rede. Aqui está o que funciona e o que espera conexão.</p>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+      <span class="cron-chip" title="Estado verificado agora"><span class="cron-dot" style="color:${rel.estado.online && rel.estado.servidor ? 'var(--e-green)' : 'var(--e-warning)'}"></span><span class="cron-val">${esc(estadoTxt)}</span></span>
+      <button class="btn btn-sm btn-ghost" id="off-rechecar">Reverificar agora</button>
+    </div>
+    <div class="grid-2">
+      <div>
+        <h4 style="font-size:13px;color:var(--e-green)">✔ Funciona offline (${rel.okLocal.length})</h4>
+        ${rel.okLocal.map(([n, d]) => `<div style="padding:5px 0;border-bottom:1px dashed var(--border);font-size:12.5px"><b>${esc(n)}</b> <span class="text-muted">— ${esc(d)}</span></div>`).join('')}
+      </div>
+      <div>
+        <h4 style="font-size:13px;color:var(--e-orange)">⏻ Precisa de internet/servidor (${rel.precisaRede.length})</h4>
+        ${rel.precisaRede.map(([n, d]) => `<div style="padding:5px 0;border-bottom:1px dashed var(--border);font-size:12.5px"><b>${esc(n)}</b> <span class="text-muted">— ${esc(d)}</span></div>`).join('')}
+        <p class="text-muted" style="font-size:11.5px;margin-top:8px">Quando a conexão volta, tudo é retomado automaticamente — os dados locais nunca se perdem.</p>
+      </div>
+    </div>
+  `);
+  c.appendChild(cardOffline);
+  cardOffline.querySelector('#off-rechecar').addEventListener('click', async () => {
+    await verificarConexaoAgora();
+    toast(relatorioOffline().estado.online && relatorioOffline().estado.servidor ? 'Conexão completa: internet + servidor' : 'Ainda limitado — veja o relatório atualizado', 'info');
+    renderSeguranca(document.querySelector('.ecomim-content'));
+  });
   const syncBox = sincCard.querySelector('#sync-codigo');
   const syncMsg = sincCard.querySelector('#sync-msg');
   let syncValor = '';
@@ -2195,6 +3354,261 @@ function renderSeguranca(c) {
     toast(r.ok ? `${r.anonimizados} registro(s) anonimizado(s)` : 'Nada encontrado', r.ok ? 'success' : 'info');
     renderView('seguranca');
   });
+
+  /* ---------- PARTE 2: DIAGNÓSTICO (embaixo da Segurança) ---------- */
+  const diagHeader = el('div', 'page-header', `<h1 style="font-size:22px">Diagnóstico do sistema</h1><p>Saúde do ambiente em tempo real: internet, bateria, armazenamento, erros e anomalias.</p>`);
+  c.appendChild(diagHeader);
+  const diagBox = el('div', '', '');
+  c.appendChild(diagBox);
+  if (window.NEITZEL_DIAG && window.NEITZEL_DIAG.render) {
+    window.NEITZEL_DIAG.render(diagBox);
+  } else {
+    diagBox.appendChild(el('div', 'empty', 'Diagnóstico indisponível (diagnostico.js não carregou).'));
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * APARÊNCIA (tema, cores e animações — persistidos e aplicados no boot)
+ * ------------------------------------------------------------------ */
+
+const AP_KEY = 'ecomim_aparencia';
+
+function lerAparencia() {
+  const padrao = { tema: 'dark', destaque: '', texto: '', animacoes: true, zoom: 100,
+    titulo: 'NEITZEL', sufixo: 'Sistema Digital', logoDataUrl: '',
+    fundo: '', surface: '', borda: '', fonte: 'sistema', botao: 'padrao',
+    menu: 'lateral', cartao: 'padrao', letraTamanho: 'normal',
+    somTipo: 'none', somVolume: 50,
+    fundoModo: 'arte', fundoOpacidade: 55, temaArt: '',
+    arteCor: '',
+    iaAtiva: true, agentesAtivos: true, notificacoesIA: true };
+  let ap;
+  try { ap = Object.assign({}, padrao, JSON.parse(localStorage.getItem(AP_KEY) || '{}')); }
+  catch (e) { return padrao; }
+  // Migração do formato antigo (checkbox som true/false) para somTipo
+  if ('som' in ap) {
+    if (ap.som === false && (!ap.somTipo || ap.somTipo === 'tick')) ap.somTipo = 'none';
+    delete ap.som;
+  }
+  if (ap.letra && !ap.fonte) ap.fonte = ap.letra;
+  return ap;
+}
+
+/** Redimensiona/comprime uma imagem escolhida — garante upload de logo que
+ *  sempre cabe no localStorage e carrega rápido. */
+function prepararLogo(file) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onerror = () => reject(new Error('Falha ao ler o arquivo'));
+    fr.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Arquivo não é uma imagem válida'));
+      img.onload = () => {
+        try {
+          const MAX = 480;
+          const escala = Math.min(1, MAX / Math.max(img.width, img.height));
+          const w = Math.max(1, Math.round(img.width * escala));
+          const h = Math.max(1, Math.round(img.height * escala));
+          const cv = document.createElement('canvas');
+          cv.width = w; cv.height = h;
+          const ctx = cv.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(cv.toDataURL('image/jpeg', 0.88));
+        } catch (e) { reject(e); }
+      };
+      img.src = String(fr.result);
+    };
+    fr.readAsDataURL(file);
+  });
+}
+
+function hexParaRgba(hex, alfa) {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(String(hex || ''));
+  if (!m) return '';
+  return `rgba(${parseInt(m[1], 16)},${parseInt(m[2], 16)},${parseInt(m[3], 16)},${alfa})`;
+}
+
+/** Clareia (p>0) ou escurece (p<0) um hex — usado para derivar variantes. */
+function shadeHex(hex, p) {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(String(hex || ''));
+  if (!m) return '';
+  const alvo = p < 0 ? 0 : 255;
+  const out = [1, 2, 3].map((i) => {
+    const v = parseInt(m[i], 16);
+    return Math.round((alvo - v) * Math.abs(p) + v);
+  });
+  return '#' + out.map((v) => v.toString(16).padStart(2, '0')).join('');
+}
+const hexValido = (v) => !!/^#[0-9a-fA-F]{6}$/.test(String(v || ''));
+
+/** Aplica a aparência ao documento inteiro.
+ *  Aceita PATCH parcial (ex.: { zoom:110 }): campos ausentes são lidos do
+ *  estado salvo — assim mudar uma opção nunca desfaz as outras. */
+function aplicarAparencia(patch) {
+  try {
+    const root = document.documentElement;
+    const ap = Object.assign({}, lerAparencia(), patch || {});
+    if (ap.tema === 'light' || ap.tema === 'dark') root.setAttribute('data-theme', ap.tema);
+
+    /* Destaque (marca) */
+    if (hexValido(ap.destaque)) {
+      const s = root.style;
+      s.setProperty('--e-brand', ap.destaque);
+      s.setProperty('--nz-red', ap.destaque);
+      s.setProperty('--nz-red-strong', shadeHex(ap.destaque, -0.18));
+      s.setProperty('--e-brand-soft', hexParaRgba(ap.destaque, 0.12));
+      s.setProperty('--nz-red-soft', hexParaRgba(ap.destaque, 0.12));
+      s.setProperty('--nz-red-soft-2', hexParaRgba(ap.destaque, 0.20));
+      s.setProperty('--nz-red-glow', hexParaRgba(ap.destaque, 0.30));
+      s.setProperty('--ring', hexParaRgba(ap.destaque, 0.20));
+    } else if (ap.destaque === '') {
+      ['--e-brand', '--nz-red', '--nz-red-strong', '--e-brand-soft', '--nz-red-soft', '--nz-red-soft-2', '--nz-red-glow', '--ring'].forEach((v) => root.style.removeProperty(v));
+    }
+
+    /* Texto (+ variantes derivadas) */
+    if (hexValido(ap.texto)) {
+      root.style.setProperty('--text', ap.texto);
+      root.style.setProperty('--text-muted', shadeHex(ap.texto, -0.30));
+      root.style.setProperty('--text-subtle', shadeHex(ap.texto, -0.48));
+    } else if (ap.texto === '') {
+      ['--text', '--text-muted', '--text-subtle'].forEach((v) => root.style.removeProperty(v));
+    }
+
+    /* Fundo */
+    if (hexValido(ap.fundo)) root.style.setProperty('--bg', ap.fundo);
+    else if (ap.fundo === '') root.style.removeProperty('--bg');
+
+    /* Superfícies (cartões) com variantes derivadas */
+    if (hexValido(ap.surface)) {
+      root.style.setProperty('--surface', ap.surface);
+      root.style.setProperty('--surface-2', shadeHex(ap.surface, -0.05));
+      root.style.setProperty('--surface-3', shadeHex(ap.surface, -0.10));
+    } else if (ap.surface === '') {
+      ['--surface', '--surface-2', '--surface-3'].forEach((v) => root.style.removeProperty(v));
+    }
+
+    /* Bordas */
+    if (hexValido(ap.borda)) {
+      root.style.setProperty('--border', ap.borda);
+      root.style.setProperty('--border-strong', shadeHex(ap.borda, 0.22));
+    } else if (ap.borda === '') {
+      ['--border', '--border-strong'].forEach((v) => root.style.removeProperty(v));
+    }
+
+    /* Modelo das letras */
+    root.classList.remove('font-serif', 'font-mono', 'font-rounded', 'font-compacta',
+      'font-display', 'font-legivel', 'font-elegante');
+    if (['serif', 'mono', 'rounded', 'compacta', 'display', 'legivel', 'elegante'].includes(ap.fonte)) root.classList.add('font-' + ap.fonte);
+
+    /* Tamanho das letras */
+    root.classList.remove('letra-pequeno', 'letra-grande');
+    if (ap.letraTamanho === 'pequeno' || ap.letraTamanho === 'grande') root.classList.add('letra-' + ap.letraTamanho);
+
+    /* Modelo dos botões */
+    root.classList.remove('btn-arredondado', 'btn-pill', 'btn-quadrado', 'btn-contorno',
+      'btn-3d', 'btn-glass', 'btn-gradiente', 'btn-minimalista');
+    if (['arredondado', 'pill', 'quadrado', 'contorno', '3d', 'glass', 'gradiente', 'minimalista'].includes(ap.botao)) root.classList.add('btn-' + ap.botao);
+
+    /* Modelo do menu e dos cartões */
+    root.classList.remove('menu-topo');
+    if (ap.menu === 'topo') root.classList.add('menu-topo');
+    root.classList.remove('cartao-flat', 'cartao-elevado');
+    if (['flat', 'elevado'].includes(ap.cartao)) root.classList.add('cartao-' + ap.cartao);
+
+    root.classList.toggle('no-anim', ap.animacoes === false);
+    try { document.body.style.zoom = (Number(ap.zoom) || 100) + '%'; } catch (e) {}
+
+    /* Tela de fundo: arte da logo ou padrão limpo */
+    const modo = ap.fundoModo === 'padrao' ? 'padrao' : 'arte';
+    root.setAttribute('data-fundo', modo);
+    const op = Math.max(0, Math.min(100, Number(ap.fundoOpacidade) == null || isNaN(Number(ap.fundoOpacidade)) ? 55 : Number(ap.fundoOpacidade)));
+    root.style.setProperty('--nz-arte-opacidade', String(op / 100));
+
+    /* Assinatura animada dos temas autorais */
+    root.classList.remove('tema-art-on');
+    root.removeAttribute('data-tema-art');
+    if (ap.temaArt && ['aurora', 'neon', 'sakura', 'matrix', 'oceano', 'deserto'].includes(ap.temaArt)) {
+      root.setAttribute('data-tema-art', ap.temaArt);
+      root.classList.add('tema-art-on');
+    }
+
+    /* Cor da arte de fundo acompanhando o tema escolhido */
+    root.removeAttribute('data-arte-cor');
+    if (['verde', 'ambar', 'oceano', 'vinho', 'roxo', 'matrix'].includes(ap.arteCor)) {
+      root.setAttribute('data-arte-cor', ap.arteCor);
+    }
+
+    /* IA & agentes auxiliares: ligar/desligar globalmente */
+    root.classList.toggle('ia-off', ap.iaAtiva === false || ap.agentesAtivos === false);
+
+    /* Identidade (título/subtítulo vivem no I18N lidos na renderização) */
+    if (ap.titulo != null) I18N.titulo = String(ap.titulo).slice(0, 24) || 'NEITZEL';
+    if (ap.sufixo != null) I18N.sufixo = String(ap.sufixo).slice(0, 36) || 'Sistema Digital';
+    try { document.title = I18N.titulo + ' — ' + I18N.sufixo; } catch (e) {}
+  } catch (e) {}
+}
+
+function salvarAparencia(ap) {
+  try {
+    localStorage.setItem(AP_KEY, JSON.stringify(Object.assign(lerAparencia(), ap)));
+    E.audit.record('config.aparencia', 'sistema', null, ap);
+  } catch (e) {}
+}
+
+/* ------------------------------------------------------------------ *
+ * SOM NOS CLIQUES — sintetizado via WebAudio (sem arquivos externos)
+ * ------------------------------------------------------------------ */
+
+let __nzAudioCtx = null;
+function tocarClique(forcar) {
+  const ap = lerAparencia();
+  const tipo = ap.somTipo || 'none';
+  if (tipo === 'none' || !tipo) return; // "Sem som" — silêncio total
+  if (!forcar && tipo === 'none') return;
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    __nzAudioCtx = __nzAudioCtx || new Ctx();
+    const ctx = __nzAudioCtx;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    const vol = Math.max(0.02, Math.min(1, (Number(ap.somVolume) || 50) / 100)) * 0.32;
+    const t0 = ctx.currentTime;
+    if (tipo === 'pop') {
+      o.type = 'sine';
+      o.frequency.setValueAtTime(340, t0);
+      o.frequency.exponentialRampToValueAtTime(150, t0 + 0.08);
+      g.gain.setValueAtTime(vol, t0);
+      g.gain.exponentialRampToValueAtTime(0.0008, t0 + 0.10);
+      o.start(t0); o.stop(t0 + 0.11);
+    } else if (tipo === 'suave') {
+      o.type = 'sine';
+      o.frequency.setValueAtTime(520, t0);
+      g.gain.setValueAtTime(vol * 0.55, t0);
+      g.gain.exponentialRampToValueAtTime(0.0008, t0 + 0.07);
+      o.start(t0); o.stop(t0 + 0.08);
+    } else {
+      o.type = 'square';
+      o.frequency.setValueAtTime(1150, t0);
+      g.gain.setValueAtTime(vol * 0.35, t0);
+      g.gain.exponentialRampToValueAtTime(0.0008, t0 + 0.035);
+      o.start(t0); o.stop(t0 + 0.045);
+    }
+  } catch (e) { /* som nunca bloqueia */ }
+}
+document.addEventListener('click', (ev) => {
+  const alvo = ev.target instanceof Element ? ev.target.closest('.btn, .ecomim-nav-item, .kanban-card') : null;
+  if (alvo) tocarClique(false);
+}, true);
+
+function applySavedTheme() {
+  try {
+    const t = localStorage.getItem('ecomim_theme');
+    if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+  } catch (e) {}
+  aplicarAparencia(lerAparencia());
 }
 
 /* ------------------------------------------------------------------ *
@@ -2203,36 +3617,343 @@ function renderSeguranca(c) {
 
 function renderConfig(c) {
   const cfg = E.db.get().config;
-  c.appendChild(el('div', 'page-header', `<h1>Configurações</h1><p>Segmento, cidades, empresa, integrações e backup.</p>`));
-  const card = el('div', 'card', `
-    <h4> Prospecção</h4>
+  const ap = lerAparencia();
+  c.appendChild(el('div', 'page-header', `<h1>Configurações</h1><p>Empresa, aparência do sistema e dados.</p>`));
+
+  /* --- PERSONALIZAÇÃO COMPLETA DO SISTEMA --- */
+  /* Famílias de tema: cada uma com modelo ESCURO e CLARO na mesma cor-assinatura.
+     `arteCor` tinge a obra de fundo (foto + aurora + chuva de código) para combinar. */
+  const TEMAS_FAMILIAS = [
+    { nome: 'Verde Neitzel', arteCor: 'verde', art: '',
+      escuro: { tema: 'dark', destaque: '', fundo: '', surface: '', texto: '', borda: '' },
+      claro: { tema: 'light', destaque: '#166a43', fundo: '#f4f6f4', surface: '#ffffff', texto: '#141a16', borda: '#dde5df' } },
+    { nome: 'Grafite & Âmbar', arteCor: 'ambar', art: '',
+      escuro: { tema: 'dark', destaque: '#d97706', fundo: '#0b0c10', surface: '#15171e', texto: '#eceae4', borda: '#272a33' },
+      claro: { tema: 'light', destaque: '#b45309', fundo: '#faf7f1', surface: '#ffffff', texto: '#241d12', borda: '#eadfcc' } },
+    { nome: 'Oceano Profundo', arteCor: 'oceano', art: 'oceano',
+      escuro: { tema: 'dark', destaque: '#38bdf8', fundo: '#081019', surface: '#0f1a26', texto: '#e6f0f7', borda: '#1c2d3d' },
+      claro: { tema: 'light', destaque: '#0369a1', fundo: '#edf4fa', surface: '#ffffff', texto: '#122436', borda: '#d2e1ee' } },
+    { nome: 'Vinho Executivo', arteCor: 'vinho', art: '',
+      escuro: { tema: 'dark', destaque: '#f43f5e', fundo: '#120b0e', surface: '#1b1216', texto: '#f7edf0', borda: '#2f1d24' },
+      claro: { tema: 'light', destaque: '#be123c', fundo: '#fbf3f4', surface: '#ffffff', texto: '#2b1219', borda: '#efdee1' } },
+    { nome: 'Roxo Neon', arteCor: 'roxo', art: 'neon',
+      escuro: { tema: 'dark', destaque: '#a78bfa', fundo: '#0c0a14', surface: '#14111f', texto: '#ece9fa', borda: '#251f3a' },
+      claro: { tema: 'light', destaque: '#7c3aed', fundo: '#f5f3fc', surface: '#ffffff', texto: '#1d1533', borda: '#e3ddf4' } },
+    { nome: 'Matrix Terminal', arteCor: 'matrix', art: 'matrix',
+      escuro: { tema: 'dark', destaque: '#4ade80', fundo: '#050807', surface: '#0b110d', texto: '#d9f4e4', borda: '#17251c' },
+      claro: { tema: 'light', destaque: '#15803d', fundo: '#eff7f0', surface: '#ffffff', texto: '#0f2015', borda: '#d5e7da' } },
+  ];
+  const MODELOS_BOTAO = [
+    ['padrao', 'Padrão'], ['arredondado', 'Arredondado'], ['pill', 'Pílula'], ['quadrado', 'Quadrado'],
+    ['contorno', 'Contorno'], ['3d', '3D (profundidade)'], ['glass', 'Vidro'], ['gradiente', 'Gradiente'], ['minimalista', 'Minimalista'],
+  ];
+  const MODELOS_FONTE = [
+    ['sistema', 'Padrão do sistema'], ['display', 'Display (títulos)'], ['serif', 'Serifa clássica'],
+    ['elegante', 'Elegante'], ['mono', 'Monoespaçada'], ['rounded', 'Arredondada'],
+    ['legivel', 'Muito legível'], ['compacta', 'Compacta'],
+  ];
+  const MODELOS_MENU = [['lateral', 'Lateral (padrão)'], ['compacta', 'Compacta (só ícones)'], ['topo', 'Barra no topo']];
+  const MODELOS_CARTAO = [['padrao', 'Padrão'], ['flat', 'Flat (sem sombra)'], ['elevado', 'Elevado']];
+  const TAM_LETRAS = [['normal', 'Normal'], ['pequeno', 'Pequeno'], ['grande', 'Grande']];
+
+  const cardPz = el('div', 'card', `
+    <h4>Personalização do sistema</h4>
+    <p class="text-muted" style="font-size:12px;margin:2px 0 12px">Mude tudo ao vivo: identidade, cores, formato dos botões, letras e sons. Fica salvo neste dispositivo.</p>
+
+    <h4 style="margin-top:4px">Identidade</h4>
     <div class="form-grid">
-      <label>Segmento <input class="input" id="cfg-seg" value="${esc(cfg.segmento || '')}" placeholder="ex.: academias, nutricionistas" /></label>
-      <label>Cidades <input class="input" id="cfg-cid" value="${esc(cfg.cidades || '')}" placeholder="ex.: Joinville, Florianópolis" /></label>
-      <label>Intervalo (min) <input class="input" id="cfg-int" type="number" min="1" value="${cfg.intervalo || 60}" /></label>
-      <label>Empresa <input class="input" id="cfg-emp" value="${esc(cfg.empresa?.nome || '')}" /></label>
-      <label>WhatsApp comercial <input class="input" id="cfg-whats" value="${esc(cfg.empresa?.whatsapp || '')}" /></label>
+      <label>Nome da empresa
+        <input class="input" id="pz-empresa" maxlength="40" value="${esc(ap.empresa || '')}" placeholder="ex.: Barbearia Estilo Fino" />
+      </label>
+      <label>WhatsApp comercial
+        <input class="input" id="pz-empwhats" value="${esc(cfg.empresa?.whatsapp || '')}" placeholder="51999998888" />
+      </label>
+      <label>Título do sistema <input class="input" id="pz-titulo" maxlength="24" value="${esc(ap.titulo || 'NEITZEL')}" /></label>
+      <label>Subtítulo <input class="input" id="pz-sub" maxlength="36" value="${esc(I18N.sufixo || 'Sistema Digital')}" /></label>
+      <label>Logo — JPG/PNG/WebP (até 3 MB; comprimimos e redimensionamos automaticamente)
+        <span style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          ${ap.logoDataUrl ? `<img src="${ap.logoDataUrl}" alt="logo atual" style="width:46px;height:46px;object-fit:contain;border-radius:11px;border:1px solid var(--border);background:var(--surface-2)" />` : ''}
+          <input type="file" id="pz-logo" accept="image/png,image/jpeg,image/webp,image/svg+xml,image/avif" style="max-width:250px" />
+          ${ap.logoDataUrl ? '<button class="btn btn-sm btn-ghost" id="pz-logo-remover">Remover</button>' : ''}
+        </span>
+        <span id="pz-logo-status" class="text-muted" style="font-size:11.5px">${ap.logoDataUrl ? '✔ Logo ativa na barra lateral, abertura e cenários.' : 'Sem logo — usando a letra N padrão.'}</span>
+      </label>
     </div>
-    <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
-      <button class="btn btn-primary" id="cfg-salvar"> Salvar</button>
-      <button class="btn btn-sm" id="cfg-migrar"> Migrar dados do LeadsCRM</button>
+
+    <h4 style="margin-top:16px">Cores</h4>
+    <div class="form-grid">
+      <label>Cor de destaque
+        <span style="display:flex;gap:8px;align-items:center">
+          <input type="color" id="pz-destaque" value="${esc(ap.destaque || '#166a43')}" style="width:46px;height:34px;padding:2px;border-radius:8px;border:1px solid var(--border);background:var(--surface);cursor:pointer" />
+          <button class="btn btn-sm btn-ghost pz-reset-cor" data-alvo="destaque">Padrão</button>
+        </span>
+      </label>
+      <label>Fundo do sistema
+        <span style="display:flex;gap:8px;align-items:center">
+          <input type="color" id="pz-fundo" value="${esc(ap.fundo || '#090a0d')}" style="width:46px;height:34px;padding:2px;border-radius:8px;border:1px solid var(--border);background:var(--surface);cursor:pointer" />
+          <button class="btn btn-sm btn-ghost pz-reset-cor" data-alvo="fundo">Padrão</button>
+        </span>
+      </label>
+      <label>Cartões / superfícies
+        <span style="display:flex;gap:8px;align-items:center">
+          <input type="color" id="pz-surface" value="${esc(ap.surface || '#101116')}" style="width:46px;height:34px;padding:2px;border-radius:8px;border:1px solid var(--border);background:var(--surface);cursor:pointer" />
+          <button class="btn btn-sm btn-ghost pz-reset-cor" data-alvo="surface">Padrão</button>
+        </span>
+      </label>
+      <label>Cor da letra
+        <span style="display:flex;gap:8px;align-items:center">
+          <input type="color" id="pz-texto" value="${esc(ap.texto || '#e8eaee')}" style="width:46px;height:34px;padding:2px;border-radius:8px;border:1px solid var(--border);background:var(--surface);cursor:pointer" />
+          <button class="btn btn-sm btn-ghost pz-reset-cor" data-alvo="texto">Padrão</button>
+        </span>
+      </label>
+      <label>Cor das bordas
+        <span style="display:flex;gap:8px;align-items:center">
+          <input type="color" id="pz-borda" value="${esc(ap.borda || '#22242c')}" style="width:46px;height:34px;padding:2px;border-radius:8px;border:1px solid var(--border);background:var(--surface);cursor:pointer" />
+          <button class="btn btn-sm btn-ghost pz-reset-cor" data-alvo="borda">Padrão</button>
+        </span>
+      </label>
+      <label>Tema base
+        <select class="input" id="pz-tema">
+          <option value="dark" ${ap.tema !== 'light' ? 'selected' : ''}>Escuro</option>
+          <option value="light" ${ap.tema === 'light' ? 'selected' : ''}>Claro</option>
+        </select>
+      </label>
     </div>
-    <div id="cfg-msg" class="text-muted" style="margin-top:8px"></div>
+    <div style="margin-top:10px">
+      <div class="text-muted" style="font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Temas prontos — cada família em escuro e claro (a arte de fundo acompanha a cor)</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${TEMAS_FAMILIAS.map((t, i) => `
+          <div class="tema-familia">
+            <span class="tf-nome">${esc(t.nome)}</span>
+            <button class="btn btn-sm tf-btn" data-tema-familia="${i}" data-modelo="escuro" title="${esc(t.nome)} — modelo escuro">
+              <i class="tf-cor" style="background:${t.escuro.fundo || '#090a0d'}"></i><i class="tf-cor" style="background:${t.escuro.destaque || '#3ecf8e'}"></i>Escuro
+            </button>
+            <button class="btn btn-sm tf-btn" data-tema-familia="${i}" data-modelo="claro" title="${esc(t.nome)} — modelo claro">
+              <i class="tf-cor" style="background:${t.claro.fundo || '#f5f6f8'};box-shadow:inset 0 0 0 1px var(--border)"></i><i class="tf-cor" style="background:${t.claro.destaque}"></i>Claro
+            </button>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <h4 style="margin-top:16px">Formatos</h4>
+    <div class="form-grid">
+      <label>Modelo dos botões
+        <select class="input" id="pz-btn">${MODELOS_BOTAO.map(([v, n]) => `<option value="${v}" ${ap.botao === v ? 'selected' : ''}>${n}</option>`).join('')}</select>
+      </label>
+      <label>Modelo das letras
+        <select class="input" id="pz-font">${MODELOS_FONTE.map(([v, n]) => `<option value="${v}" ${ap.fonte === v ? 'selected' : ''}>${n}</option>`).join('')}</select>
+      </label>
+      <label>Tamanho das letras
+        <select class="input" id="pz-tamletra">${TAM_LETRAS.map(([v, n]) => `<option value="${v}" ${(ap.letraTamanho || 'normal') === v ? 'selected' : ''}>${n}</option>`).join('')}</select>
+      </label>
+      <label>Modelo do menu do sistema
+        <select class="input" id="pz-menu">${MODELOS_MENU.map(([v, n]) => `<option value="${v}" ${ap.menu === v ? 'selected' : ''}>${n}</option>`).join('')}</select>
+      </label>
+      <label>Estilo dos cartões
+        <select class="input" id="pz-cartao">${MODELOS_CARTAO.map(([v, n]) => `<option value="${v}" ${ap.cartao === v ? 'selected' : ''}>${n}</option>`).join('')}</select>
+      </label>
+      <label>Animações do sistema
+        <span style="display:flex;gap:8px;align-items:center">
+          <input type="checkbox" id="pz-anim" ${ap.animacoes !== false ? 'checked' : ''} style="width:18px;height:18px;accent-color:var(--e-brand)" />
+          <span class="text-muted" style="font-size:12px">${ap.animacoes !== false ? 'ligadas' : 'desligadas'}</span>
+        </span>
+      </label>
+      <label>Zoom da interface <input type="range" id="pz-zoom" min="80" max="130" step="5" value="${Number(ap.zoom) || 100}" style="accent-color:var(--e-brand)" /></label>
+    </div>
+
+    <h4 style="margin-top:16px">Tela de fundo &amp; arte</h4>
+    <div class="form-grid">
+      <label>Fundo do sistema
+        <select class="input" id="pz-fundomodo">
+          <option value="arte" ${ap.fundoModo !== 'padrao' ? 'selected' : ''}>Obra de arte da logo (aurora viva)</option>
+          <option value="padrao" ${ap.fundoModo === 'padrao' ? 'selected' : ''}>Padrão limpo (sem imagem)</option>
+        </select>
+      </label>
+      <label>Intensidade da arte <input type="range" id="pz-fundoop" min="10" max="100" step="5" value="${Number(ap.fundoOpacidade) == null || isNaN(Number(ap.fundoOpacidade)) ? 55 : Number(ap.fundoOpacidade)}" style="accent-color:var(--e-brand)" /></label>
+      <label>Animação autoral do tema
+        <select class="input" id="pz-temaart">
+          ${[['', 'Nenhuma'], ['aurora', 'Véu Aurora Boreal'], ['neon', 'Grade Neon Cyberpunk'], ['sakura', 'Pétalas Sakura'], ['matrix', 'Chuva Matrix'], ['oceano', 'Ondas do Oceano'], ['deserto', 'Calor do Deserto']].map(([v, n]) => `<option value="${v}" ${(ap.temaArt || '') === v ? 'selected' : ''}>${n}</option>`).join('')}
+        </select>
+      </label>
+    </div>
+
+    <h4 style="margin-top:16px">Som nos cliques</h4>
+    <div class="form-grid">
+      <label>Som ao clicar em botões
+        <select class="input" id="pz-somtipo">
+          <option value="none" ${!ap.somTipo || ap.somTipo === 'none' ? 'selected' : ''}>Sem som (silencioso)</option>
+          <option value="tick" ${ap.somTipo === 'tick' ? 'selected' : ''}>Tick (curto)</option>
+          <option value="pop" ${ap.somTipo === 'pop' ? 'selected' : ''}>Pop (grave)</option>
+          <option value="suave" ${ap.somTipo === 'suave' ? 'selected' : ''}>Suave</option>
+        </select>
+      </label>
+      <label>Volume <input type="range" id="pz-somvol" min="5" max="100" step="5" value="${Number(ap.somVolume) || 50}" style="accent-color:var(--e-brand)" /></label>
+      <label> <button class="btn btn-sm" id="pz-som-teste">Testar som</button></label>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:18px;padding-top:14px;border-top:1px dashed var(--border);flex-wrap:wrap;align-items:center">
+      <button class="btn btn-danger" id="pz-reset">Restaurar tudo ao padrão de criação</button>
+      <span class="text-muted" style="font-size:11.5px">Volta cores, título, logo, botões, letras, sons, tema e zoom ao original.</span>
+    </div>
   `);
-  c.appendChild(card);
-  const cfgSalvar = c.querySelector('#cfg-salvar');
-  if (cfgSalvar) cfgSalvar.addEventListener('click', () => {
-    const seg = c.querySelector('#cfg-seg'), cid = c.querySelector('#cfg-cid'), intr = c.querySelector('#cfg-int'), emp = c.querySelector('#cfg-emp'), wh = c.querySelector('#cfg-whats');
-    if (seg) cfg.segmento = seg.value;
-    if (cid) cfg.cidades = cid.value;
-    if (intr) cfg.intervalo = Number(intr.value) || 60;
-    cfg.empresa = Object.assign(cfg.empresa || {}, { nome: emp ? emp.value : '', whatsapp: wh ? wh.value : '' });
-    E.db.save();
-    toast('Configurações salvas', 'success');
+  c.appendChild(cardPz);
+
+  /* --- ASSISTÊNCIA DE IA & AGENTES --- */
+  const cardIa = el('div', 'card', `
+    <h4>Assistência de IA &amp; Agentes</h4>
+    <p class="text-muted" style="font-size:12px;margin:2px 0 12px">Os auxiliares do sistema trabalham por você: respondem dúvidas, sugerem próximos passos, avisam de riscos e executam verificações sozinhos — sem inventar dados (tudo vem dos seus registros reais). Desligue quando quiser um sistema 100% silencioso.</p>
+    <div class="form-grid">
+      <label>Assistente IA (balão de ajuda e respostas)
+        <span style="display:flex;gap:8px;align-items:center">
+          <input type="checkbox" id="pz-iaativa" ${ap.iaAtiva !== false ? 'checked' : ''} style="width:18px;height:18px;accent-color:var(--e-brand)" />
+          <span class="text-muted" style="font-size:12px">${ap.iaAtiva !== false ? 'ligado' : 'desligado'}</span>
+        </span>
+      </label>
+      <label>Agentes autônomos (Supervisor, automações e memória)
+        <span style="display:flex;gap:8px;align-items:center">
+          <input type="checkbox" id="pz-agentes" ${ap.agentesAtivos !== false ? 'checked' : ''} style="width:18px;height:18px;accent-color:var(--e-brand)" />
+          <span class="text-muted" style="font-size:12px">${ap.agentesAtivos !== false ? 'ativos' : 'pausados'}</span>
+        </span>
+      </label>
+      <label>Avisos proativos da IA (notificações úteis)
+        <span style="display:flex;gap:8px;align-items:center">
+          <input type="checkbox" id="pz-notifia" ${ap.notificacoesIA !== false ? 'checked' : ''} style="width:18px;height:18px;accent-color:var(--e-brand)" />
+          <span class="text-muted" style="font-size:12px">${ap.notificacoesIA !== false ? 'permitidos' : 'silenciados'}</span>
+        </span>
+      </label>
+    </div>
+    <div class="text-muted" style="font-size:11.5px;margin-top:8px">
+      Offline: o assistente continua funcionando com o motor local (dados do sistema). Pesquisas externas (Possível Cenário, Caçador) precisam de internet + servidor aberto.
+    </div>
+  `);
+  c.appendChild(cardIa);
+  const pzIa = cardIa.querySelector('#pz-iaativa');
+  if (pzIa) pzIa.addEventListener('change', () => { salvarPz({ iaAtiva: pzIa.checked }); toast(pzIa.checked ? 'Assistente IA ligado' : 'Assistente IA desligado — balão oculto e insights pausados', 'info'); });
+  const pzAgentes = cardIa.querySelector('#pz-agentes');
+  if (pzAgentes) pzAgentes.addEventListener('change', () => { salvarPz({ agentesAtivos: pzAgentes.checked }); toast(pzAgentes.checked ? 'Agentes autônomos ativos' : 'Agentes autônomos pausados', 'info'); });
+  const pzNotifIa = cardIa.querySelector('#pz-notifia');
+  if (pzNotifIa) pzNotifIa.addEventListener('change', () => salvarPz({ notificacoesIA: pzNotifIa.checked }));
+
+  const rebrandar = () => { try { renderApp(true); renderView('config'); } catch (e) {} };
+  const salvarPz = (patch, recriar) => {
+    aplicarAparencia(patch);
+    salvarAparencia(patch);
+    if (recriar) setTimeout(rebrandar, 60);
+  };
+
+  const bindCor = (id, campo, recriar) => {
+    const inp = c.querySelector('#' + id);
+    if (!inp) return;
+    inp.addEventListener('input', () => { aplicarAparencia({ [campo]: inp.value }); salvarAparencia({ [campo]: inp.value }); });
+    inp.addEventListener('change', () => { if (recriar) rebrandar(); });
+  };
+  bindCor('pz-destaque', 'destaque', false);
+  bindCor('pz-fundo', 'fundo', false);
+  bindCor('pz-surface', 'surface', false);
+  bindCor('pz-texto', 'texto', false);
+  bindCor('pz-borda', 'borda', false);
+
+  c.querySelectorAll('.pz-reset-cor').forEach((bt) => bt.addEventListener('click', () => {
+    const alvo = bt.dataset.alvo;
+    aplicarAparencia({ [alvo]: '' });
+    salvarAparencia({ [alvo]: '' });
+    const mapa = { destaque: '#pz-destaque', fundo: '#pz-fundo', surface: '#pz-surface', texto: '#pz-texto', borda: '#pz-borda' };
+    const inp = c.querySelector(mapa[alvo]);
+    if (inp) {
+      const padroes = { destaque: '#166a43', fundo: document.documentElement.getAttribute('data-theme') === 'light' ? '#f5f6f8' : '#090a0d', surface: document.documentElement.getAttribute('data-theme') === 'light' ? '#ffffff' : '#101116', texto: document.documentElement.getAttribute('data-theme') === 'light' ? '#131418' : '#e8eaee', borda: document.documentElement.getAttribute('data-theme') === 'light' ? '#e4e6ea' : '#22242c' };
+      inp.value = padroes[alvo];
+    }
+    toast('Cor restaurada ao padrão', 'info');
+  }));
+
+  const pzTitulo = c.querySelector('#pz-titulo');
+  if (pzTitulo) pzTitulo.addEventListener('change', () => salvarPz({ titulo: pzTitulo.value.trim() || 'NEITZEL', sufixo: c.querySelector('#pz-sub')?.value.trim() || '' }, true));
+  const pzSub = c.querySelector('#pz-sub');
+  if (pzSub) pzSub.addEventListener('change', () => salvarPz({ sufixo: pzSub.value.trim() || 'Sistema Digital', titulo: c.querySelector('#pz-titulo')?.value.trim() || 'NEITZEL' }, true));
+
+  const pzLogo = c.querySelector('#pz-logo');
+  if (pzLogo) pzLogo.addEventListener('change', async () => {
+    const f = pzLogo.files && pzLogo.files[0];
+    if (!f) return;
+    const LIMITE = 3 * 1024 * 1024;
+    if (f.size > LIMITE) { toast('Imagem muito grande — use até 3 MB.', 'warn'); return; }
+    try {
+      const dataUrl = await prepararLogo(f);
+      salvarPz({ logoDataUrl: dataUrl }, true);
+      toast('Logo aplicada ao sistema', 'success');
+    } catch (e) {
+      toast('Não foi possível processar a imagem: ' + (e && e.message ? e.message : 'arquivo inválido'), 'danger');
+    }
   });
-  const cfgMigrar = c.querySelector('#cfg-migrar');
-  if (cfgMigrar) cfgMigrar.addEventListener('click', () => {
-    const msgEl = c.querySelector('#cfg-msg');
+  const pzLogoRem = c.querySelector('#pz-logo-remover');
+  if (pzLogoRem) pzLogoRem.addEventListener('click', () => { salvarPz({ logoDataUrl: '' }, true); });
+
+  c.querySelectorAll('[data-tema-familia]').forEach((bt) => bt.addEventListener('click', () => {
+    const fam = TEMAS_FAMILIAS[Number(bt.dataset.temaFamilia)];
+    if (!fam) return;
+    const vals = Object.assign({}, fam[bt.dataset.modelo] || fam.escuro, { arteCor: fam.arteCor, temaArt: fam.art });
+    aplicarAparencia(vals);
+    salvarAparencia(vals);
+    toast('Tema aplicado: ' + fam.nome + ' (' + (bt.dataset.modelo === 'claro' ? 'claro' : 'escuro') + ')', 'success');
+    setTimeout(rebrandar, 80);
+  }));
+
+  const pzTema = c.querySelector('#pz-tema');
+  if (pzTema) pzTema.addEventListener('change', () => salvarPz({ tema: pzTema.value }));
+  const pzBtn = c.querySelector('#pz-btn');
+  if (pzBtn) pzBtn.addEventListener('change', () => salvarPz({ botao: pzBtn.value }));
+  const pzFont = c.querySelector('#pz-font');
+  if (pzFont) pzFont.addEventListener('change', () => salvarPz({ fonte: pzFont.value }));
+  const pzAnim = c.querySelector('#pz-anim');
+  if (pzAnim) pzAnim.addEventListener('change', () => salvarPz({ animacoes: pzAnim.checked }));
+  const pzZoom = c.querySelector('#pz-zoom');
+  if (pzZoom) pzZoom.addEventListener('change', () => salvarPz({ zoom: Number(pzZoom.value) }));
+
+  const pzSom = c.querySelector('#pz-som');
+  if (pzSom) pzSom.addEventListener('change', () => salvarPz({ som: pzSom.checked }));
+  const pzFundoModo = c.querySelector('#pz-fundomodo');
+  if (pzFundoModo) pzFundoModo.addEventListener('change', () => salvarPz({ fundoModo: pzFundoModo.value }));
+  const pzFundoOp = c.querySelector('#pz-fundoop');
+  if (pzFundoOp) pzFundoOp.addEventListener('input', () => {
+    aplicarAparencia({ fundoOpacidade: Number(pzFundoOp.value) });
+    salvarAparencia({ fundoOpacidade: Number(pzFundoOp.value) });
+  });
+  const pzTemaArt = c.querySelector('#pz-temaart');
+  if (pzTemaArt) pzTemaArt.addEventListener('change', () => salvarPz({ temaArt: pzTemaArt.value }));
+  const pzSomTipo = c.querySelector('#pz-somtipo');
+  if (pzSomTipo) pzSomTipo.addEventListener('change', () => salvarPz({ somTipo: pzSomTipo.value }));
+  const pzSomVol = c.querySelector('#pz-somvol');
+  if (pzSomVol) pzSomVol.addEventListener('input', () => salvarAparencia({ somVolume: Number(pzSomVol.value) }));
+  const pzSomTeste = c.querySelector('#pz-som-teste');
+  if (pzSomTeste) pzSomTeste.addEventListener('click', () => tocarClique(true));
+
+  const pzReset = c.querySelector('#pz-reset');
+  if (pzReset) pzReset.addEventListener('click', () => {
+    if (!confirm('Restaurar TODA a personalização ao padrão de criação?\n(tema, cores, título, logo, modelo de botões, letras, sons e zoom)')) return;
+    try { localStorage.removeItem(AP_KEY); } catch (e) {}
+    I18N.titulo = 'NEITZEL';
+    I18N.sufixo = 'Sistema Digital';
+    aplicarAparencia(lerAparencia());
+    toast('Sistema restaurado ao padrão de criação', 'success');
+    setTimeout(rebrandar, 80);
+  });
+
+  /* --- Backup & dados --- */
+  const bk = el('div', 'card', `
+    <h4>Backup & dados</h4>
+    <div class="text-muted">Exporta/importa tudo com criptografia real (AES-GCM). Em file:// o AES exige servidor local; sem ele, o fallback é sinalizado.</div>
+    <div class="btn-group" style="margin-top:8px;flex-wrap:wrap">
+      <button class="btn btn-sm" id="bk-export">⬇ Exportar backup (criptografado)</button>
+      <button class="btn btn-sm" id="bk-import">⬆ Importar backup</button>
+      <button class="btn btn-sm" id="bk-csv"> Exportar leads CSV</button>
+      <button class="btn btn-sm" id="bk-migrar">Migrar dados do LeadsCRM antigo</button>
+    </div>
+    <div id="cfg-msg" class="text-muted" style="margin-top:8px;font-size:12px"></div>
+  `);
+  c.appendChild(bk);
+  const bkMigrar = bk.querySelector('#bk-migrar');
+  if (bkMigrar) bkMigrar.addEventListener('click', () => {
+    const msgEl = bk.querySelector('#cfg-msg');
     const det = features.migrator.detectLegacy();
     if (!det.exists) { if (msgEl) msgEl.textContent = 'Nenhum dado do LeadsCRM encontrado neste navegador.'; return; }
     if (!confirm(`Encontrei ${det.leads} leads e ${det.fila} itens de fila do LeadsCRM. Migrar para o NEITZEL agora?`)) return;
@@ -2240,21 +3961,10 @@ function renderConfig(c) {
     if (r.ok) {
       const s = r.stats;
       if (msgEl) msgEl.textContent = `Migração concluída: ${s.leads} leads importados, ${s.fila} da fila, ${s.duplicados} duplicados ignorados${s.config ? ', configuração copiada' : ''}.`;
-      toast('Migração concluída ', 'success');
+      toast('Migração concluída', 'success');
       renderView('leads');
     } else if (msgEl) msgEl.textContent = 'Falha na migração: ' + (r.code || 'erro');
   });
-  // Backup
-  const bk = el('div', 'card', `
-    <h4> Backup & dados</h4>
-    <div class="text-muted">Exporta/importa tudo com criptografia real (AES-GCM). Em file:// o AES exige servidor local; sem ele, o fallback é sinalizado.</div>
-    <div class="btn-group" style="margin-top:8px;flex-wrap:wrap">
-      <button class="btn btn-sm" id="bk-export">⬇ Exportar backup (criptografado)</button>
-      <button class="btn btn-sm" id="bk-import">⬆ Importar backup</button>
-      <button class="btn btn-sm" id="bk-csv"> Exportar leads CSV</button>
-    </div>
-  `);
-  c.appendChild(bk);
   const bkExport = bk.querySelector('#bk-export');
   if (bkExport) bkExport.addEventListener('click', async () => {
     const senha = prompt('Senha do backup (mín. 4 caracteres):');
@@ -2575,6 +4285,82 @@ function openUserMenu() {
 }
 
 /* ------------------------------------------------------------------ *
+ * MODO OFFLINE — monitor de conexão + relatório honesto do que
+ * funciona sem internet/servidor e do que precisa de rede.
+ * ------------------------------------------------------------------ */
+
+const CONEXAO = { online: navigator.onLine, servidor: null, _timer: 0 };
+
+/** Sonda o servidor local/backend (1.2s de tolerância). */
+async function sondarServidor() {
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 1200);
+    const r = await fetch(`${window.NEITZEL_API_BASE || ''}/api/health`, { signal: ctrl.signal, cache: 'no-store' });
+    clearTimeout(t);
+    return !!(r && r.ok);
+  } catch (e) { return false; }
+}
+
+function pintarSeloConexao() {
+  const topbar = document.querySelector('.topbar-right');
+  if (!topbar) return;
+  let selo = document.getElementById('offline-selo');
+  const offline = !(CONEXAO.online && CONEXAO.servidor);
+  if (offline && !selo) {
+    selo = el('span', 'offline-selo', '');
+    selo.id = 'offline-selo';
+    selo.title = 'Clique para ver o relatório do modo offline (Segurança & Diagnóstico)';
+    selo.addEventListener('click', () => renderView('seguranca'));
+    topbar.insertBefore(selo, topbar.firstChild);
+  } else if (!offline && selo) {
+    selo.remove();
+    return;
+  }
+  if (selo) {
+    const motivo = !CONEXAO.online ? 'Sem internet' : 'Sem servidor';
+    selo.innerHTML = `<span>⏻</span>${esc(motivo)} · modo local`;
+  }
+}
+
+async function verificarConexaoAgora() {
+  CONEXAO.online = navigator.onLine;
+  CONEXAO.servidor = await sondarServidor();
+  pintarSeloConexao();
+}
+
+function iniciarMonitorConexao() {
+  window.addEventListener('online', verificarConexaoAgora);
+  window.addEventListener('offline', verificarConexaoAgora);
+  verificarConexaoAgora();
+  clearInterval(CONEXAO._timer);
+  CONEXAO._timer = setInterval(verificarConexaoAgora, 45000);
+}
+
+/** Relatório do modo offline: o que segue funcionando e o que depende de rede. */
+function relatorioOffline() {
+  const okLocal = [
+    ['Leads & CRM', 'cadastro, funil e histórico — tudo salvo no dispositivo'],
+    ['Clientes & CS', 'perfis, health score e receita'],
+    ['Financeiro', 'contas a pagar/receber e fluxo local'],
+    ['Agenda & Tarefas', 'eventos, prazos e cronômetros'],
+    ['Atendimento', 'tickets com protocolo e SLA'],
+    ['Operacional', 'serviços, produtos e estoque'],
+    ['Memória & Diários', 'captura ao vivo, arquivo em 30d e PDF em 60d'],
+    ['Assistente IA', 'motor local responde com os dados do sistema'],
+    ['Backup criptografado', 'exportar/importar arquivos localmente'],
+    ['Personalização', 'temas, arte de fundo, fontes e sons'],
+  ];
+  const precisaRede = [
+    ['Possível Cenário (externo)', 'notícias, índices e Google Maps' + (CONEXAO.servidor ? '' : ' + servidor aberto')],
+    ['Caçador de leads externos', 'busca real no Google Maps via Chrome'],
+    ['Portal do Cliente público', 'agenda online para seus clientes'],
+    ['Pesquisa web da IA', 'quando a pergunta vai além dos dados locais'],
+  ];
+  return { okLocal, precisaRede, estado: CONEXAO };
+}
+
+/* ------------------------------------------------------------------ *
  * COMANDO RÃPIDO (⌘K)
  * ------------------------------------------------------------------ */
 
@@ -2583,23 +4369,22 @@ function openUserMenu() {
  * ------------------------------------------------------------------ */
 
 const HELP_DICAS = {
-  dashboard: ' <b>Painel</b>: visão geral da operação. Veja KPIs (leads, MRR, conversão), alertas e ações rápidas. Clique em “Caçador de Leadsâ€ para capturar contatos novos.',
-  leads: ' <b>Leads & CRM</b>: cadastre e gerencie leads. Clique em <b>+ Novo lead</b> para adicionar, ou clique numa linha para abrir a ficha com histórico e ações (WhatsApp, follow-up com IA, mover etapa).',
-  funil: ' <b>Funil</b>: kanban visual. <b>Arraste</b> os cards entre etapas (novo → contato → qualificado → proposta → ganho/perdido). Tudo fica registrado no histórico do lead.',
-  cacador: ' <b>Caçador de Leads</b>: capture contatos públicos. Defina tipo (empresa/pessoa), cidade, segmento e quantidade, depois clique em <b>Executar pesquisa</b>. Revise os resultados e envie para a fila do CRM.',
-  fila: ' <b>Fila de aprovação</b>: nada entra no CRM sem você aprovar. Use <b> Aprovar</b> ou <b> Recusar</b>. Após aprovar, o lead vai para a etapa “novoâ€ do funil.',
+  dashboard: ' <b>Painel</b>: visão geral da operação. Veja KPIs (leads, MRR, conversão), alertas e ações rápidas — inclusive o botão <b>Possível Cenário</b>.',
+  leads: ' <b>Leads & CRM</b>: cadastre e gerencie leads com filtros (busca, etapa, origem, cidade, valor e ordem). Clique em <b>+ Novo lead</b> para adicionar, ou numa linha para abrir a ficha com histórico e ações.',
+  funil: ' <b>Funil</b>: kanban visual com filtros por busca, origem e cidade. <b>Arraste</b> os cards entre etapas (novo → contato → qualificado → proposta → ganho/perdido).',
   agenda: ' <b>Agenda</b>: agende eventos, tarefas, reuniões, ligações e lembretes. Clique em <b>+ Novo evento</b> para adicionar.',
   financeiro: ' <b>Financeiro</b>: contas a receber e a pagar. Clique em <b>+ Nova conta</b> para lançar. Valores em reais; totais recalculados automaticamente.',
-  atendimento: ' <b>Atendimento</b>: tickets com protocolo e SLA. Clique em <b>+ Novo ticket</b> ou em <b>Ver</b> numa ticket para responder. Use a IA para sugerir respostas.',
+  atendimento: ' <b>Atendimento</b>: tickets com protocolo e SLA. Clique em <b>+ Novo ticket</b> ou em <b>Ver</b> num ticket para responder. Use a IA para sugerir respostas.',
   clientes: ' <b>Clientes & CS</b>: perfil 360° com health score. Cadastre clientes e monitore MRR, risco e último acesso.',
   projetos: ' <b>Projetos</b>: gerencie projetos e tarefas com progresso automático. Clique em <b>+ Novo projeto</b> e depois em <b>+ Tarefa</b>.',
   marketing: ' <b>Marketing</b>: campanhas com orçamento. Registre <b>+ Lead</b> e <b>+ Conversão</b> por campanha para calcular ROI.',
-  rh: 'â€ <b>RH</b>: colaboradores, cargos e departamentos. Clique em <b>+ Novo colaborador</b> para cadastrar.',
-  bi: ' <b>BI & Analytics</b>: indicadores ao vivo. Use a caixa <b>“Pergunte ao BIâ€</b> para fazer perguntas em linguagem natural sobre seus dados.',
-  automacoes: ' <b>Automações</b>: regras gatilho → condição → ação. Crie uma regra e ela reagirá aos eventos reais do sistema.',
-  comunicacao: ' <b>Comunicação</b>: canais de envio. O status aparece com honestidade. Configure e verifique um canal (ex.: e-mail) antes de enviar.',
-  seguranca: ' <b>Segurança</b>: senha de 6 dígitos, recuperação por WhatsApp/e-mail, conta Google, MFA e LGPD.',
-  config: ' <b>Configurações</b>: segmento, cidades, empresa e backup criptografado. Ajuste a prospecção do Caçador aqui.',
+  rh: 'â€ <b>RH</b>: colaboradores, cargos e departamentos. Clique em <b>+ Novo colaborador</b> para cadastrar.',
+  bi: ' <b>BI & Analytics</b>: indicadores ao vivo. Use a caixa <b>"Pergunte ao BIâ€</b> para fazer perguntas em linguagem natural sobre seus dados.',
+  inteligencia: ' <b>Centro de Inteligência</b>: o Agente Supervisor verifica a saúde dos módulos e sugere próximos passos.',
+  estrategia: ' <b>Estratégia & Previsão</b>: o sistema pensa com você — clientes frios (25+ dias sem movimento, manter/apagar), quem mais/menos gera receita, produtos e serviços que mais/menos vendem, previsão de movimento e o botão <b>Possível Cenário</b> que pesquisa fontes reais da sua região.',
+  memoria: ' <b>Atividades & Memória</b>: tudo fica registrado aqui ao vivo. A memória captura o mês automaticamente; aos 30 dias arquiva num lugar separado e aos 60 dias gera o PDF pronto.',
+  seguranca: ' <b>Segurança & Diagnóstico</b>: senha de 6 dígitos, recuperação, Google, MFA e LGPD em cima; saúde do sistema (internet, bateria, erros) embaixo.',
+  config: ' <b>Configurações</b>: personalize TUDO — título e logo do sistema, todas as cores, modelo dos botões e das letras, sons nos cliques, temas prontos, animações, zoom e o botão que restaura tudo ao padrão de criação. Backup criptografado fica aqui embaixo.',
 };
 
 /** Abre a dica de uso de um espaço (botão "?" na sidebar). */
@@ -2650,9 +4435,8 @@ function renderCmdk(term) {
   const list = box.querySelector('#cmdk-list');
   if (!list) return;
   list.innerHTML = '';
-  boostCmdk();
   const itens = [];
-  VIEWS.forEach((v) => itens.push({ title: v.nome, icon: v.icone, action: () => { if (v.id === 'cacador' && window.ECOMIM_HUNTER) window.ECOMIM_HUNTER.init(); renderView(v.id); box.classList.remove('open'); } }));
+  VIEWS.forEach((v) => itens.push({ title: v.nome, icon: v.icone, action: () => { renderView(v.id); box.classList.remove('open'); } }));
   if (term && term.length >= 2) {
     features.helpers.searchGlobal(term).forEach((r) => itens.push({
       title: r.titulo,
@@ -2680,18 +4464,6 @@ function renderCmdk(term) {
   });
 }
 
-function boostCmdk() {
-  if (!window.ECOMIM_HUNTER || !E.modules) return;
-  const hunter = window.ECOMIM_HUNTER;
-  const total = hunter.DB.leads.length;
-  const naFila = hunter.DB.leads.filter((l) => l.status === 'na_fila').length;
-  const content = document.querySelector('.ecomim-content');
-  const current = content ? (content.dataset.view || '') : '';
-  if (current !== 'cacador') return;
-  const card = document.querySelector('.hunter-topbar') || null;
-  // nada extra — o rodapé é tratado no render
-}
-
 function closeAllPanels() {
   document.querySelectorAll('.cmdk').forEach((b) => b.classList.remove('open'));
   document.querySelectorAll('.notif-panel').forEach((b) => b.classList.remove('open'));
@@ -2703,12 +4475,14 @@ function closeAllPanels() {
  * ------------------------------------------------------------------ */
 
 document.addEventListener('DOMContentLoaded', () => {
+  window.__NZ_SESSAO_INICIO = Date.now();
   E.init();
-  if (window.ECOMIM_HUNTER) window.ECOMIM_HUNTER.init();
   applySavedTheme();
   renderApp();
+  iniciarMonitorConexao();
   // Verificação automática do Agente Supervisor (assíncrona, não bloqueia o boot)
-  if (window.NEITZEL_IA && window.NEITZEL_IA.verificarSistema) {
+  // — só roda quando os agentes autônomos estão ligados nas configurações.
+  if (window.NEITZEL_IA && window.NEITZEL_IA.verificarSistema && lerAparencia().agentesAtivos !== false) {
     try { setTimeout(() => { window.NEITZEL_IA.verificarSistema(); }, 4000); } catch (e) { /* não bloqueia o boot */ }
   }
   // Observa mudanças de banco em outras abas

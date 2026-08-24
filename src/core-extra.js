@@ -253,7 +253,9 @@ const ECOMIM_EXT = (() => {
         'Para editar sua senha: abra ' + linkAbrir + '\n' +
         'Clique em "Esqueci minha senha", digite o código e defina a nova senha.'
       );
-      return 'https://wa.me/55' + String(whats || '').replace(/\D/g, '') + '?text=' + txt;
+      const F = (typeof window !== 'undefined' && window.ECOMIM && window.ECOMIM.foneBR) || null;
+      const num = F ? F.normalizar(whats) : String(whats || '').replace(/\D/g, '');
+      return 'https://wa.me/55' + num + '?text=' + txt;
     },
 
     /** Valida o código e define uma nova senha de 6 dígitos. */    async resetPassword(code, novaSenha) {
@@ -590,17 +592,18 @@ const ECOMIM_EXT = (() => {
         leads.forEach((l) => {
           const lead = Object.assign({ nome: '', tipo: 'empresa', origem: origem || 'extensao', consentimento: true }, l || {});
           const conv = migrator.convertLead(lead);
-          const res = E.modules.leads.addToQueue(conv);
+          // Fila de aprovação removida: contatos da extensão entram direto no CRM
+          const res = E.modules.leads.addLead(conv);
           if (res.ok) result.ok++;
-          else if (res.code === 'DUPLICADO_FILA') result.duplicados++;
+          else if (res.code === 'DUPLICADO') result.duplicados++;
           else result.invalidos++;
         });
         E.modules.notificacoes.push({
           titulo: ` ${result.ok} contato(s) da extensão`,
-          corpo: `${result.ok} na fila · ${result.duplicados} duplicados ignorados`,
+          corpo: `${result.ok} no CRM · ${result.duplicados} duplicados ignorados`,
           tipo: 'extensao',
         });
-        E.audit.record('extensao.leads_recebidos', 'fila', null, result);
+        E.audit.record('extensao.leads_recebidos', 'lead', null, result);
       };
       window.addEventListener('leadsExternos', onLeadsExternos);
       // conector para a página do LeadsCRM (se coexistir na mesma aba/porta)

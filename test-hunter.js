@@ -10,6 +10,44 @@ global.localStorage = {
 };
 global.window = global;
 
+// --- mock do BACKEND REAL (/api/cacador/pesquisar): responde como o
+// OpenStreetMap responderia, de forma determinística. Assim testamos a
+// pipeline inteira (coleta → normalização → validação → dedup) sem rede.
+let chamadasBusca = 0;
+global.fetch = async (url) => {
+  const u = String(url || '');
+  if (!u.includes('/api/cacador/pesquisar')) throw new Error('fetch inesperado: ' + u);
+  chamadasBusca++;
+  const cidade = decodeURIComponent((u.match(/cidade=([^&]*)/) || [])[1] || '');
+  const termo = decodeURIComponent((u.match(/termo=([^&]*)/) || [])[1] || '');
+  const elementos = Array.from({ length: 6 }, (_, i) => ({
+    type: 'node', id: chamadasBusca * 100 + i,
+    lat: -26.3 + i / 100, lon: -48.8 + i / 100,
+    tags: {
+      name: `${termo || 'Negocio'} ${chamadasBusca === 1 ? 'Alfa' : 'Beta'} ${i + 1}`,
+      // 2º lead sem telefone — exercita o relatório de contato indisponível
+      ...(i !== 1 ? { phone: `479${(90000000 + i * 137 + chamadasBusca).toString().slice(-8)}` } : {}),
+      ...(i % 2 === 0 ? { website: `https://www.${termo || 'site'}${i}.com.br` } : {}),
+      'addr:street': 'Rua Teste', 'addr:housenumber': String(100 + i),
+      'addr:city': cidade || 'Joinville',
+    },
+  }));
+  return {
+    ok: true,
+    status: 200,
+    json: async () => ({ ok: true, total: elementos.length, leads: elementos.map((el) => {
+      const t = el.tags;
+      return {
+        sintetico: false, lead_type: 'company', name: t.name, company: t.name,
+        profession: termo || null, phone: t.phone || null, whats: t.phone || null,
+        email: null, website: t.website || null, city: t['addr:city'], state: 'SC',
+        street: t['addr:street'] + ', ' + t['addr:housenumber'],
+        description: 'Contato público real', source: { type: 'openstreetmap' },
+      };
+    }), fonte: 'mock', local: cidade }),
+  };
+};
+
 require('./src/core.js');
 require('./src/hunter.js');
 
@@ -21,9 +59,9 @@ function assert(cond, msg) {
 }
 
 (async () => {
-  // 1. init garante fontes
+  // 1. init garante fontes (catálogo completo de fontes REAIS)
   H.init();
-  assert(H.DB.sources.length === 7, `7 fontes registradas (${H.DB.sources.length})`);
+  assert(H.DB.sources.length === 8, `8 fontes reais registradas (${H.DB.sources.length})`);
   assert(H.fontesAplicaveis('empresa').length > 0, 'fontes aplicáveis a empresa > 0');
 
   // 2. pesquisa com fontes ativas
@@ -55,18 +93,12 @@ function assert(cond, msg) {
   });
 
   // 5. dedup: envia um lead único → ok; enviando de novo → DUPLICADO
-  // Pós-auditoria (LGPD): leads sintéticos NÃO vão ao CRM sem consentimento real.
   const alvo = H.DB.leads.find((l) => (l.phone || l.email) && !H.encontrarDuplicado(H.normalizar(Object.assign({}, l)), l.id));
   assert(!!alvo, 'existe lead único com contato para teste');
   if (alvo) {
-    // Bloqueio LGPD: sintético sem consentimento real não pode ir à fila
-    const r0 = H.enviarParaFila(alvo.id);
-    assert(!r0.ok && r0.code === 'SINTETICO_SEM_CONSENTIMENTO', 'sintético sem consentimento real é bloqueado na fila');
-    // Registro do consentimento real + envio
-    alvo.consentimentoReal = true;
-    alvo.sintetico = false;
+    // Leads REAIS (não sintéticos) vão direto para a fila
     const r1 = H.enviarParaFila(alvo.id);
-    assert(r1.ok, 'envio à fila ok (1º) após consentimento real');
+    assert(r1.ok, 'envio à fila ok (1º)');
     const dup = H.encontrarDuplicado(H.normalizar(Object.assign({}, alvo)));
     assert(dup, 'dedup encontra duplicado na 2ª tentativa (mesmo contato)');
     const E = window.ECOMIM;
@@ -88,7 +120,7 @@ function assert(cond, msg) {
   const out = H.DB.leads.slice(0, 3).map((l) => l.name);
   assert(out.length === 3, 'seleção de exportação ok');
 
-  // 9. segunda pesquisa com fontes diferentes gera leads novos (seed varia)
+  // 9. segunda pesquisa (cidade/termo diferentes) traz leads novos do backend
   await H.executarPesquisa({
     tipo: 'pessoa',
     cidade: 'Florianópolis',

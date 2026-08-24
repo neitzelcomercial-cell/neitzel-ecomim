@@ -1,296 +1,327 @@
 /* ============================================================================
- * NEITZEL — MEMÓRIA INTELIGENTE
- * Ciclo mensal automático:
- *   1) SNAPSHOT — todo último dia do mês às 23:59 (com recuperação de falhas
- *      no boot), guarda a matéria-prima do mês em neitzel_memoria_bruta_v1.
- *   2) CONSOLIDAÇÃO — 30 dias depois, no mesmo horário, transforma o snapshot
- *      em um RELATÓRIO organizado/legível e o arquiva em neitzel_memoria_pdf_v1
- *      (lugar separado), com Ver / Baixar PDF / Excluir.
- *   3) LIMPEZA SEGURA — após arquivar, remove apenas RUÍDO dos registros do
- *      mês (observações longas, detalhe de itens, telefones/endereço, logs
- *      antigos). NUNCA mexe em Financeiro, Clientes, nem nos campos que
- *      alimentam índices (status/preço/data permanecem ⇒ números contínuos).
+ * NEITZEL — MEMÓRIA INTELIGENTE (ligada ao relógio e ao calendário)
+ * Ciclo automático, sem intervenção humana:
+ *   1) CAPTURA — todos os dias o sistema anota as ATIVIDADES do dia
+ *      (auditoria ao vivo) no buffer do mês corrente. Durante o mês tudo
+ *      fica capturando sozinho.
+ *   2) ARQUIVO (30 dias após o fim do mês) — o mês completo é movido para
+ *      um LUGAR SEPARADO (neitzel_memoria_arquivo_v1), fora da área viva.
+ *   3) PDF (60 dias após o fim do mês) — o relatório organizado é gerado
+ *      automaticamente, pronto para Ver / Baixar PDF / Excluir.
+ * O tick roda a cada minuto e se recupera no boot (máquina desligada não
+ * perde etapa: o calendário decide, não a sessão).
  * ========================================================================== */
 
 'use strict';
 
 (function () {
-  const KEY_BRUTA = 'neitzel_memoria_bruta_v1';
-  const KEY_ARQ = 'neitzel_memoria_pdf_v1';
-  const DIAS_PARA_CONSOLIDAR = 30;
+  const KEY_MES = 'neitzel_memoria_mes_atual_v1';
+  const KEY_ARQ = 'neitzel_memoria_arquivo_v1';
+  const KEY_LEGADO_ARQ = 'neitzel_memoria_pdf_v1';
+  const DIAS_PARA_ARQUIVAR = 30;
+  const DIAS_PARA_PDF = 60;
 
   const lsGet = (k, f) => { try { const r = localStorage.getItem(k); return r ? JSON.parse(r) : f; } catch (e) { return f; } };
   const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
   const uid = () => 'm-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-  const mesDe = (iso) => String(iso || '').slice(0, 7);
   const hojeISO = () => new Date().toISOString();
-  const fmtMoney = (cents) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((cents || 0) / 100);
   const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
-
-  const O = () => window.NEITZEL_OPS || null;
   const E = () => window.ECOMIM || null;
 
-  /* ============================ 1. SNAPSHOT ============================ */
-  function coletarMes(mesAlvo) {
-    const atds = (O() ? O().atendimentos.list() : lsGet('neitzel_atendimentos_v1', []))
-      .filter((a) => mesDe(a.inicio) === mesAlvo);
-    let contas = [];
-    try { contas = (E() && E().modules.financeiro.contas) || []; } catch (e) { contas = []; }
-    const contasMes = contas.filter((c) => mesDe(c.criadaEm || c.vencimento) === mesAlvo);
-    let leads = [], fila = [];
-    try { const db = E().db.get(); leads = db.leads || []; fila = db.fila || []; } catch (e) {}
-    let clientes = [];
-    try { clientes = (E() && E().modules.clientes.clientes) || []; } catch (e) {}
-    let tarefas = [];
-    try { tarefas = (E() && E().modules.tarefas && (E().modules.tarefas.tarefas || [])) || []; } catch (e) {}
-
-    const receitaMes = atds.filter((a) => a.status === 'concluido')
-      .reduce((s, a) => s + (a.servicoPreco || 0) + (a.itensProdutos || []).reduce((x, i) => x + (i.precoUnitario || 0) * (i.quantidade || 1), 0), 0);
-    const porStatus = {};
-    atds.forEach((a) => { porStatus[a.status] = (porStatus[a.status] || 0) + 1; });
-
-    return {
-      mes: mesAlvo,
-      geradoEm: hojeISO(),
-      atendimentos: {
-        total: atds.length,
-        porStatus,
-        receitaConcluidaCentavos: receitaMes,
-        lista: atds.map((a) => ({
-          id: a.id, cliente: a.cliente, clienteId: a.clienteId || null,
-          inicio: a.inicio, fim: a.fim, status: a.status,
-          servicoNome: a.servicoNome || '', servicoPreco: a.servicoPreco || 0,
-          responsavel: a.responsavel || '',
-        })),
-      },
-      financeiro: {
-        totalContas: contasMes.length,
-        aReceber: contasMes.filter((c) => c.tipo === 'receber' && c.status === 'pendente').length,
-        recebido: contasMes.filter((c) => c.tipo === 'receber' && c.status === 'paga').length,
-        aPagar: contasMes.filter((c) => c.tipo === 'pagar' && c.status === 'pendente').length,
-      },
-      crm: {
-        leadsTotal: leads.length,
-        novosLeads: leads.filter((l) => mesDe(l.created) === mesAlvo).length,
-        filaAguardando: fila.length,
-        clientesTotal: clientes.length,
-        novosClientes: clientes.filter((c) => mesDe(c.created) === mesAlvo).length,
-        tarefasPendentes: tarefas.filter((t) => t.status !== 'concluida' && t.status !== 'done').length,
-      },
-      catalogo: {
-        servicosAtivos: (O() ? O().servicos.ativos() : []).map((s) => ({ nome: s.nome, preco: s.preco })),
-        produtosEstoqueBaixo: (O() ? O().produtos.estoqueBaixo() : []).map((p) => ({ nome: p.nome, saldo: p.estoqueAtual, min: p.estoqueMinimo })),
-      },
-    };
+  const CATEGORIAS = ['Lead', 'Cliente', 'Agenda', 'Tarefa', 'Financeiro', 'Serviços', 'Produtos', 'Estoque', 'Projetos', 'Atendimento', 'Marketing', 'RH', 'Sistema', 'Config'];
+  function categoriaDe(action) {
+    const A = String(action || '');
+    if (/^lead\./.test(A)) return 'Lead';
+    if (/^cliente\./.test(A)) return 'Cliente';
+    if (/^agenda\./.test(A)) return 'Agenda';
+    if (/tarefa/.test(A)) return 'Tarefa';
+    if (/^financeiro|payment\./.test(A)) return 'Financeiro';
+    if (/^servico/.test(A)) return 'Serviços';
+    if (/^produto/.test(A)) return 'Produtos';
+    if (/estoque/.test(A)) return 'Estoque';
+    if (/^projeto/.test(A)) return 'Projetos';
+    if (/ticket|^atendimento/.test(A)) return 'Atendimento';
+    if (/marketing|campanha/.test(A)) return 'Marketing';
+    if (/rh\.|colaborador/.test(A)) return 'RH';
+    if (/^config/.test(A)) return 'Config';
+    return 'Sistema';
   }
 
-  function capturarSnapshot(forcar) {
+  /* ============================ 1. CAPTURA ============================== */
+  /** Garante que o dia de hoje está anotado no buffer do mês corrente. */
+  function capturarHoje(forcar) {
+    const Em = E();
     const agora = new Date();
-    const mesCorrente = agora.toISOString().slice(0, 7);
-    const brutas = lsGet(KEY_BRUTA, []);
-    if (!forcar && brutas.some((b) => b.mes === mesCorrente)) return null;
-    // No fim do mês capturamos o mês CORRENTE (dia 28-31); retroativo no boot
-    // captura o mês anterior caso a máquina estivesse desligada às 23:59.
-    const alvo = (agora.getDate() >= 28) ? mesCorrente
-      : new Date(agora.getFullYear(), agora.getMonth() - 1, 1).toISOString().slice(0, 7);
-    if (!forcar && brutas.some((b) => b.mes === alvo)) return null;
-    const snap = Object.assign({ id: uid() }, coletarMes(alvo));
-    brutas.unshift(snap);
-    if (brutas.length > 36) brutas.length = 36;
-    lsSet(KEY_BRUTA, brutas);
-    return snap;
+    const mesCorrente = agora.getFullYear() + '-' + String(agora.getMonth() + 1).padStart(2, '0');
+    const dataHoje = agora.toISOString().slice(0, 10);
+    let buf = lsGet(KEY_MES, null);
+    if (!buf || buf.mes !== mesCorrente) {
+      // Mês virou: o antigo é arquivado pelo ciclo; este é o novo buffer vivo.
+      buf = { id: uid(), mes: mesCorrente, criadoEm: hojeISO(), dias: [] };
+    }
+    const cfg = (Em && Em.db && Em.db.get().config && Em.db.get().config.sistema) || {};
+    if (cfg.capturaAutoAtividades === false && !forcar) { lsSet(KEY_MES, buf); return buf; }
+    if (!forcar && (buf.dias || []).some((x) => x.data === dataHoje)) { lsSet(KEY_MES, buf); return buf; }
+
+    // Conta os eventos de hoje na auditoria (fonte única das atividades)
+    const eventos = ((Em && Em.audit && Em.audit.list()) || []).filter((ev) => String(ev.ts).slice(0, 10) === dataHoje);
+    const porCategoria = {};
+    eventos.forEach((ev) => { const c = categoriaDe(ev.action); porCategoria[c] = (porCategoria[c] || 0) + 1; });
+    const destaque = eventos.slice(-3).reverse().map((ev) => {
+      const after = ev.after || {};
+      return { action: ev.action, nome: String(after.nome || after.descricao || '').slice(0, 60), ts: ev.ts };
+    });
+    buf.dias = (buf.dias || []).filter((x) => x.data !== dataHoje);
+    buf.dias.push({ data: dataHoje, totalEventos: eventos.length, porCategoria, destaques: destaque, capturadoEm: hojeISO() });
+    buf.dias.sort((a, b) => (a.data < b.data ? -1 : 1));
+    lsSet(KEY_MES, buf);
+    return buf;
   }
 
-  /* ========================== 2. CONSOLIDAÇÃO ========================== */
-  function consolidarPendentes() {
-    const limite = Date.now() - DIAS_PARA_CONSOLIDAR * 86400000;
-    const brutas = lsGet(KEY_BRUTA, []);
-    const arq = lsGet(KEY_ARQ, []);
-    let consolidados = 0;
-    brutas.forEach((snap) => {
-      if (new Date(snap.geradoEm).getTime() > limite) return;
-      if (arq.some((a) => a.mes === snap.mes)) return;
-      arq.unshift({ id: uid(), mes: snap.mes, titulo: 'Relatório Mensal — ' + rotuloMes(snap.mes), geradoEm: hojeISO(), relatorio: montarRelatorio(snap), stats: resumoStats(snap) });
-      consolidados++;
-    });
-    if (consolidados) {
-      lsSet(KEY_ARQ, arq.slice(0, 60));
-      limparRuido(brutas.filter((b) => arq.some((a) => a.mes === b.mes)));
+  /* ======================= 2. ARQUIVO (30 dias) ========================= */
+  /** Fim do mês em ms (última hora do último dia). */
+  function fimDoMesMs(mes) {
+    const [y, m] = String(mes).split('-').map(Number);
+    return new Date(y, m, 0, 23, 59, 59).getTime();
+  }
+  function arquivo() { return lsGet(KEY_ARQ, []); }
+  function legadoArquivo() { return lsGet(KEY_LEGADO_ARQ, []); }
+
+  function arquivarVencidos() {
+    let n = 0;
+    const buf = lsGet(KEY_MES, null);
+    const arq = arquivo();
+    if (buf && buf.dias && buf.dias.length) {
+      const fimMes = fimDoMesMs(buf.mes);
+      if (Date.now() >= fimMes + DIAS_PARA_ARQUIVAR * 86400000) {
+        if (!arq.some((a) => a.mes === buf.mes)) {
+          arq.unshift({
+            id: uid(), mes: buf.mes,
+            titulo: 'Memória — ' + rotuloMes(buf.mes),
+            arquivadoEm: hojeISO(),
+            totalEventos: buf.dias.reduce((s, d2) => s + (d2.totalEventos || 0), 0),
+            dias: buf.dias,
+            relatorio: null, pdfGeradoEm: null,
+          });
+          lsSet(KEY_ARQ, arq.slice(0, 60));
+          n++;
+        }
+        lsSet(KEY_MES, { id: uid(), mes: proximoMesDe(buf.mes), criadoEm: hojeISO(), dias: [] });
+        capturarHoje(true);
+      }
     }
-    return consolidados;
+    // Migra relatórios do formato antigo para a nova área (uma vez)
+    const legado = legadoArquivo();
+    if (legado.length) {
+      const atual = arquivo();
+      legado.forEach((r) => { if (!atual.some((a) => a.mes === r.mes)) atual.push(Object.assign({ arquivadoEm: r.geradoEm, pdfGeradoEm: r.geradoEm }, r)); });
+      lsSet(KEY_ARQ, atual.slice(0, 60));
+      try { localStorage.removeItem(KEY_LEGADO_ARQ); } catch (e) {}
+    }
+    return n;
+  }
+
+  function proximoMesDe(mes) {
+    const [y, m] = String(mes).split('-').map(Number);
+    const dt = new Date(y, m - 1 + 1, 1);
+    return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0');
+  }
+
+  /* ========================== 3. PDF (60 dias) =========================== */
+  function gerarPDFsVencidos() {
+    let n = 0;
+    const arq = arquivo();
+    arq.forEach((r) => {
+      if (r.relatorio) return;
+      if (Date.now() < fimDoMesMs(r.mes) + DIAS_PARA_PDF * 86400000) return;
+      r.relatorio = montarRelatorio(r);
+      r.pdfGeradoEm = hojeISO();
+      n++;
+    });
+    if (n) lsSet(KEY_ARQ, arq);
+    return n;
   }
 
   function rotuloMes(m) {
-    const [y, mm] = m.split('-');
+    const [y, mm] = String(m).split('-');
     const nomes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-    return nomes[Number(mm) - 1] + ' de ' + y;
-  }
-  function resumoStats(s) {
-    return {
-      atendimentos: s.atendimentos.total,
-      receita: s.atendimentos.receitaConcluidaCentavos,
-      novosClientes: s.crm.novosClientes,
-      novosLeads: s.crm.novosLeads,
-    };
+    return (nomes[Number(mm) - 1] || mm) + ' de ' + y;
   }
 
-  function montarRelatorio(s) {
-    const st = ['agendado','confirmado','em_andamento','concluido','cancelado','nao_compareceu'];
-    const nomes = { agendado:'Agendados', confirmado:'Confirmados', em_andamento:'Em andamento', concluido:'Concluídos', cancelado:'Cancelados', nao_compareceu:'Não compareceram' };
-    let linhas = '';
-    st.forEach((k) => { if (s.atendimentos.porStatus[k]) linhas += `<tr><td>${nomes[k]}</td><td><b>${s.atendimentos.porStatus[k]}</b></td></tr>`; });
-
-    const topServ = {};
-    (function coletar() {
-      const bruta = lsGet(KEY_BRUTA, []).find((b) => b.mes === s.mes);
-      (bruta ? bruta.atendimentos.lista : []).forEach((a) => { if (a.servicoNome) topServ[a.servicoNome] = (topServ[a.servicoNome] || 0) + 1; });
-    })();
-    const rank = Object.entries(topServ).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  function montarRelatorio(r) {
+    const dias = r.dias || [];
+    const totalEventos = dias.reduce((s, d2) => s + (d2.totalEventos || 0), 0);
+    const catTot = {};
+    dias.forEach((d2) => Object.entries(d2.porCategoria || {}).forEach(([k, v]) => { catTot[k] = (catTot[k] || 0) + v; }));
+    const rankCat = Object.entries(catTot).sort((a, b) => b[1] - a[1]);
+    const diaMaisMov = dias.slice().sort((a, b) => (b.totalEventos || 0) - (a.totalEventos || 0))[0];
+    const mediaDia = dias.length ? (totalEventos / dias.length).toFixed(1) : '0';
+    const semanas = [];
+    for (let i = 0; i < dias.length; i += 7) {
+      const fatia = dias.slice(i, i + 7);
+      semanas.push(fatia.reduce((s, d2) => s + (d2.totalEventos || 0), 0));
+    }
 
     return `
-      <section class="mr-sec"><h3>Visão geral</h3>
+      <section class="mr-sec"><h3>Visão geral do mês</h3>
         <div class="mr-kpis">
-          <div class="mr-kpi"><span>${s.atendimentos.total}</span>Atendimentos</div>
-          <div class="mr-kpi"><span>${fmtMoney(s.atendimentos.receitaConcluidaCentavos)}</span>Receita concluída</div>
-          <div class="mr-kpi"><span>${s.crm.novosClientes}</span>Novos clientes</div>
-          <div class="mr-kpi"><span>${s.crm.novosLeads}</span>Novos leads</div>
-          <div class="mr-kpi"><span>${s.financeiro.aReceber}</span>Contas a receber abertas</div>
+          <div class="mr-kpi"><span>${totalEventos}</span>atividades registradas</div>
+          <div class="mr-kpi"><span>${dias.length}</span>dias com registro</div>
+          <div class="mr-kpi"><span>${mediaDia}</span>média de atividades/dia</div>
+          ${diaMaisMov ? `<div class="mr-kpi"><span>${diaMaisMov.totalEventos}</span>pico (${new Date(diaMaisMov.data + 'T12:00:00').toLocaleDateString('pt-BR')})</div>` : ''}
+          <div class="mr-kpi"><span>${rankCat.length ? rankCat[0][0] : '—'}</span>categoria mais ativa</div>
         </div>
       </section>
-      <section class="mr-sec"><h3>Atendimentos por status</h3>
-        ${linhas ? `<table class="mr-tab"><tbody>${linhas}</tbody></table>` : '<p class="mr-vazio">Nenhum atendimento registrado neste mês.</p>'}
+      <section class="mr-sec"><h3>Ritmo semanal</h3>
+        ${semanas.length ? `<table class="mr-tab"><thead><tr><th>Semana</th><th>Atividades</th></tr></thead><tbody>${
+          semanas.map((v, i) => `<tr><td>Semana ${i + 1}</td><td><b>${v}</b></td></tr>`).join('')
+        }</tbody></table>` : '<p class="mr-vazio">Sem dados.</p>'}
       </section>
-      ${rank.length ? `<section class="mr-sec"><h3>Serviços mais realizados</h3>
-        <table class="mr-tab"><thead><tr><th>Serviço</th><th>Vezes</th></tr></thead><tbody>
-        ${rank.map(([n, q]) => `<tr><td>${esc(n)}</td><td><b>${q}</b></td></tr>`).join('')}
-        </tbody></table></section>` : ''}
-      <section class="mr-sec"><h3>Financeiro (continuidade)</h3>
-        <p class="mr-p">Contas criadas no período: <b>${s.financeiro.totalContas}</b> · a receber: <b>${s.financeiro.aReceber}</b> · recebidas: <b>${s.financeiro.recebido}</b> · a pagar: <b>${s.financeiro.aPagar}</b>.<br>
-        <small>O arquivo NÃO altera financeiro, clientes ou índices — os valores continuam valendo no sistema.</small></p>
+      <section class="mr-sec"><h3>Atividades por categoria</h3>
+        ${rankCat.length ? `<table class="mr-tab"><tbody>${rankCat.map(([k, v]) => `<tr><td>${esc(k)}</td><td><b>${v}</b></td></tr>`).join('')}</tbody></table>` : '<p class="mr-vazio">Nenhuma atividade neste mês.</p>'}
       </section>
-      <section class="mr-sec"><h3>Catálogo no fechamento</h3>
-        <p class="mr-p">Serviços ativos: ${s.catalogo.servicosAtivos.length}${s.catalogo.produtosEstoqueBaixo.length ? ` · Produtos abaixo do mínimo: <b>${s.catalogo.produtosEstoqueBaixo.map((p) => esc(p.nome)).join(', ')}</b>` : ''}</p>
+      <section class="mr-sec"><h3>Destaques registrados durante o mês</h3>
+        ${(function () {
+          const dests = [];
+          dias.forEach((d2) => (d2.destaques || []).forEach((dd) => dests.push(dd)));
+          if (!dests.length) return '<p class="mr-vazio">Sem destaques capturados.</p>';
+          return '<table class="mr-tab"><tbody>' + dests.slice(0, 20).map((dd) =>
+            `<tr><td style="white-space:nowrap">${new Date(dd.ts).toLocaleDateString('pt-BR')}</td><td>${esc(String(dd.action).replace(/[._]/g, ' '))}${dd.nome ? ' — ' + esc(dd.nome) : ''}</td></tr>`
+          ).join('') + '</tbody></table>';
+        })()}
       </section>`;
   }
 
-  /* ====================== 3. LIMPEZA SEGURA DE RUÍDO ==================== */
-  /** Remove apenas campos verbosos dos atendimentos JÁ ARQUIVADOS. Preserva
-   *  id/datas/status/preço/serviço/cliente ⇒ todos os índices continuam válidos.
-   *  Também poda logs de auditoria e movimentações antigas. NUNCA toca em
-   *  contas financeiras nem cadastros de clientes. */
-  function limparRuido(arquivadas) {
-    const meses = new Set(arquivadas.map((a) => a.mes));
-    try {
-      const lista = lsGet('neitzel_atendimentos_v1', []);
-      let tocado = false;
-      lista.forEach((a, i) => {
-        if (!meses.has(mesDe(a.inicio))) return;
-        const enxuto = {
-          id: a.id, cliente: a.cliente, clienteId: a.clienteId || null,
-          inicio: a.inicio, fim: a.fim, status: a.status,
-          servicoNome: a.servicoNome || '', servicoId: a.servicoId || null,
-          servicoPreco: a.servicoPreco || 0, servicoCusto: a.servicoCusto || 0,
-          responsavel: a.responsavel || '', origem: a.origem || null,
-          criadoEm: a.criadoEm || null, arquivado: true,
-          itensResumo: { qtdItens: (a.itensProdutos || []).length, totalCentavos: (a.itensProdutos || []).reduce((x, it) => x + (it.precoUnitario || 0) * (it.quantidade || 1), 0) },
-        };
-        lista[i] = enxuto; tocado = true;
-      });
-      if (tocado) lsSet('neitzel_atendimentos_v1', lista);
-    } catch (e) {}
-    try {
-      const movs = lsGet('neitzel_estoque_mov_v1', []);
-      if (movs.length > 500) lsSet('neitzel_estoque_mov_v1', movs.slice(-500));
-    } catch (e) {}
-  }
-
-  /* ============================== AGENDADOR ============================= */
+  /* ============================= AGENDADOR ============================== */
   function tickAgenda() {
-    const agora = new Date();
-    const ehJanela = agora.getHours() === 23 && agora.getMinutes() >= 59;
-    const ultimoTick = parseInt(localStorage.getItem('neitzel_memoria_tick') || '0', 10);
-    const passouUmDia = Date.now() - ultimoTick > 20 * 3600000;
-    if ((ehJanela && passouUmDia) || (!ultimoTick)) {
-      localStorage.setItem('neitzel_memoria_tick', String(Date.now()));
-      const snap = capturarSnapshot(false);
-      const n = consolidarPendentes();
-      if (snap || n) {
+    try {
+      capturarHoje(false);
+      const arqN = arquivarVencidos();
+      const pdfN = gerarPDFsVencidos();
+      if (arqN || pdfN) {
         try {
           const Em = E();
-          if (Em && Em.modules && Em.modules.notificacoes) Em.modules.notificacoes.add({ tipo: 'info', titulo: 'Memória Inteligente', corpo: (snap ? 'Snapshot mensal salvo. ' : '') + (n ? n + ' relatório(s) arquivado(s).' : '').trim(), aviso: 'Memória' });
+          if (Em && Em.modules && Em.modules.notificacoes) {
+            Em.modules.notificacoes.add({
+              tipo: 'info', titulo: 'Memória Inteligente',
+              corpo: (arqN ? arqN + ' mês(es) arquivado(s). ' : '') + (pdfN ? pdfN + ' relatório(s) PDF gerado(s).' : '').trim(),
+              aviso: 'Memória',
+            });
+          }
         } catch (e) {}
         if (window.ECOMIM_APP && document.querySelector('[data-view="memoria"].active')) window.ECOMIM_APP.renderView('memoria');
       }
-    } else if (!lsGet(KEY_BRUTA, []).some((b) => b.mes === new Date(Date.now() - 86400000).toISOString().slice(0, 7))) {
-      // Recuperação silenciosa: se o mês anterior nunca foi capturado, captura
-      capturarSnapshot(false);
-    }
+    } catch (e) { /* nunca travar */ }
   }
 
-  /* ================================ UI ================================= */
+  /* ================================ UI ================================== */
   function render(c) {
-    c.innerHTML = '';
-    c.appendChild(Object.assign(document.createElement('div'), { className: 'page-header', innerHTML: '<h1>Memória Inteligente</h1><p>Fechamento mensal automático: snapshot às 23:59 do fim do mês, relatório organizado aos 30 dias, arquivado aqui em PDF.</p>' }));
+    const buf = capturarHoje(false);
+    const arq = arquivo();
 
-    const brutas = lsGet(KEY_BRUTA, []);
-    const arq = lsGet(KEY_ARQ, []);
+    const secTitulo = document.createElement('div');
+    secTitulo.className = 'page-header';
+    secTitulo.innerHTML = '<h1 style="font-size:22px">Ciclo automático da memória</h1><p>Ligado ao relógio e ao calendário: captura todo dia · arquiva 30 dias após o fim do mês · gera o PDF aos 60 dias.</p>';
+    c.appendChild(secTitulo);
 
+    // Status do mês corrente
+    const totalMes = (buf.dias || []).reduce((s, x) => s + (x.totalEventos || 0), 0);
+    const fimMes = fimDoMesMs(buf.mes);
+    const diasRestantesArq = Math.max(0, Math.ceil(((fimMes + DIAS_PARA_ARQUIVAR * 86400000) - Date.now()) / 86400000));
+    const diasRestantesPdf = Math.max(0, Math.ceil(((fimMes + DIAS_PARA_PDF * 86400000) - Date.now()) / 86400000));
+    const cfgMem = (() => { try { const Em = E(); return (Em.db.get().config && Em.db.get().config.sistema) || {}; } catch (e) { return {}; } })();
+    const capAuto = cfgMem.capturaAutoAtividades !== false;
     const statusCard = document.createElement('div'); statusCard.className = 'card';
     statusCard.innerHTML = `
-      <h4>Status do ciclo</h4>
+      <h4>Mês em captura — ${rotuloMes(buf.mes)}</h4>
       <div class="text-muted" style="margin-bottom:10px">
-        Snapshots brutos aguardando consolidação: <b>${brutas.length}</b> · Relatórios arquivados: <b>${arq.length}</b><br>
-        <small>Próxima verificação automática na janela de 23:59. Consolidação acontece 30 dias após cada snapshot.</small>
+        <b>${totalMes}</b> atividade(s) capturada(s) em <b>${(buf.dias || []).length}</b> dia(s) até agora.<br>
+        <small>Vai para o arquivo separado em ~${diasRestantesArq} dia(s) · PDF automático em ~${diasRestantesPdf} dia(s).</small>
       </div>
-      <div class="btn-group">
-        <button class="btn btn-sm btn-primary" id="mm-cap"> Capturar snapshot agora</button>
-        <button class="btn btn-sm" id="mm-cons"> Consolidar pendentes (30d)</button>
+      <div class="btn-group" style="align-items:center;flex-wrap:wrap">
+        <button class="btn btn-sm btn-primary" id="mm-cap">Capturar atividades de hoje agora</button>
+        <button class="btn btn-sm" id="mm-ciclo">Rodar ciclo agora (arquivar/PDF)</button>
+        <label style="display:inline-flex;align-items:center;gap:7px;font-size:12.5px;margin-left:auto">
+          <input type="checkbox" id="mm-capauto" ${capAuto ? 'checked' : ''} style="width:17px;height:17px;accent-color:var(--e-brand)" />
+          <span>captura automática todos os dias</span>
+        </label>
       </div>`;
     c.appendChild(statusCard);
+    statusCard.querySelector('#mm-capauto').addEventListener('change', (ev) => {
+      try {
+        const Em = E();
+        const dbd = Em.db.get();
+        dbd.config = dbd.config || {};
+        dbd.config.sistema = Object.assign({}, dbd.config.sistema, { capturaAutoAtividades: ev.target.checked });
+        Em.db.save();
+        Em.audit.record('config.sistema', 'sistema', null, { capturaAutoAtividades: ev.target.checked });
+        toast(ev.target.checked ? 'Captura automática ligada — a memória se alimenta sozinha.' : 'Captura automática desligada.', 'info');
+      } catch (e) {}
+    });
 
+    // Mini-gráfico do mês corrente (barrinhas por dia)
+    if ((buf.dias || []).length) {
+      const maxV = Math.max(...buf.dias.map((x) => x.totalEventos || 0), 1);
+      const graf = document.createElement('div'); graf.className = 'card';
+      graf.innerHTML = `<h4>Ritmo diário deste mês</h4><div style="display:flex;gap:3px;align-items:flex-end;height:70px;flex-wrap:wrap">${
+        buf.dias.map((x) => `<div title="${x.data}: ${x.totalEventos} atividades" style="width:${Math.max(6, Math.min(26, Math.floor(300 / Math.max(buf.dias.length, 12))))}px;height:${Math.round(((x.totalEventos || 0) / maxV) * 56) + 4}px;background:linear-gradient(180deg,var(--e-brand),var(--e-brand-soft));border-radius:4px 4px 0 0"></div>`).join('')
+      }</div>`;
+      c.appendChild(graf);
+    }
+
+    // Meses arquivados (lugar separado)
     const lista = document.createElement('div'); lista.className = 'card';
-    lista.innerHTML = '<h4>Relatórios mensais arquivados</h4>';
+    lista.innerHTML = `<h4>Arquivo separado — meses guardados (${arq.length})</h4>
+      <p class="text-muted" style="margin:2px 0 10px;font-size:12px">Cada mês fica guardado aqui fora da área viva. O PDF nasce sozinho aos 60 dias do fim do mês.</p>`;
     if (!arq.length) {
-      lista.innerHTML += '<div class="empty">Nenhum relatório ainda. O primeiro nasce 30 dias após o primeiro snapshot — ou teste com os botões acima.</div>';
+      lista.innerHTML += '<div class="empty">Nenhum mês arquivado ainda — o primeiro entra aqui 30 dias depois do fim do mês.</div>';
     } else {
       arq.forEach((r) => {
         const row = document.createElement('div');
         row.className = 'mm-file';
+        const faltaPdf = !r.relatorio;
+        const quando = faltaPdf
+          ? `PDF automático em ~${Math.max(0, Math.ceil(((fimDoMesMs(r.mes) + DIAS_PARA_PDF * 86400000) - Date.now()) / 86400000))} dia(s)`
+          : 'PDF pronto desde ' + new Date(r.pdfGeradoEm || r.arquivadoEm).toLocaleDateString('pt-BR');
         row.innerHTML = `
           <div class="mm-info"><b>${esc(r.titulo)}</b>
-            <div class="text-muted" style="font-size:11.5px">Arquivado em ${new Date(r.geradoEm).toLocaleString('pt-BR')} · ${r.stats.atendimentos} atendimentos · ${fmtMoney(r.stats.receita)}</div></div>
+            <div class="text-muted" style="font-size:11.5px">Arquivado em ${new Date(r.arquivadoEm || r.geradoEm).toLocaleString('pt-BR')} · ${(r.dias || []).length} dia(s) · ${r.totalEventos != null ? r.totalEventos + ' atividades' : ''}<br>${quando}</div></div>
           <div class="btn-group">
-            <button class="btn btn-sm" data-ver="${r.id}">Ver</button>
-            <button class="btn btn-sm btn-primary" data-pdf="${r.id}">Baixar PDF</button>
+            ${faltaPdf
+              ? '<button class="btn btn-sm" disabled title="O PDF é gerado automaticamente aos 60 dias">Aguardando PDF</button>'
+              : `<button class="btn btn-sm" data-ver="${r.id}">Ver</button>
+                 <button class="btn btn-sm btn-primary" data-pdf="${r.id}">Baixar PDF</button>`}
             <button class="btn btn-sm btn-danger" data-del="${r.id}">Excluir</button>
           </div>`;
         lista.appendChild(row);
       });
       lista.querySelectorAll('[data-ver]').forEach((b) => b.addEventListener('click', () => verRelatorio(b.dataset.ver, false)));
-      lista.querySelectorAll('[data-pdf]').forEach((b) => b.addEventListener('click', () => verRelatorio(b.dataset.pdf, true)));
+      lista.querySelectorAll('[data-pdf]').forEach((b) => b.addEventListener('click', () => verRelatorio(b.dataset.ver !== undefined ? b.dataset.ver : b.dataset.pdf, true)));
       lista.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', () => {
-        if (!confirm('Excluir este relatório arquivado? Isso não afeta os dados vivos do sistema.')) return;
-        lsSet(KEY_ARQ, lsGet(KEY_ARQ, []).filter((x) => x.id !== b.dataset.del));
+        if (!confirm('Excluir este mês arquivado? Isso não afeta os dados vivos do sistema.')) return;
+        lsSet(KEY_ARQ, arquivo().filter((x) => x.id !== b.dataset.del));
         render(c);
       }));
     }
     c.appendChild(lista);
 
     statusCard.querySelector('#mm-cap').addEventListener('click', () => {
-      const s = capturarSnapshot(true);
-      toast(s ? ('Snapshot de ' + rotuloMes(s.mes) + ' capturado.') : 'Snapshot deste mês já existia.', s ? 'success' : 'info');
+      capturarHoje(true);
+      toast('Atividades de hoje capturadas pela memória.', 'success');
       render(c);
     });
-    statusCard.querySelector('#mm-cons').addEventListener('click', () => {
-      const n = consolidarPendentes();
-      toast(n ? n + ' relatório(s) gerado(s) e ruído limpo.' : 'Nada pendente de consolidação (aguarde 30 dias).', n ? 'success' : 'info');
+    statusCard.querySelector('#mm-ciclo').addEventListener('click', () => {
+      const a = arquivarVencidos();
+      const p = gerarPDFsVencidos();
+      toast(a || p ? `${a} arquivo(s), ${p} PDF(s) gerados pelo ciclo.` : 'Ciclo rodou — nada venceu ainda (o calendário manda).', a || p ? 'success' : 'info');
       render(c);
     });
   }
 
   function verRelatorio(id, imprimir) {
-    const r = lsGet(KEY_ARQ, []).find((x) => x.id === id);
+    const r = arquivo().find((x) => x.id === id);
     if (!r) return;
+    if (!r.relatorio) { gerarPDFsVencidos(); }
     const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(r.titulo)} — NEITZEL</title>
       <style>
         body{font-family:'Segoe UI',system-ui,sans-serif;color:#15181c;margin:0;padding:34px;background:#f5f6f8}
@@ -309,8 +340,8 @@
         footer{margin-top:30px;padding-top:14px;border-top:1px solid #eceef1;color:#98a0aa;font-size:11px;display:flex;justify-content:space-between}
         @media print{body{background:#fff}.folha{box-shadow:none;max-width:none}header{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
       </style></head><body><div class="folha">
-      <header><div class="logo">N</div><div><h1>${esc(r.titulo)}</h1><small>NEITZEL — Sistema Digital · Memória Inteligente · arquivado em ${new Date(r.geradoEm).toLocaleDateString('pt-BR')}</small></div></header>
-      ${r.relatorio}
+      <header><div class="logo">N</div><div><h1>${esc(r.titulo)}</h1><small>NEITZEL — Sistema Digital · Memória Inteligente · arquivado em ${new Date(r.arquivadoEm || r.geradoEm).toLocaleDateString('pt-BR')}</small></div></header>
+      ${r.relatorio || montarRelatorio(r)}
       <footer><span>Documento gerado localmente — confidencial.</span><span>Fonte única: sistema NEITZEL</span></footer>
       </div>${imprimir ? '<script>window.onload=()=>setTimeout(()=>window.print(),350)<\/script>' : ''}</body></html>`;
     const w = window.open('', '_blank');
@@ -327,9 +358,9 @@
     if (!imprimir) toast('Relatório aberto — use "Baixar PDF" para gerar o arquivo.', 'info');
   }
 
-  /* =============================== BOOT ================================ */
+  /* =============================== BOOT ================================= */
   setTimeout(tickAgenda, 2500);
   setInterval(tickAgenda, 60 * 1000);
 
-  window.NEITZEL_MEMORIA = { capturarSnapshot, consolidarPendentes, render };
+  window.NEITZEL_MEMORIA = { capturarSnapshot: () => capturarHoje(true), consolidarPendentes: tickAgenda, render, tickAgenda };
 })();

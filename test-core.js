@@ -116,12 +116,12 @@ function assert(cond, msg) {
   // auditoria append-only
   assert(E.audit.list().length > 0, 'auditoria registra');
 
-  // extensão ponte (dispara evento leadsExternos) — armazena handler e chama direto
+  // extensão ponte (dispara evento leadsExternos) — agora entra direto no CRM
   const handler = X.extensionBridge.init();
-  const antes = E.db.get().fila.length;
+  const antes = E.db.get().leads.length;
   handler({ detail: { origem: 'extensao', leads: [{ nome: 'Via Extensão', telefone: '47977776666' }] } });
-  const depois = E.db.get().fila.length;
-  assert(depois > antes, 'ponte da extensão encaminha para a fila');
+  const depois = E.db.get().leads.length;
+  assert(depois > antes, 'ponte da extensão cria lead direto no CRM');
 
   // helpers
   const busca = X.helpers.searchGlobal('joão');

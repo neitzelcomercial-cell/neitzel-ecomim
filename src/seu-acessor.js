@@ -406,16 +406,16 @@ const SEU_ACESSOR = (() => {
         consentimento: !!params.consentimento,
       };
       if (dados.email) input.email = dados.email;
-      const r = E.modules.leads.addToQueue(input);
+      const r = E.modules.leads.addLead(input);
       if (r.ok) {
-        const linhas = ['✅ Lead encaminhado para a fila de aprovacao (LGPD):', `• ${input.nome}`];
+        const linhas = ['✅ Lead cadastrado no CRM (LGPD):', `• ${input.nome}`];
         if (input.empresa) linhas.push(`• ${input.empresa}`);
         if (input.telefone) linhas.push(`• Tel: ${input.telefone}`);
         if (dados.interesse) linhas.push(`• Interesse: ${dados.interesse}`);
-        linhas.push('Apos aprovacao na fila, ele entra no CRM.');
+        linhas.push('Ele ja esta no funil, na etapa "novo".');
         return { ok: true, resposta: linhas.join('\n'), registro: r.lead.id };
       }
-      if (r.code === 'DUPLICADO_FILA' || r.code === 'DUPLICADO') {
+      if (r.code === 'DUPLICADO') {
         return { ok: false, code: 'DUPLICADO', resposta: `⚠️ ${input.nome} ja existe (duplicado). Nada foi cadastrado.` };
       }
       return { ok: false, code: r.code || 'ERRO', resposta: 'Nao consegui cadastrar o lead agora. O ECOMIM retornou um erro. Nenhuma alteracao foi realizada.' };
@@ -815,7 +815,7 @@ const SEU_ACESSOR = (() => {
       acao = 'ajuda';
     } else if (parser.criarLead(t)) {
       const lead = extrairLead(texto);
-      const r = executarTool('criar_lead', { lead, _descricao: `cadastrar o lead "${lead.nome || ''}" na fila de aprovacao` }, numero, {});
+      const r = executarTool('criar_lead', { lead, _descricao: `cadastrar o lead "${lead.nome || ''}" no CRM` }, numero, {});
       resposta = r.resposta;
       acao = 'criar_lead';
       if (r.ok) { c.ultimaLista = []; c.alvoAtual = { id: r.registro, tipo: 'lead', nome: lead.nome }; save(); }

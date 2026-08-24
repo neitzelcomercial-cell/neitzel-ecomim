@@ -82,10 +82,13 @@
 .ecomim-nav-item .nav-label { flex: 1; }
 .ecomim-sidebar.collapsed .ecomim-nav-item .nav-label { display: none; }
 .ecomim-nav-item .nav-count {
-  background: var(--e-danger); color: #fff; font-size: 10px; font-weight: 700;
-  min-width: 18px; height: 18px; border-radius: 999px; display: inline-flex;
-  align-items: center; justify-content: center; padding: 0 5px;
+  font-size: 10.5px; font-weight: 650; letter-spacing: .02em;
+  color: var(--text-subtle); font-variant-numeric: tabular-nums;
+  min-width: 16px; text-align: right; padding-right: 2px;
+  background: none; border-radius: 0;
 }
+.ecomim-nav-item.active .nav-count { color: var(--nz-red); }
+.ecomim-sidebar.collapsed .ecomim-nav-item .nav-count { display: none; }
 .ecomim-sidebar-footer { padding: 12px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; position: sticky; bottom: 0; background: var(--surface); z-index: 2; margin-top: auto; }
 
 /* Main */

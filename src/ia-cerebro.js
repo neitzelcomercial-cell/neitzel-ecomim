@@ -140,17 +140,15 @@ window.NEITZEL_CEREBRO = (() => {
       passos:['Menu Gestão → Clientes.','Novo cliente: nome, WhatsApp, e-mail, observações.','O histórico alimenta sozinho com atendimentos.','Clientes do Portal entram aqui automaticamente (por telefone).'] },
     leads: { nome:'Leads & CRM', tela:'leads', chaves:['lead','leads','prospeccao','prospectar','crm','oportunidade'],
       oQue:'o funil comercial: captura, etapas, follow-ups e conversão de novos clientes.',
-      passos:['Menu Operação → Leads.','Crie/mova cards entre etapas do funil.','Use a ficha do lead para registrar contatos e follow-up.','O Caçador traz leads automáticos — aprove na Fila.'],
+      passos:['Menu Operação → Leads.','Use os filtros (busca, etapa, origem, cidade, valor).','Crie/mova cards entre etapas do funil.','Use a ficha do lead para registrar contatos e follow-up.'],
       dicas:['Lead parado há dias? Use o botão de sugerir follow-up com IA.'] },
-    cacador: { nome:'Caçador de Leads', tela:'cacador', chaves:['cacador','cacar leads','varredura','captura automatica','buscar leads'],
-      oQue:'prospecção automática: varre fontes públicas e enfileira contatos para aprovação.',
-      passos:['Menu Operação → Caçador de Leads.','Ajuste segmento/cidades em Configurações.','Rode a varredura e revise resultados.','Aprove bons contatos na Fila — vão para o funil.'] },
     funil: { nome:'Funil', tela:'funil', chaves:['funil','etapas','conversao'],
       oQue:'a visão visual das etapas comerciais e conversão dos leads.',
-      passos:['Arraste cards entre colunas para mover de etapa.','Clique para abrir detalhes e histórico.'] },
-    fila: { nome:'Fila de aprovação', tela:'fila', chaves:['fila','aprovar','recusar','pendentes'],
-      oQue:'onde você aprova contatos encontrados antes de virarem leads.',
-      passos:['Revise cada item: aprovar ou recusar.','Nada entra no CRM sem sua aprovação.'] },
+      passos:['Arraste cards entre colunas para mover de etapa.','Filtre por busca, origem e cidade no topo.','Clique para abrir detalhes e histórico.'] },
+    estrategia: { nome:'Estratégia & Previsão', tela:'estrategia', chaves:['estrategia','previsao','cenario','possivel cenario','clientes frios','inativos','mais vendem','menos vendem','lucro por cliente'],
+      oQue:'inteligência estratégica: clientes sem movimentação (manter/apagar), ranking de receita, produtos/serviços que mais e menos vendem, previsão de movimento e o agente de Possível Cenário.',
+      passos:['Menu Inteligência → Estratégia & Previsão.','Revise clientes frios e decida manter/apagar.','Clique em "Possível Cenário" para a análise das próximas 8 semanas.'],
+      dicas:['O cenário cruza notícias, índices e eventos reais da sua cidade/estado com os seus dados.'] },
     projetos: { nome:'Projetos', tela:'projetos', chaves:['projeto','projetos','obra','entrega'],
       oQue:'acompanhamento de projetos com prazos e status.' },
     marketing: { nome:'Marketing', tela:'marketing', chaves:['marketing','campanha','campanhas','promocao','divulgacao'],
@@ -163,36 +161,24 @@ window.NEITZEL_CEREBRO = (() => {
       dicas:['Compare mês atual vs anterior para decidir promoções.'] },
     inteligencia: { nome:'Centro de Inteligência', tela:'inteligencia', chaves:['inteligencia','supervisor','insights','sugestoes'],
       oQue:'agente supervisor com sugestões automáticas baseadas nos seus dados.' },
-    automacoes: { nome:'Automações', tela:'automacoes', chaves:['automacao','automacoes','automatizar','rotina'],
-      oQue:'regras que executam ações sozinhas (alertas, tarefas, follow-ups).' },
-    comunicacao: { nome:'Comunicação', tela:'comunicacao', chaves:['comunicacao','email','smtp','envio','canais'],
-      oQue:'canais de envio (e-mail etc.). Configure SMTP com App Password.',
-      dicas:['Configure o e-mail ANTES de usar recuperação por código.'] },
-    acessor: { nome:'Acessor WhatsApp', tela:'acessor', chaves:['acessor','whatsapp','mensagens','zap'],
-      oQue:'auxiliar de mensagens WhatsApp para atender e confirmar clientes.' },
-    memoria: { nome:'Memória', tela:'memoria', chaves:['memoria','historico','registros','relatorio mensal'],
-      oQue:'memória do sistema: consolida meses, gera relatórios e mantém histórico leve.',
-      dicas:['Gere o relatório mensal todo dia 1º — fica guardado na Memória.'] },
-    suporte: { nome:'Diagnóstico', tela:'suporte', chaves:['diagnostico','problema','problemas','erro','erros','bateria','internet'],
+    memoria: { nome:'Atividades & Memória', tela:'memoria', chaves:['memoria','historico','registros','relatorio mensal','atividades'],
+      oQue:'memória do sistema: registra atividades ao vivo, arquiva o mês aos 30 dias e gera o PDF aos 60 dias.',
+      dicas:['O ciclo é automático — acompanhe o status na própria tela.'] },
+    suporte: { nome:'Diagnóstico', tela:'seguranca', chaves:['diagnostico','problema','problemas','erro','erros','bateria','internet'],
       oQue:'saúde do ambiente: internet, bateria, armazenamento e erros registrados.',
-      dicas:['Balanço central aparece por 3 segundos quando algo é registrado.'] },
+      dicas:['Fica dentro de Segurança & Diagnóstico, na segunda metade da página.'] },
     seguranca: { nome:'Segurança', tela:'seguranca', chaves:['seguranca','senha','pin','trocar senha','mfa','backup','lgpd'],
       oQue:'senha de 6 dígitos, recuperação por WhatsApp/e-mail e backup criptografado.',
-      passos:['Menu Sistema → Segurança.','Definir/Trocar senha (6 números).','Cadastre recuperação (WhatsApp/e-mail).','Exporte backup periodicamente.'] },
+      passos:['Menu Sistema → Segurança & Diagnóstico.','Definir/Trocar senha (6 números).','Cadastre recuperação (WhatsApp/e-mail).','Exporte backup periodicamente.'] },
     config: { nome:'Configurações', tela:'config', chaves:['configuracoes','configuracao','ajustes','segmento','cidades','empresa'],
-      oQue:'dados da empresa, segmento, cidades de atuação e ajustes do Caçador.' },
-    portal: { nome:'Portal do Cliente', tela:'portal',
-      chaves:['portal','portal do cliente','link','site','compartilhar','instagram','publicar','publicacao','github','paginas','pagina publica','cliente agenda','auto agendamento','online'],
-      oQue:'sua página pública de agendamento: cliente escolhe serviço, profissional, dia, horário, produtos e confirma — cai direto no Planner.',
-      passos:['Menu Sistema → Portal do Cliente.','Conecte o painel (token de data/admin-token.txt).','Ajuste HORÁRIOS de funcionamento e bloqueios (feriados/folgas).','Publique o catálogo (serviços visíveis).','Copie o LINK local/rede — ou publique no GitHub e compartilhe o link público.','Cliente agenda → sistema recebe na hora (Planner + CRM).'],
-      dicas:['Link do GitHub fica no cartão "Link do GitHub para compartilhar" do painel.','Modo ADM dentro do portal: 5 toques no logo → código começando com 00.','Alterou horários/bloqueios? O portal reflete na hora; no link publicado clique em Publicar novamente.'] },
+      oQue:'dados da empresa, localização do agente, aparência do sistema e ajustes gerais.' },
     assistente: { nome:'Assistente Neitzel', tela:null,
       chaves:['assistente','ia','voce','robo','bot'],
       oQue:'eu: interpreto pedidos, respondo com dados reais, executo ações e pesquiso na web.' },
     primeiro_uso: { nome:'Primeiros passos', tela:'dashboard',
       chaves:['comecar','primeiros passos','iniciando','do zero','setup','configurar sistema','por onde começo'],
       oQue:'roteiro rápido para colocar o sistema no ar.',
-      passos:['1. Configurações: empresa, segmento, cidades.','2. Segurança: senha + recuperação.','3. Catálogo: serviços (com DURAÇÃO!) e produtos.','4. Portal: horários de funcionamento + publicar catálogo + copiar link.','5. Caçador/Funil: alimentar novos clientes.','6. Planner: rodar o dia a dia; Financeiro acompanha sozinho.'] }
+      passos:['1. Configurações: empresa, cidade/estado e aparência.','2. Segurança: senha + recuperação.','3. Catálogo: serviços (com DURAÇÃO!) e produtos.','4. Leads/Funil: alimentar novos clientes.','5. Planner: rodar o dia a dia; Financeiro acompanha sozinho.','6. Estratégia: rode um Possível Cenário por semana.'] }
   };
 
   /* ------------------- 4. TIPOS DE PERGUNTA + TÓPICOS --------------------- */
@@ -233,8 +219,7 @@ window.NEITZEL_CEREBRO = (() => {
     const m = metricas(), tips = [];
     if (m.svSemDuracao.length) tips.push(`**${m.svSemDuracao.length} serviço(s) sem duração** — o Portal não consegue montar horários sem isso. Abra Serviços e preencha.`);
     if (m.estBaixo.length) tips.push(`Estoque baixo: ${m.estBaixo.slice(0,3).map((p)=>p.nome).join(', ')} — repõe antes de faltar na agenda.`);
-    if (!m.D.leads.length) tips.push('Sem leads no funil — rode o **Caçador de Leads** hoje e aprove os melhores na Fila.');
-    if (m.filaPend = m.D.fila.length) tips.push(`**${m.D.fila.length} contato(s) na Fila** esperando sua aprovação.`);
+    if (!m.D.leads.length) tips.push('Sem leads no funil — cadastre contatos em **Leads & CRM** e acompanhe pelo Funil.');
     if (!m.hoje_.length) tips.push('Nenhum atendimento agendado para hoje — divulgue o link do Portal no Instagram para encher a agenda.');
     if (!m.conclMes.length) tips.push('Mês sem atendimentos concluídos ainda: conclua pelo Planner para alimentar receita e ticket médio.');
     if (!tips.length) tips.push('Operação saudável! Momento bom para publicar uma promoção no Portal e antecipar a semana.');
@@ -350,8 +335,8 @@ window.NEITZEL_CEREBRO = (() => {
       // 3) ação: abrir tela
       const querAbrir = TIPOS.abrir.re.test(frase);
       if (querAbrir) {
-        const alvo = ctx.tokens.map((tk)=>({ planner:'planner', dashboard:'dashboard', financeiro:'financeiro', clientes:'clientes', cliente:'clientes', leads:'leads', servicos:'servicos', servico:'servicos', produtos:'produtos', produto:'produtos', estoque:'estoque', portal:'portal', agenda:'agenda', bi:'bi', memoria:'memoria', suporte:'suporte', diagnostico:'suporte', seguranca:'seguranca', configuracoes:'config', funil:'funil', fila:'fila', cacador:'cacador', projetos:'projetos', marketing:'marketing', rh:'rh', inteligencia:'inteligencia', automacoes:'automacoes', comunicacao:'comunicacao', acessor:'acessor' })[tk]).find(Boolean)
-          || ({ 'portal do cliente':'portal', 'caçador':'cacador' }[frase]);
+        const alvo = ctx.tokens.map((tk)=>({ planner:'planner', dashboard:'dashboard', financeiro:'financeiro', clientes:'clientes', cliente:'clientes', leads:'leads', servicos:'servicos', servico:'servicos', produtos:'produtos', produto:'produtos', estoque:'estoque', portal:'portal', agenda:'agenda', bi:'bi', memoria:'memoria', suporte:'seguranca', diagnostico:'seguranca', seguranca:'seguranca', configuracoes:'config', funil:'funil', estrategia:'estrategia', cenario:'estrategia', projetos:'projetos', marketing:'marketing', rh:'rh', inteligencia:'inteligencia', automacoes:'automacoes', comunicacao:'comunicacao', acessor:'acessor' })[tk]).find(Boolean)
+          || ({ 'portal do cliente':'portal' }[frase]);
         if (alvo) {
           return { texto:`Abrindo **${alvo}** para você…`, acao: acaoNavegar(alvo) };
         }
@@ -368,7 +353,7 @@ window.NEITZEL_CEREBRO = (() => {
         if (tipo === 'quanto') {
           const m = metricas();
           if (/lead/.test(topico)) {
-            return { texto:`Você tem **${m.D.leads.length} lead(s)** no CRM e **${m.D.fila.length}** na fila de aprovação.`, acao: null };
+            return { texto:`Você tem **${m.D.leads.length} lead(s)** no CRM.`, acao: null };
           }
           if (/atendimento|planner|agenda/.test(topico)) {
             return { texto: m.hoje_.length ? `**${m.hoje_.length} atendimento(s) hoje:**\n${m.hoje_.slice(0,8).map((a)=>`• ${String(a.inicio).slice(11,16)} — ${a.cliente} (${a.servicoNome||'—'})`).join('\n')}` : 'Nenhum atendimento agendado para hoje.', acao:null };

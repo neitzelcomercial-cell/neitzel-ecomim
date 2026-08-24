@@ -116,6 +116,82 @@ const ECOMIM = (() => {
   const normalizeText = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
   const digitsOf = (s) => String(s || '').replace(/\D/g, '');
 
+  /* ------------------------------------------------------------------ *
+   * TELEFONE BR (padrão profissional: DDD + número, código 55 só no link)
+   * Gravação canônica: 10 ou 11 dígitos (DDD + número), SEM o "55".
+   * Ex.: (51) 99999-8888 → grava "51999998888" → wa.me/5551999998888
+   * ------------------------------------------------------------------ */
+  const foneBR = {
+    /** Só dígitos. */
+    digits(s) { return String(s || '').replace(/\D/g, ''); },
+    /**
+     * Normaliza qualquer entrada para DDD+número (10–11 dígitos).
+     * Aceita: "(51) 99999-8888", "51 99999-8888", "+55 51 99999-8888",
+     * "5551999998888", "0 51 9999...", etc.
+     * Retorna '' quando não dá para formar DDD+número válido.
+     */
+    normalizar(s) {
+      let d = this.digits(s);
+      d = d.replace(/^0+/, ''); // zeros à esquerda (ex.: "051...")
+      // Código do país 55: remove enquanto sobrar DDD+número (10 ou 11)
+      while (d.length > 11 && d.startsWith('55')) d = d.slice(2);
+      if (d.length === 10 || d.length === 11) return d;
+      return '';
+    },
+    /** Normaliza mantendo o que der (fallback p/ números incompletos). */
+    tentar(s) {
+      const n = this.normalizar(s);
+      if (n) return n;
+      let d = this.digits(s).replace(/^0+/, '');
+      while (d.length > 11 && d.startsWith('55')) d = d.slice(2);
+      return d; // pode ser parcial — a validação decide se é utilizável
+    },
+    /** Válido = tem DDD (2) + número (8 ou 9) = 10 ou 11 dígitos. */
+    valido(s) { return /^(1[1-9]|[2-9][0-9])\d{8,9}$/.test(this.normalizar(s) || ''); },
+    /** Formato exibição: (51) 99999-8888 · (51) 3333-4444 · 9999-8888 (sem DDD). */
+    formatar(s) {
+      const n = this.normalizar(s);
+      const d = n || this.tentar(s);
+      if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+      if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+      if (d.length === 9) return `${d.slice(0, 5)}-${d.slice(5)}`;
+      if (d.length === 8) return `${d.slice(0, 4)}-${d.slice(4)}`;
+      return d ? `(${d.slice(0, 2)}) ${d.slice(2)}` : '';
+    },
+    /** Link oficial wa.me — sempre com código do país na frente do DDD. */
+    waLink(whats, texto) {
+      const n = this.normalizar(whats);
+      if (!n) return null;
+      return 'https://wa.me/55' + n + (texto ? '?text=' + encodeURIComponent(texto) : '');
+    },
+    /** Aplica a um objeto os campos telefone/whats (gravação canônica). */
+    aplicarCampos(obj, campoTel, campoWhats) {
+      if (campoTel in obj) obj[campoTel] = this.normalizar(obj[campoTel]) || this.digits(obj[campoTel]);
+      if (campoWhats in obj) {
+        const w = this.normalizar(obj[campoWhats] || obj[campoTel] || '');
+        obj[campoWhats] = w || this.digits(obj[campoWhats] || obj[campoTel] || '');
+      }
+      return obj;
+    },
+    /** Migra listas já gravadas para o formato canônico (idempotente). */
+    migrarLista(lista) {
+      let n = 0;
+      (lista || []).forEach((item) => {
+        ['telefone', 'whats'].forEach((k) => {
+          if (typeof item[k] === 'string' && item[k]) {
+            const m = this.normalizar(item[k]);
+            if (m && m !== item[k]) { item[k] = m; n++; }
+          }
+        });
+        if (typeof item.clienteTelefone === 'string' && item.clienteTelefone) {
+          const m = this.normalizar(item.clienteTelefone);
+          if (m && m !== item.clienteTelefone) { item.clienteTelefone = m; n++; }
+        }
+      });
+      return n;
+    },
+  };
+
   /** Criptografia real AES-GCM (Web Crypto) com fallback XOR determinístico p/ file:// */
   const cryptoBox = (() => {
     const XOR_KEY = 'ecomim-os-local-2026';
@@ -370,6 +446,8 @@ const ECOMIM = (() => {
     _ensureTick() {
       if (this._timer) return;
       this._timer = setInterval(() => this._tick(), 1000);
+      // Em Node (testes), o timer não pode manter o processo vivo.
+      try { if (typeof this._timer.unref === 'function') this._timer.unref(); } catch (e) {}
     },
     _tick() {
       const now = Date.now();
@@ -401,6 +479,27 @@ const ECOMIM = (() => {
     name: 'Leads & CRM',
     icon: 'leads',
 
+    /**
+     * Auditoria de contato REAL: só considera o lead trazível se houver
+     * telefone completo (DDD+número) ou e-mail com formato válido.
+     */
+    auditarContato(l) {
+      const telOk = foneBR.valido((l && (l.whats || l.telefone)) || '');
+      const emailRaw = trimStr(l && l.email);
+      const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(emailRaw);
+      return {
+        temTelefoneValido: telOk,
+        temEmailValido: emailOk,
+        contatoReal: telOk || emailOk,
+        sintetico: !!(l && (l.sintetico || (l.source && l.source.type && l._demo))),
+        problemas: [
+          ...(!telOk ? ['telefone indisponível ou incompleto'] : []),
+          ...(!emailOk ? ['e-mail indisponível'] : []),
+          ...(l && l.sintetico ? ['lead de demonstração (não é um cliente real)'] : []),
+        ],
+      };
+    },
+
     addLead(input) {
       const lead = {
         id: uid(),
@@ -408,8 +507,8 @@ const ECOMIM = (() => {
         tipo: input.tipo || 'prospect',
         empresa: trimStr(input.empresa),
         etapa: input.etapa || DB.funil[0].id,
-        telefone: digitsOf(input.telefone),
-        whats: digitsOf(input.whats || input.telefone),
+        telefone: foneBR.normalizar(input.telefone),
+        whats: foneBR.normalizar(input.whats || input.telefone),
         email: trimStr(input.email),
         site: trimStr(input.site),
         insta: trimStr(input.insta),
@@ -436,20 +535,28 @@ const ECOMIM = (() => {
       if (!lead.nome && !lead.telefone && !lead.email) {
         return { ok: false, code: 'SEM_DADOS', message: 'Informe ao menos nome ou contato' };
       }
+      // Verificação de contato REAL (relatório guardado no próprio lead)
+      const ver = this.auditarContato(lead);
+      lead.verificacao = { real: ver.contatoReal, quando: nowISO(), problemas: ver.problemas };
+      lead.hist.push({ at: nowISO(), tipo: 'criacao', desc: 'Lead criado' + (ver.contatoReal ? '' : ' — aguardando contato válido') });
+      if (!ver.contatoReal) {
+        audit.record('lead.sem_contato_real', 'lead', null, { nome: lead.nome, problemas: ver.problemas });
+      }
       DB.leads.push(lead);
       audit.record('lead.criado', 'lead', null, { id: lead.id, nome: lead.nome });
       this.save();
       eventBus.emit('lead.created', { leadId: lead.id, nome: lead.nome, origem: lead.origem });
-      return { ok: true, lead };
+      return { ok: true, lead, verificacao: ver };
     },
 
     findDuplicate(lead) {
       const email = normalizeText(lead.email);
       const name = normalizeText(lead.nome);
-      const phone = lead.telefone || lead.whats;
+      const phone = foneBR.normalizar(lead.telefone || lead.whats);
       return DB.leads.find((l) => {
         if (email && email.length > 3 && normalizeText(l.email) === email) return true;
-        if (phone && phone.length >= 8 && (digitsOf(l.telefone) === phone || digitsOf(l.whats) === phone)) return true;
+        if (phone && phone.length >= 10 &&
+          (foneBR.normalizar(l.telefone) === phone || foneBR.normalizar(l.whats) === phone)) return true;
         if (name && name.length > 4 && normalizeText(l.nome) === name && !l.email && !l.telefone) return true;
         return false;
       }) || null;
@@ -462,9 +569,9 @@ const ECOMIM = (() => {
       const allowed = ['nome', 'tipo', 'empresa', 'etapa', 'telefone', 'whats', 'email', 'site', 'insta', 'face', 'linkedin', 'cidade', 'uf', 'segmento', 'valor', 'origem', 'desc', 'consentimento', 'vendedor', 'score'];
       let changed = false;
       allowed.forEach((k) => {
-        if (k in patch) {
-          if (k === 'telefone' || k === 'whats') lead[k] = digitsOf(patch[k]);
-          else if (k === 'valor') lead[k] = toCents(patch[k]);
+          if (k in patch) {
+            if (k === 'telefone' || k === 'whats') lead[k] = foneBR.normalizar(patch[k]);
+            else if (k === 'valor') lead[k] = toCents(patch[k]);
           else if (k === 'consentimento') lead[k] = !!patch[k];
           else lead[k] = patch[k];
           changed = true;
@@ -472,6 +579,10 @@ const ECOMIM = (() => {
       });
       if (changed) {
         lead.updated = nowISO();
+        if ('etapa' in patch && before.etapa !== patch.etapa) {
+          lead.hist.push({ at: nowISO(), tipo: 'etapa', de: before.etapa, para: patch.etapa, desc: 'Etapa alterada na edição' });
+          eventBus.emit('lead.stage_changed', { leadId: id, from: before.etapa, to: patch.etapa });
+        }
         lead.hist.push({ at: nowISO(), tipo: 'atualizacao', desc: 'Dados atualizados' });
         audit.record('lead.atualizado', 'lead', before, lead);
         this.save();
@@ -514,8 +625,8 @@ const ECOMIM = (() => {
         nome: trimStr(input.nome),
         tipo: input.tipo || 'prospect',
         empresa: trimStr(input.empresa),
-        telefone: digitsOf(input.telefone),
-        whats: digitsOf(input.whats || input.telefone),
+        telefone: foneBR.normalizar(input.telefone),
+        whats: foneBR.normalizar(input.whats || input.telefone),
         email: trimStr(input.email),
         cidade: trimStr(input.cidade),
         uf: (trimStr(input.uf) || '').toUpperCase(),
@@ -528,11 +639,14 @@ const ECOMIM = (() => {
         created: nowISO(),
         status: 'fila',
       };
-      const existing = DB.fila.find((f) =>
-        (f.email && normalizeText(f.email) === normalizeText(lead.email)) ||
-        (lead.telefone && digitsOf(f.telefone) === lead.telefone) ||
-        (lead.nome && normalizeText(f.nome) === normalizeText(lead.nome) && !f.email && !f.telefone)
-      );
+      const existing = DB.fila.find((f) => {
+        const emailIgual = f.email && normalizeText(f.email) === normalizeText(lead.email);
+        const telNovo = foneBR.normalizar(lead.telefone || lead.whats);
+        const telIgual = telNovo && telNovo.length >= 10 &&
+          (foneBR.normalizar(f.telefone) === telNovo || foneBR.normalizar(f.whats) === telNovo);
+        const nomeIgual = lead.nome && normalizeText(f.nome) === normalizeText(lead.nome) && !f.email && !f.telefone;
+        return emailIgual || telIgual || nomeIgual;
+      });
       if (existing) {
         audit.record('lead.fila_duplicado', 'fila', null, { nome: lead.nome });
         return { ok: false, code: 'DUPLICADO_FILA' };
@@ -548,6 +662,16 @@ const ECOMIM = (() => {
       const idx = DB.fila.findIndex((f) => f.id === id);
       if (idx === -1) return { ok: false, code: 'NOT_FOUND' };
       const item = DB.fila[idx];
+      // Portão de qualidade: só entra no CRM o que tem contato REAL verificável
+      const ver = this.auditarContato(item);
+      if (!ver.contatoReal) {
+        audit.record('lead.fila_contato_invalido', 'fila', item, null, { problemas: ver.problemas });
+        return { ok: false, code: 'CONTATO_INVALIDO', message: 'Sem contato real verificável — ' + ver.problemas.join(' e ') + '.', verificacao: ver };
+      }
+      if (item.sintetico) {
+        audit.record('lead.fila_sintetico_bloqueado', 'fila', item, null, {});
+        return { ok: false, code: 'LEAD_DEMONSTRACAO', message: 'Lead de demonstração não entra no sistema — só lead real.', verificacao: ver };
+      }
       const res = this.addLead({
         ...item,
         origem: opts && opts.origemOverride ? opts.origemOverride : (item.origem || 'fila'),
@@ -1117,6 +1241,16 @@ const ECOMIM = (() => {
       this.save();
       audit.record('cliente.atualizado', 'cliente', before, c);
       return { ok: true, cliente: c };
+    },
+    /** Exclusão de cliente com motivo obrigatório — registrada na auditoria (LGPD). */
+    deleteCliente(id, motivo) {
+      const idx = this.clientes.findIndex((x) => x.id === id);
+      if (idx < 0) return { ok: false, code: 'NOT_FOUND' };
+      const [removido] = this.clientes.splice(idx, 1);
+      this.save();
+      audit.record('cliente.excluido', 'cliente', removido, { motivo: String(motivo || 'não informado') });
+      eventBus.emit('customer.deleted', { clienteId: id, nome: removido.nome });
+      return { ok: true };
     },
     healthScore(c) {
       // Health Score explicável (etapa 9: critérios com impacto)
@@ -2021,6 +2155,140 @@ const ECOMIM = (() => {
     },
   };
 
+  /* --- DIÁRIO (todo dia às 23:58 tudo o que aconteceu fica por escrito) --- */
+  modules.diario = {
+    id: 'diario',
+    name: 'Diário do Sistema',
+    itemsKey: 'ecomim_diario',
+    entradas: [],
+
+    load() {
+      try {
+        const raw = storage.get(this.itemsKey);
+        if (raw) this.entradas = JSON.parse(raw);
+        if (!Array.isArray(this.entradas)) this.entradas = [];
+      } catch (e) { this.entradas = []; }
+    },
+    save() {
+      try { storage.set(this.itemsKey, JSON.stringify(this.entradas)); } catch (e) {}
+    },
+    doDia(dataISO) {
+      const chave = String(dataISO || '').slice(0, 10);
+      return this.entradas.find((x) => x.data === chave) || null;
+    },
+
+    /** Compila, POR ESCRITO, tudo o que aconteceu no dia inteiro. */
+    gerar(dataISO) {
+      const chave = String(dataISO || nowISO()).slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(chave)) return { ok: false, code: 'DATA_INVALIDA' };
+      if (this.doDia(chave)) return { ok: false, code: 'JA_EXISTE', entrada: this.doDia(chave) };
+      const ini = new Date(chave + 'T00:00:00');
+      const fim = new Date(ini.getTime() + 86400000);
+      const evs = audit.list().filter((ev) => { const t = new Date(ev.ts); return !isNaN(t) && t >= ini && t < fim; });
+
+      // Resumo por categoria (prefixo da ação)
+      const CAT = { lead:'Leads & CRM', cliente:'Clientes', agenda:'Agenda', tarefa:'Tarefas', financeiro:'Financeiro', payment:'Financeiro', servico:'Serviços', produto:'Produtos', estoque:'Estoque', projeto:'Projetos', atendimento:'Atendimento', ticket:'Atendimento', marketing:'Marketing', rh:'RH', sistema:'Sistema', config:'Configurações', diario:'Memória' };
+      const contagem = {};
+      evs.forEach((ev) => {
+        const pre = String(ev.action || 'outros').split('.')[0];
+        const cat = CAT[pre] || 'Outros';
+        contagem[cat] = (contagem[cat] || 0) + 1;
+      });
+      // Dinheiro movimentado no dia
+      let entrou = 0, saiu = 0;
+      try {
+        modules.financeiro.contas.forEach((c) => {
+          const ref = c.pagoEm || c.vencimento;
+          if (!ref) return;
+          const t = new Date(ref);
+          if (isNaN(t) || t < ini || t >= fim || c.status !== 'pago') return;
+          if (c.tipo === 'receber') entrou += c.valor; else saiu += c.valor;
+        });
+      } catch (e) {}
+
+      // Linha do tempo escrita
+      const linhas = evs.slice().sort((a, b) => new Date(a.ts) - new Date(b.ts)).map((ev) => {
+        const hhmm = new Date(ev.ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        let nome = '';
+        try { nome = (ev.after && (ev.after.nome || ev.after.descricao)) ? ' — ' + String(ev.after.nome || ev.after.descricao).slice(0, 60) : ''; } catch (e) {}
+        return `${hhmm} · [${(CAT[String(ev.action||'').split('.')[0]] || 'Geral')}] ${String(ev.action || 'evento').replace(/[._]/g, ' ')}${nome}`;
+      });
+
+      const dtTxt = ini.toLocaleDateString('pt-BR');
+      const texto = [
+        '════════════════════════════════════════',
+        ' REGISTRO DIÁRIO — NEITZEL SISTEMA DIGITAL',
+        ` Dia: ${dtTxt}`,
+        ` Gerado automaticamente às 23:58 · fonte: auditoria completa do sistema`,
+        '════════════════════════════════════════',
+        '',
+        'RESUMO DO DIA',
+        ` • Eventos registrados: ${evs.length}`,
+        ...Object.entries(contagem).map(([k, v]) => ` • ${k}: ${v} registro(s)`),
+        ` • Dinheiro recebido: ${fmtMoney(entrou)} · Dinheiro pago: ${fmtMoney(saiu)}`,
+        ` • Leads na base: ${DB.leads.length} · Clientes na base: ${(modules.clientes.clientes || []).length}`,
+        '',
+        'TUDO O QUE ACONTECEU (linha a linha)',
+        ...(linhas.length ? linhas : [' (nenhum evento registrado neste dia)']),
+        '',
+        '— Fim do registro do dia —',
+      ].join('\n');
+
+      const entrada = {
+        id: uid(),
+        data: chave,
+        geradoEm: nowISO(),
+        totalEventos: evs.length,
+        resumo: { contagem, entrou, saiu },
+        texto,
+      };
+      this.entradas.push(entrada);
+      this.entradas.sort((a, b) => (a.data < b.data ? -1 : 1));
+      this.save();
+      db.save(); // processo de salvamento completo junto com o diário
+      audit.record('diario.gerado', 'sistema', null, { data: chave, eventos: evs.length });
+      return { ok: true, entrada };
+    },
+
+    /** Gera registros pendentes de dias anteriores (se o sistema não estava aberto às 23:58). */
+    backfill() {
+      let n = 0;
+      const hojeChave = nowISO().slice(0, 10);
+      const datas = Array.from(new Set(audit.list().map((ev) => String(ev.ts).slice(0, 10))));
+      datas.sort();
+      datas.forEach((dd) => {
+        if (dd < hojeChave && !this.doDia(dd)) {
+          try { if (this.gerar(dd).ok) n++; } catch (e) {}
+        }
+      });
+      return n;
+    },
+
+    iniciar() {
+      // Agendamento e backfill fazem sentido apenas no app aberto (navegador).
+      // Em ambiente de teste (Node puro) nada é agendado para não travar o processo.
+      if (typeof window === 'undefined') return;
+      const pendentes = this.backfill();
+      if (pendentes > 0) audit.record('diario.backfill', 'sistema', null, { gerados: pendentes });
+      jobs.add({
+        name: 'diario-2358',
+        interval: 20000,
+        run: () => {
+          const agora = new Date();
+          if (agora.getHours() === 23 && agora.getMinutes() >= 58) {
+            const r = this.gerar(nowISO());
+            if (r.ok) {
+              eventBus.emit('diario.gerado_hoje', { data: r.entrada.data, eventos: r.entrada.totalEventos });
+              try { window.dispatchEvent(new CustomEvent('ecomim:diario-gerado', { detail: { data: r.entrada.data } })); } catch (e) {}
+            }
+          }
+        },
+      });
+      // Mesmo no navegador, não há por que segurar; unref é inócuo onde não existe.
+      try { if (this._timer && typeof this._timer.unref === 'function') this._timer.unref(); } catch (e) {}
+    },
+  };
+
   /* ------------------------------------------------------------------ *
    * 9. HELPERS DE MÓDULOS
    * ------------------------------------------------------------------ */
@@ -2055,6 +2323,19 @@ const ECOMIM = (() => {
     modules.rh.load();
     modules.automacoes.load();
     modules.notificacoes.load();
+    modules.diario.load();
+    // Migração de telefones já gravados para o padrão DDD+número (idempotente)
+    try {
+      let mudou = foneBR.migrarLista(db.get().leads) + foneBR.migrarLista(db.get().fila);
+      if (Array.isArray(modules.clientes && modules.clientes.clientes)) {
+        mudou += foneBR.migrarLista(modules.clientes.clientes);
+      }
+      if (mudou > 0) {
+        db.save();
+        if (modules.clientes && modules.clientes.save) modules.clientes.save();
+        audit.record('sistema.telefones_migrados', 'sistema', null, { camposCorrigidos: mudou });
+      }
+    } catch (e) {}
     try {
       const iaConv = storage.get('ecomim_ia_conversations');
       if (iaConv) modules.ia.conversations = JSON.parse(iaConv);
@@ -2079,6 +2360,8 @@ const ECOMIM = (() => {
     });
     // Automações observam o barramento
     modules.automacoes.watch();
+    // Diário: às 23:58 registra por escrito tudo do dia + recupera dias perdidos
+    try { modules.diario.iniciar(); } catch (e) {}
     // Auditoria de inicialização
     audit.record('sistema.iniciado', 'sistema', null, { app: APP.name, version: APP.version });
   }
@@ -2091,6 +2374,18 @@ const ECOMIM = (() => {
     APP, db, audit, registry, eventBus, jobs, cryptoBox, modules,
     uid, nowISO, fmtDate, fmtTime, fmtDateTime, fmtMoney, fmtPct,
     daysBetween, addDays, addHours, normalizeText, digitsOf, hash,
+    foneBR,
+    /** Ponte para utilitários internos usados pelos módulos da expansão
+     *  operacional (servicos/produtos/estoque/operacional-expansao). */
+    _internals: {
+      storage,
+      eventBus,
+      audit,
+      uid,
+      nowISO,
+      trimStr,
+      get usuarioAtual() { return currentUser; },
+    },
     init,
   };
 })();
