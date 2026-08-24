@@ -1133,14 +1133,24 @@ body::before {
 [data-theme="light"] {
   --card-hi: inset 0 1px 0 rgba(255,255,255,.9);
 }
-[data-theme="light"] body { background: linear-gradient(180deg,#f7f8fa 0%,#eef1f4 100%); }
-[data-theme="light"] .card {
-  background: linear-gradient(165deg,#ffffff 0%, #fbfcfd 100%);
-  border-color:#e2e5ea;
+[data-theme="light"] body { background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 86%, #ffffff), var(--bg) 220px); }
+[data-theme="light"] .card,
+[data-theme="light"] .dbx-card,
+[data-theme="light"] .kpi-card,
+[data-theme="light"] .cen-card {
+  background: linear-gradient(165deg, #ffffff 0%, color-mix(in srgb, var(--surface) 90%, var(--bg)) 100%);
+  border-color: color-mix(in srgb, var(--border) 82%, var(--bg));
   box-shadow: 0 1px 2px rgba(16,24,40,.04), 0 6px 18px -8px rgba(16,24,40,.08), var(--card-hi);
   transition: transform .25s cubic-bezier(.22,.9,.3,1), box-shadow .25s, border-color .25s;
 }
-[data-theme="light"] .card:hover { border-color:#d4d9e0; box-shadow: 0 2px 3px rgba(16,24,40,.05), 0 14px 30px -12px rgba(16,24,40,.14), var(--card-hi); }
+[data-theme="light"] .card:hover,
+[data-theme="light"] .dbx-card:hover {
+  border-color: color-mix(in srgb, var(--border) 60%, var(--e-brand));
+  box-shadow: 0 2px 3px rgba(16,24,40,.05), 0 14px 30px -12px rgba(16,24,40,.14), var(--card-hi);
+}
+/* Zebra discreta e séria nas tabelas */
+[data-theme="light"] .table tbody tr:nth-child(even) { background: color-mix(in srgb, var(--bg) 42%, transparent); }
+[data-theme="light"] .table td { border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent); }
 [data-theme="light"] .btn-primary {
   background: linear-gradient(135deg, var(--e-brand) 0%, var(--nz-red-strong) 100%);
   border:none; color:#fff;
@@ -1675,7 +1685,78 @@ html[data-arte-cor="matrix"] {
 }
 .nz-fundo-arte .fa-foto { filter: var(--arte-foto, none); }
 /* No claro, o filtro base ganha leve clareada para não pesar no papel */
-html[data-theme="light"][data-arte-cor] .nz-fundo-arte .fa-foto { filter: var(--arte-foto, none) brightness(1.04); }
+html[data-theme="light"][data-arte-cor] .nz-fundo-arte .fa-foto { filter: var(--arte-foto, none) brightness(1.04) saturate(.92); }
+
+/* ==========================================================================
+ * POLIMENTO DO TEMA CLARO — visual sério, limpo e profissional
+ * Componentes que eram "herança do escuro" agora vestem o papel.
+ * ========================================================================== */
+
+/* Balão de boas-vindas: papel premium em vez de bloco preto */
+[data-theme="light"] .toast-hero {
+  background: linear-gradient(150deg, #ffffff 0%, color-mix(in srgb, var(--surface) 94%, var(--e-brand)) 130%);
+  border: 1px solid color-mix(in srgb, var(--border) 70%, var(--e-brand));
+  box-shadow: 0 18px 44px -14px rgba(16,24,40,.22), 0 0 0 1px rgba(255,255,255,.7) inset;
+  color: #17211b;
+}
+[data-theme="light"] .toast-hero .th-foot { color: var(--text-muted); }
+[data-theme="light"] .toast-hero .th-x { color: var(--text-muted); }
+
+/* Splash de abertura: luz de papel com selo da marca */
+[data-theme="light"] #nz-splash {
+  background: radial-gradient(ellipse at center,
+    rgba(250,252,250,.78), rgba(238,243,239,.9));
+}
+[data-theme="light"] #nz-splash .splash-card {
+  background: rgba(255,255,255,.82);
+  border: 1px solid rgba(16,40,28,.08);
+  box-shadow: 0 30px 90px -20px rgba(16,40,28,.25), inset 0 1px 0 #fff;
+}
+[data-theme="light"] #nz-splash .splash-frase { color: #4a564f; }
+
+/* Onboarding: passos com tinta suave */
+[data-theme="light"] .nz-step-n { background: var(--surface-3); color: var(--text-muted); }
+
+/* Arte de fundo no claro: marca d'água elegante, nunca poluição */
+html[data-theme="light"] .nz-fundo-arte .fa-chuva { opacity: .26; }
+html[data-theme="light"] .nz-fundo-arte .fa-aurora i:nth-child(1),
+html[data-theme="light"] .nz-fundo-arte .fa-aurora i:nth-child(2),
+html[data-theme="light"] .nz-fundo-arte .fa-aurora i:nth-child(3) { opacity: .07; }
+html[data-theme="light"] .nz-fundo-arte::after {
+  background:
+    radial-gradient(120% 90% at 50% 0%, transparent 55%, rgba(250,252,250,.34) 100%),
+    linear-gradient(180deg, rgba(252,254,251,.42), rgba(246,250,246,.58));
+}
+
+/* Topbar & sidebar com hairline sóbrio */
+[data-theme="light"] .ecomim-topbar { background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(8px); }
+[data-theme="light"] .ecomim-sidebar { background: linear-gradient(180deg, var(--surface), color-mix(in srgb, var(--surface) 96%, var(--bg)) 94%, var(--e-brand-soft)); }
+
+/* Campos e selects: relevo sutil de formulário sério */
+[data-theme="light"] .input,
+[data-theme="light"] select.input,
+[data-theme="light"] textarea.input {
+  background: #fff;
+  border-color: color-mix(in srgb, var(--border) 85%, var(--text) 5%);
+  box-shadow: 0 1px 1px rgba(16,24,40,.03);
+}
+[data-theme="light"] .input:focus-visible { border-color: var(--e-brand); box-shadow: 0 0 0 3px var(--ring); }
+
+/* Painéis flutuantes (busca, notificações, IA) */
+[data-theme="light"] .cmdk-box,
+[data-theme="light"] .notif-panel,
+[data-theme="light"] .lead-detail-panel,
+[data-theme="light"] .ecomim-ai-panel {
+  background: color-mix(in srgb, var(--surface) 94%, #ffffff);
+  box-shadow: 0 24px 60px -18px rgba(16,24,40,.28), 0 0 0 1px color-mix(in srgb, var(--border) 80%, transparent);
+}
+
+/* Palco do Possível Cenário vira folha clara */
+[data-theme="light"] .cen-palco { background: color-mix(in srgb, var(--surface) 92%, #ffffff); }
+[data-theme="light"] .cen-overlay { background: rgba(240,245,240,.72); backdrop-filter: blur(6px); }
+
+/* Selo offline e chips mantêm contraste AA sobre branco */
+[data-theme="light"] .offline-selo { background: #fff; }
 @keyframes auroraA { from { transform: translate(0,0) rotate(0deg); } to { transform: translate(9vw, 7vh) rotate(28deg); } }
 @keyframes auroraB { from { transform: translate(0,0) scale(1); } to { transform: translate(-7vw, -6vh) scale(1.25); } }
 @keyframes auroraC { from { transform: translate(0,0) scale(1.15); } to { transform: translate(6vw, -8vh) scale(.95); } }

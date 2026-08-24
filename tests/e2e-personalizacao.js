@@ -55,8 +55,8 @@ const puppeteer = require('puppeteer-core');
     await new Promise((r) => setTimeout(r, 500));
     const claroOk = await page.evaluate(() =>
       document.documentElement.getAttribute('data-theme') === 'light' &&
-      getComputedStyle(document.documentElement).getPropertyValue('--bg').trim().toLowerCase() === '#edf4fa');
-    ok(claroOk, 'modelo claro da família aplica tema claro (#edf4fa)');
+      getComputedStyle(document.documentElement).getPropertyValue('--bg').trim().toLowerCase() === '#eff4f9');
+    ok(claroOk, 'modelo claro da família aplica tema claro (#eff4f9)');
 
     // Modelo de botÃµes pÃ­lula
     await page.evaluate(() => {
