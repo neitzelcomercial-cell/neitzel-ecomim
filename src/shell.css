@@ -404,17 +404,93 @@ canvas.fundo-graficos { position: absolute; inset: 0; z-index: 0; pointer-events
 
 /* Responsividade */
 @media (max-width: 900px) {
-  .ecomim-sidebar { position: fixed; left: 0; top: 0; height: 100vh; transform: translateX(-100%); transition: transform 0.2s ease; box-shadow: var(--shadow-lg); }
+  .ecomim-sidebar { position: fixed; left: 0; top: 0; height: 100vh; transform: translateX(-100%); transition: transform 0.2s ease; box-shadow: var(--shadow-lg); z-index: 90; }
   .ecomim-sidebar.mobile-open { transform: none; }
   .ecomim-sidebar.collapsed { width: 240px; }
   .ecomim-content { padding: 16px; }
   .ecomim-ai-panel { width: 100%; }
   .lead-detail-panel { width: 100%; }
   .ecomim-burger { display: inline-flex !important; }
+  /* Véu atrás da sidebar aberta no toque — fecha ao tocar fora */
+  .nav-veu { position: fixed; inset: 0; z-index: 85; background: rgba(4,6,8,.45); backdrop-filter: blur(2px); animation: veuEntra .18s ease both; }
+  @keyframes veuEntra { from { opacity: 0; } to { opacity: 1; } }
+  html.no-anim .nav-veu { animation: none; }
 }
 @media (max-width: 600px) {
   .ecomim-topbar .topbar-search { display: none; }
   .notif-panel { width: 300px; right: -60px; }
+}
+
+/* ==========================================================================
+ * MOBILE — sistema expansivo e confortável no celular
+ * ========================================================================== */
+
+/* Telas grandes: aproveita o espaço (expansivo também no desktop largo) */
+@media (min-width: 1600px) {
+  .ecomim-content { max-width: 1720px; }
+}
+
+@media (max-width: 760px) {
+  /* Topbar compacto com alvos de toque generosos */
+  .ecomim-topbar { height: 54px; padding: 0 10px; gap: 8px; }
+  .ecomim-topbar .topbar-title { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 34vw; }
+  .ecomim-topbar .btn-icon { width: 40px; height: 40px; }
+  .offline-selo { font-size: 10px; padding: 2px 7px; margin-right: 2px; }
+
+  /* Conteúdo respira melhor */
+  .ecomim-content { padding: 12px 12px 28px; }
+  .page-header h1 { font-size: 19px !important; }
+
+  /* Tabelas rolam dentro do cartão — nada quebra a página */
+  .tbl-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+  .tbl-scroll .table { min-width: 540px; margin-bottom: 0; }
+
+  /* Grades empilham */
+  .grid-2 { grid-template-columns: 1fr !important; }
+  .form-grid { grid-template-columns: 1fr 1fr; }
+  .dbx-grid { grid-template-columns: 1fr 1fr !important; }
+
+  /* Botões confortáveis no dedo */
+  .btn { min-height: 38px; }
+  .btn-sm { min-height: 34px; }
+
+  /* Kanban vira corrediça horizontal */
+  .kanban { overflow-x: auto; -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity; padding-bottom: 8px; }
+  .kanban-col { min-width: 78vw; max-width: 78vw; scroll-snap-align: start; flex-shrink: 0; }
+
+  /* Modais viram folha quase cheia */
+  .modal-box { width: 94vw !important; max-width: 94vw !important; max-height: 88vh; overflow-y: auto; }
+  .modal-actions { flex-wrap: wrap; gap: 8px; }
+
+  /* Painéis laterais ocupam a tela */
+  .notif-panel, .user-menu { width: min(92vw, 340px) !important; right: 0 !important; }
+  .lead-detail-panel, .ecomim-ai-panel { width: 100vw !important; max-width: 100vw; }
+  .cmdk-box { width: 94vw; }
+
+  /* Palco do cenário como folha de app */
+  .cen-palco { width: 96vw; max-height: 92vh; overflow-y: auto; border-radius: 16px; }
+  .cen-form { grid-template-columns: 1fr 1fr; }
+  .cw-val { font-size: 20px; }
+
+  /* Login e splash cabíveis */
+  .ecomim-login-card { width: 92vw; max-width: 360px; padding: 26px 22px; }
+  #nz-splash .splash-card { padding: 32px 24px; }
+  #nz-splash .splash-titulo { font-size: 22px; letter-spacing: .26em; text-indent: .26em; }
+
+  /* Zoom manual não luta contra o aparelho */
+  body { zoom: 1 !important; }
+
+  /* Feed e cronômetros mantêm números tabulares legíveis */
+  .cron-chip { white-space: nowrap; }
+}
+
+@media (max-width: 420px) {
+  .form-grid { grid-template-columns: 1fr; }
+  .dbx-grid { grid-template-columns: 1fr !important; }
+  .cen-resumo { grid-template-columns: 1fr 1fr; }
+  .cen-form { grid-template-columns: 1fr; }
+  .tema-familia { flex-direction: column; align-items: stretch; }
+  .tema-familia .tf-nome { min-width: 0; }
 }
 /* Splash de boas-vindas (centro da tela) */
 #nz-splash { position: fixed; inset: 0; z-index: 9998; display: flex; align-items: center; justify-content: center;

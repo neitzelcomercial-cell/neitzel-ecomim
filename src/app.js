@@ -694,6 +694,25 @@ function bindShell() {
     document.querySelector('.ecomim-sidebar')?.classList.toggle('collapsed');
   }));
   shell.querySelectorAll('[data-action="cmdk-buscar"]').forEach((b) => b.addEventListener('click', () => openCmdk()));
+  // Véu que fecha a sidebar no toque (mobile) — criado/removido junto com .mobile-open
+  const fecharNavMobile = () => {
+    document.querySelector('.ecomim-sidebar')?.classList.remove('mobile-open');
+    document.querySelector('.nav-veu')?.remove();
+  };
+  const sbObs = document.querySelector('.ecomim-sidebar');
+  if (sbObs) {
+    new MutationObserver(() => {
+      const aberta = sbObs.classList.contains('mobile-open');
+      let veu = document.querySelector('.nav-veu');
+      if (aberta && !veu) {
+        veu = el('div', 'nav-veu', '');
+        document.body.appendChild(veu);
+        veu.addEventListener('click', fecharNavMobile);
+      } else if (!aberta && veu) veu.remove();
+      // Com o menu aberto, o fundo não rola (comportamento de app nativo)
+      try { document.documentElement.style.overflow = aberta ? 'hidden' : ''; } catch (e) {}
+    }).observe(sbObs, { attributes: true, attributeFilter: ['class'] });
+  }
   shell.querySelector('[data-action="mobile-nav"]')?.addEventListener('click', () => {
     document.querySelector('.ecomim-sidebar')?.classList.toggle('mobile-open');
   });
@@ -814,6 +833,15 @@ function renderView(id) {
     case 'seguranca': renderSeguranca(content); break;
     case 'config': renderConfig(content); break;
   }
+  // Mobile: tabelas largas rolam dentro de um trilho próprio (a página nunca estoura)
+  content.querySelectorAll('.table').forEach((t) => {
+    const pai = t.parentElement;
+    if (!pai || pai.classList.contains('tbl-scroll')) return;
+    const trilho = document.createElement('div');
+    trilho.className = 'tbl-scroll';
+    pai.insertBefore(trilho, t);
+    trilho.appendChild(t);
+  });
 }
 
 /* ------------------------------------------------------------------ *
