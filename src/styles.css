@@ -6,13 +6,13 @@
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
 
 :root {
-  /* Superfícies (claro — papel técnico, contraste nítido) */
-  --bg: #f5f6f8;
+  /* Superfícies (claro — papel frio, limpo e arejado) */
+  --bg: #f7f8fb;
   --surface: #ffffff;
-  --surface-2: #f1f2f4;
-  --surface-3: #e6e8ec;
-  --border: #e4e6ea;
-  --border-strong: #ccd0d6;
+  --surface-2: #f3f5f9;
+  --surface-3: #eaedf4;
+  --border: #e6e9f0;
+  --border-strong: #cfd5e0;
   --text: #131418;
   --text-muted: #53575f;
   --text-subtle: #80858e;
@@ -1044,6 +1044,7 @@ h4 { font-weight: 600 !important; letter-spacing: 0.002em; }
   transition: transform .3s, box-shadow .3s, border-color .3s;
 }
 .dbx-card:hover { border-color:var(--border-strong); box-shadow:0 16px 40px -18px rgba(0,0,0,.35); }
+[data-theme="light"] .dbx-card:hover { box-shadow: 0 16px 40px -18px rgba(16,24,40,.16); }
 .dbx-card h4 { margin:0 0 2px; font-size:13px; font-weight:750; letter-spacing:.02em; }
 .dbx-card .dbx-sub { margin:0 0 14px; font-size:11.5px; color:var(--text-subtle); }
 .dbx-legend { display:flex; gap:14px; flex-wrap:wrap; margin-top:10px; font-size:11.5px; color:var(--text-muted); }
@@ -1815,6 +1816,9 @@ html.no-anim .nz-fundo-arte .fa-chuva { animation: none !important; }
 /* A arte vive atrás de tudo dentro do main; conteúdo sobe */
 .ecomim-main > .ecomim-content, .ecomim-main > .ecomim-topbar { position: relative; z-index: 1; }
 .fundo-suave { z-index: 0 !important; }
+
+/* No claro a arte vira sussurro: presença mínima, papel no comando */
+[data-theme="light"] .nz-fundo-arte { opacity: calc(var(--nz-arte-opacidade, .55) * 0.58); }
 
 /* Cartões ganham vidro leve quando a arte está ativa (legibilidade + beleza) */
 html[data-fundo="arte"] .card, html[data-fundo="arte"] .dbx-card,
