@@ -1769,6 +1769,34 @@ html[data-theme="light"] .nz-fundo-arte::after {
 
 /* Selo offline e chips mantêm contraste AA sobre branco */
 [data-theme="light"] .offline-selo { background: #fff; }
+
+/* ==========================================================================
+ * CLARO 100% — nenhum bloco escuro sobrevive no tema claro
+ * ========================================================================== */
+
+/* Tile da marca: azul em vez de preto (sidebar, login) */
+[data-theme="light"] .ecomim-brand-logo-nz {
+  background: linear-gradient(135deg, #3b82f6 0%, var(--e-brand) 130%);
+  box-shadow: 0 2px 12px rgba(37, 99, 235, 0.28);
+}
+
+/* Botão flutuante da IA */
+[data-theme="light"] .ecomim-fab {
+  background: linear-gradient(135deg, #3b82f6, var(--e-brand));
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.30);
+}
+
+/* Selos do balão de boas-vindas e do Possível Cenário */
+[data-theme="light"] .th-selo,
+[data-theme="light"] .cen-selo {
+  background: linear-gradient(135deg, #3b82f6, var(--e-brand));
+  box-shadow: 0 4px 14px -4px rgba(37, 99, 235, 0.35), inset 0 1px 0 rgba(255,255,255,.25);
+}
+
+/* Barra de sincronização */
+[data-theme="light"] #nz-syncbar {
+  background: linear-gradient(90deg, #3b82f6, var(--e-brand));
+}
 @keyframes auroraA { from { transform: translate(0,0) rotate(0deg); } to { transform: translate(9vw, 7vh) rotate(28deg); } }
 @keyframes auroraB { from { transform: translate(0,0) scale(1); } to { transform: translate(-7vw, -6vh) scale(1.25); } }
 @keyframes auroraC { from { transform: translate(0,0) scale(1.15); } to { transform: translate(6vw, -8vh) scale(.95); } }

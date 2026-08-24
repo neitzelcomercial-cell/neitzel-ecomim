@@ -559,3 +559,19 @@ canvas.fundo-graficos { position: absolute; inset: 0; z-index: 0; pointer-events
 @keyframes nz-brilho { 0%, 72% { left: -35%; } 100% { left: 115%; } }
 [data-theme="light"] .fundo-suave .fp { opacity: .18; }
 @media (prefers-reduced-motion: reduce) { .fundo-suave .fp, .fundo-suave .fs-brilho { animation: none; display: none; } }
+
+/* ==========================================================================
+ * CLARO 100% — onboarding e passos em papel, nada escuro
+ * ========================================================================== */
+[data-theme="light"] .nz-onboarding {
+  background:
+    radial-gradient(1200px 600px at 15% -10%, rgba(37, 99, 235, 0.10), transparent 60%),
+    radial-gradient(1000px 500px at 100% 110%, rgba(37, 99, 235, 0.06), transparent 55%),
+    linear-gradient(160deg, #f2f4f8 0%, #e9edf3 45%, #eef1f6 100%);
+}
+[data-theme="light"] .nz-steps { background: rgba(255,255,255,.75); border-color: rgba(16,24,40,.08); }
+[data-theme="light"] .nz-step { color: #5a6270; }
+[data-theme="light"] .nz-step.active {
+  color: #1d4ed8; border-color: rgba(37,99,235,.45); background: rgba(37,99,235,.10);
+}
+[data-theme="light"] .nz-step.done { color: #16a34a; }
