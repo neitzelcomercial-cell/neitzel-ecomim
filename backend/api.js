@@ -21,7 +21,12 @@ function rateLimit(ip, limite) {
   let rec = hits.get(ip);
   if (!rec || agora - rec.t0 > 60000) { rec = { t0: agora, n: 0 }; hits.set(ip, rec); }
   rec.n++;
-  if (hits.size > 5000) hits.clear();
+  // Evicção individual (a mais antiga) — antes um `clear()` global liberava
+  // todos os limites de uma vez quando o mapa enchia.
+  if (hits.size > 5000) {
+    const primeira = hits.keys().next().value;
+    if (primeira !== undefined) hits.delete(primeira);
+  }
   return rec.n <= limite;
 }
 
@@ -94,6 +99,9 @@ function criarHold(db, body) {
   const intervalo = Math.max(0, Number(s.intervaloMin != null ? s.intervaloMin : db.config.intervaloPadraoMin) || 0);
   const fimOp = start + dur + intervalo;
   if (ymd < ctx.hojeYmd || engine.diaFechado(db, ymd)) return { code: 'INDISPONIVEL' };
+  // Janela de agendamento valendo no servidor (antes era só decorativa no frontend)
+  const janela = Math.max(1, Number(db.config.janelaDias) || 60);
+  if (ymd > T.addDays(ctx.hojeYmd, janela)) return { code: 'FORA_DA_JANELA', message: `Agendamentos permitidos até ${janela} dias à frente.` };
   const { periodos } = engine.periodosDoDia(db, ymd);
   if (!periodos.some((p) => start >= p.start && fimOp <= p.end)) return { code: 'FORA_DO_HORARIO' };
   if (ymd === ctx.hojeYmd && start < ctx.agoraMin + (Number(db.config.antecedenciaMinMinutos) || 0)) return { code: 'ANTECEDENCIA' };
@@ -143,7 +151,8 @@ function confirmarTx(db, body) {
   engine.purgeExpired(db, ctx.agoraTs);
   const idemKey = String(body.idempotencyKey || '');
   if (!idemKey) return { code: 'IDEMPOTENCIA_AUSENTE' };
-  if (db.idempotency[idemKey]) return { repetido: db.idempotency[idemKey] };
+  const anterior = db.idempotency[idemKey];
+  if (anterior) return { repetido: (anterior && typeof anterior === 'object' && 'resposta' in anterior) ? anterior.resposta : anterior };
 
   const vc = validarCliente(db, body.customer);
   if (!vc.ok) return vc;
@@ -161,6 +170,8 @@ function confirmarTx(db, body) {
 
   // Revalidação completa (mesmo com hold): nada vem do frontend.
   if (ymd < ctx.hojeYmd || engine.diaFechado(db, ymd)) return { code: 'INDISPONIVEL' };
+  const janela = Math.max(1, Number(db.config.janelaDias) || 60);
+  if (ymd > T.addDays(ctx.hojeYmd, janela)) return { code: 'FORA_DA_JANELA', message: `Agendamentos permitidos até ${janela} dias à frente.` };
   const { periodos } = engine.periodosDoDia(db, ymd);
   if (!periodos.some((p) => start >= p.start && fimOp <= p.end)) return { code: 'FORA_DO_HORARIO' };
   if (ymd === ctx.hojeYmd && start < ctx.agoraMin + (Number(db.config.antecedenciaMinMinutos) || 0)) return { code: 'ANTECEDENCIA' };
@@ -196,8 +207,22 @@ function confirmarTx(db, body) {
   db.appointments.push(ap);
   store.audit('agendamento.criado', { id: ap.id, codigo: ap.codigo, date: ymd, start, cliente: cli.nome });
   const resposta = { ok: true, appointment: resumoPublico(ap) };
-  db.idempotency[idemKey] = resposta;
+  // Guarda com carimbo de tempo para permitir a poda (o mapa crescia sem fim)
+  db.idempotency[idemKey] = { resposta, ts: Date.now() };
   return resposta;
+}
+
+/** Remove chaves de idempotência com mais de 24h (chamado na varredura periódica). */
+function podarIdempotencia(db) {
+  const corte = Date.now() - 24 * 60 * 60 * 1000;
+  let mudou = false;
+  for (const k of Object.keys(db.idempotency || {})) {
+    const v = db.idempotency[k];
+    const ts = v && typeof v === 'object' && 'ts' in v ? v.ts : null;
+    if (ts === null) continue; // formato antigo: mantém (será podado no futuro)
+    if (ts < corte) { delete db.idempotency[k]; mudou = true; }
+  }
+  return mudou;
 }
 
 function resumoPublico(a) {
@@ -228,13 +253,28 @@ function cancelarTx(db, id, ultimos4) {
 
 /* --------------------------------- ADMIN ---------------------------------- */
 // Autenticação admin: Bearer NEITZEL_ADMIN_TOKEN OU PIN curto (X-Admin-Pin)
-// para o modo ADM discreto embutido no Portal (padrão '00', configurável).
+// para o modo ADM discreto embutido no Portal.
+// SEGURANÇA: o PIN padrão '00' só vale em DESENVOLVIMENTO. Em produção é
+// obrigatório definir NEITZEL_ADMIN_PIN (ou usar só o token forte).
+const cryptoMod = (() => { try { return require('crypto'); } catch (e) { return null; } })();
+function safeEqual(a, b) {
+  const ca = Buffer.from(String(a));
+  const cb = Buffer.from(String(b));
+  if (ca.length !== cb.length) {
+    if (cryptoMod) { try { cryptoMod.timingSafeEqual(ca, ca); } catch (e) {} }
+    return false;
+  }
+  return cryptoMod ? cryptoMod.timingSafeEqual(ca, cb) : String(a) === String(b);
+}
 function isAdmin(req, db) {
+  const PROD = process.env.NODE_ENV === 'production';
   const esperado = process.env.NEITZEL_ADMIN_TOKEN || '';
-  const pin = process.env.NEITZEL_ADMIN_PIN || '00';
+  const pin = process.env.NEITZEL_ADMIN_PIN || (PROD ? '' : '00');
   const h = req.headers['authorization'] || '';
   const pinHeader = String(req.headers['x-admin-pin'] || '');
-  return (esperado && h === 'Bearer ' + esperado) || pinHeader === pin;
+  const tokenOk = !!esperado && safeEqual(h, 'Bearer ' + esperado);
+  const pinOk = !!pin && safeEqual(pinHeader, pin);
+  return tokenOk || pinOk;
 }
 
 /** Publica o portal estático no GitHub Pages (agendamento.html + portal-config.json). */
@@ -336,11 +376,19 @@ const rotasAdmin = {
   'GET /api/admin/audit': (db) => ({ ok: true, auditLog: db.auditLog.slice(-300).reverse() }),
 };
 
+/** Valida se é um fuso IANA aceito pelo Intl (ex.: 'America/Sao_Paulo'). */
+function isValidTimeZone(tz) {
+  try { new Intl.DateTimeFormat('en-CA', { timeZone: tz }); return true; } catch (e) { return false; }
+}
+
 /** Transações admin de mutação (rodam no mutex). */
 function adminMutacao(db, acao, body) {
   switch (acao) {
     case 'put-config': {
       const c = db.config, b = body || {};
+      // Timezone inválido quebrava TODA a API de disponibilidade (RangeError
+      // no Intl derrubava as rotas). Rejeita antes de gravar.
+      if (b.timezone !== undefined && !isValidTimeZone(String(b.timezone))) return { code: 'TIMEZONE_INVALIDA', message: 'Fuso horário inválido (use o formato IANA, ex.: America/Sao_Paulo).' };
       const nums = ['slotMin', 'antecedenciaMinMinutos', 'janelaDias', 'holdTtlMinutos', 'capacidadePorSlot', 'cancelarAteHoras', 'intervaloPadraoMin'];
       const strs = ['empresaNome', 'segmento', 'telefone', 'instagram', 'timezone', 'mensagemFechado', 'titulo', 'subtitulo'];
       strs.forEach((k) => { if (typeof b[k] === 'string') c[k] = b[k].slice(0, 120); });
@@ -404,9 +452,31 @@ function syncCatalogo(db, body) {
     preco: Math.max(0, Math.round(Number(p.preco) || 0)),
     status: p.status === 'inativo' ? 'inativo' : 'ativo'
   });
-  if (Array.isArray(body.servicos)) db.services = body.servicos.map(normS);
-  if (Array.isArray(body.profissionais)) db.professionals = body.profissionais.slice(0, 30).map((pr) => ({ id: String(pr.id || uid('pf')), nome: String(pr.nome || '').slice(0, 80), status: pr.status === 'inativo' ? 'inativo' : 'ativo' }));
-  if (Array.isArray(body.produtos)) db.products = body.produtos.map(normP);
+  if (Array.isArray(body.servicos)) {
+    // UPSERT por id (não substituição total): serviços criados direto no
+    // Portal (ADM discreto) e ajustes de visibilidade feitos lá não podem
+    // ser apagados em silêncio a cada carregamento do sistema.
+    const norm = new Map(body.servicos.map((s) => [String(s.id), normS(s)]));
+    db.services = db.services.map((s) => (norm.has(String(s.id)) ? norm.get(String(s.id)) : s));
+    const existentes = new Set(db.services.map((s) => String(s.id)));
+    for (const [id, s] of norm) if (!existentes.has(id)) db.services.push(s);
+  }
+  if (Array.isArray(body.profissionais)) {
+    const normPf = new Map();
+    for (const pr of body.profissionais.slice(0, 30)) {
+      const id = String(pr.id || uid('pf'));
+      normPf.set(id, { id, nome: String(pr.nome || '').slice(0, 80), status: pr.status === 'inativo' ? 'inativo' : 'ativo' });
+    }
+    db.professionals = db.professionals.map((p) => (normPf.has(String(p.id)) ? normPf.get(String(p.id)) : p));
+    const ex = new Set(db.professionals.map((p) => String(p.id)));
+    for (const [id, p] of normPf) if (!ex.has(id)) db.professionals.push(p);
+  }
+  if (Array.isArray(body.produtos)) {
+    const normPm = new Map(body.produtos.map((p) => [String(p.id), normP(p)]));
+    db.products = db.products.map((p) => (normPm.has(String(p.id)) ? normPm.get(String(p.id)) : p));
+    const ex = new Set(db.products.map((p) => String(p.id)));
+    for (const [id, p] of normPm) if (!ex.has(id)) db.products.push(p);
+  }
   store.audit('admin.catalogo_sincronizado', { servicos: db.services.length, produtos: db.products.length });
   return { ok: true, servicos: db.services.length, produtos: db.products.length };
 }
@@ -594,7 +664,7 @@ async function analisarCenario(params) {
   return val;
 }
 
-module.exports = { json, errJson, rateLimit, ctxAgora, publicConfig, servicoPublico, criarHold, confirmarTx, cancelarTx, isAdmin, rotasAdmin, adminMutacao, adminListaAdd, adminRemove, syncCatalogo, adminStatusTx, resumoPublico, buscarWeb, analisarCenario, setCorsOrigin, publicarPortal };
+module.exports = { json, errJson, rateLimit, ctxAgora, publicConfig, servicoPublico, criarHold, confirmarTx, cancelarTx, isAdmin, rotasAdmin, adminMutacao, adminListaAdd, adminRemove, syncCatalogo, adminStatusTx, resumoPublico, buscarWeb, analisarCenario, setCorsOrigin, publicarPortal, podarIdempotencia };
 
 
 

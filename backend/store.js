@@ -55,7 +55,19 @@ let DB = null;
 function load() {
   try {
     if (fs.existsSync(DB_FILE)) {
-      DB = Object.assign(defaultDB(), JSON.parse(fs.readFileSync(DB_FILE, 'utf8')));
+      const disco = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+      const padrao = defaultDB();
+      // Merge PROFUNDO do config: antes um Object.assign raso fazia um banco
+      // antigo (sem chaves novas) SUBSTITUIR o config padrão inteiro, e a API
+      // quebrava por chaves indefinidas (ex.: timezone).
+      const configMesclado = Object.assign({}, padrao.config, disco.config || {});
+      DB = Object.assign(padrao, disco);
+      DB.config = configMesclado;
+      for (const k of ['schedule', 'specialHours', 'blockedDates', 'blockedTimes', 'services', 'products', 'customers', 'professionals', 'appointments', 'holds', 'auditLog']) {
+        if (!Array.isArray(DB[k]) && typeof DB[k] !== 'object') DB[k] = padrao[k];
+      }
+      if (!DB.idempotency || typeof DB.idempotency !== 'object') DB.idempotency = {};
+      if (!Number.isFinite(DB.seq)) DB.seq = 1;
     }
   } catch (e) {
     console.error('[store] Falha ao ler banco, iniciando novo:', e.message);

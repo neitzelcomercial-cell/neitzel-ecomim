@@ -54,6 +54,9 @@ const NEITZEL_OPS_UI = (() => {
     return isNaN(n) || n < 0 ? 0 : n;
   };
   const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  /* Data LOCAL (YYYY-MM-DD) de um instante — `inicio` é ISO/UTC; fatiar a string
+     deslocava atendimentos noturnos (21h+ no BRT) para o dia seguinte. */
+  const localYmd = (inst) => { const d = inst instanceof Date ? inst : new Date(inst); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
   const dtLocal = (dateStr, timeStr) => {
     if (!timeStr) timeStr = '09:00';
     const d = new Date(`${dateStr}T${timeStr}:00`);
@@ -177,7 +180,7 @@ const NEITZEL_OPS_UI = (() => {
       const col = el('div', `planner-day-col${isToday ? ' today' : ''}`, '');
       const dayName = d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '');
       col.appendChild(el('div', `planner-day-head${isToday ? ' today' : ''}`, `${esc(capitalize(dayName))} ${d.getDate()}`));
-      const doDia = evs.filter((a) => (a.inicio || '').slice(0, 10) === iso);
+      const doDia = evs.filter((a) => localYmd(a.inicio) === iso);
       if (!doDia.length) col.appendChild(el('div', 'empty', '—'));
       doDia.forEach((a) => {
         const pe = el('div', 'planner-event', '');
@@ -207,11 +210,11 @@ const NEITZEL_OPS_UI = (() => {
       const isToday = iso === hoje;
       const cell = el('div', `planner-mday${other ? ' other' : ''}${isToday ? ' today' : ''}`, '');
       cell.appendChild(el('div', 'pm-n', String(d.getDate())));
-      const doDia = evs.filter((a) => (a.inicio || '').slice(0, 10) === iso).slice(0, 3);
+      const doDia = evs.filter((a) => localYmd(a.inicio) === iso).slice(0, 3);
       if (doDia.length) {
         const evBox = el('div', 'pm-events', '');
         doDia.forEach((a) => evBox.appendChild(el('div', 'pm-event', `${esc(fmtTime(a.inicio))} ${esc(a.cliente)}`)));
-        if (evs.filter((a) => (a.inicio || '').slice(0, 10) === iso).length > 3) evBox.appendChild(el('div', 'pm-event', '+ mais'));
+        if (evs.filter((a) => localYmd(a.inicio) === iso).length > 3) evBox.appendChild(el('div', 'pm-event', '+ mais'));
         cell.appendChild(evBox);
       }
       cell.addEventListener('click', () => {
@@ -530,14 +533,22 @@ const NEITZEL_OPS_UI = (() => {
     const box = el('div', 'card', '<h4>Histórico de movimentações</h4>');
     if (!hist.length) box.appendChild(el('div', 'empty', 'Nenhuma movimentação registrada.'));
     else {
-      const table = el('table', 'table', '<thead><tr><th>Data</th><th>Produto</th><th>Tipo</th><th>Qtd</th><th>Motivo</th></tr></thead><tbody></tbody>');
+      const table = el('table', 'table', '<thead><tr><th>Data</th><th>Produto</th><th>Tipo</th><th>Qtd</th><th>Motivo</th><th></th></tr></thead><tbody></tbody>');
       const tb = table.querySelector('tbody');
-      const tipoLabel = { entrada: 'Entrada', saida: 'Saída', ajuste: 'Ajuste', venda: 'Venda', utilizado_servico: 'Usado em serviço' };
-      const tipoBadge = { entrada: 'badge-green', saida: 'badge-red', ajuste: 'badge-orange', venda: 'badge-cyan', utilizado_servico: 'badge-blue' };
+      const tipoLabel = { entrada: 'Entrada', saida: 'Saída', ajuste: 'Ajuste', venda: 'Venda', utilizado_servico: 'Usado em serviço', utilizacao: 'Usado em serviço', perda: 'Perda', devolucao: 'Devolução', transferencia: 'Transferência' };
+      const tipoBadge = { entrada: 'badge-green', saida: 'badge-red', ajuste: 'badge-orange', venda: 'badge-cyan', utilizado_servico: 'badge-blue', utilizacao: 'badge-blue', perda: 'badge-red', devolucao: 'badge-green' };
       hist.forEach((m) => {
         const tr = el('tr', '', '');
-        tr.innerHTML = `<td>${esc(fmtDateTime(m.data))}</td><td><b>${esc(m.produtoNome)}</b></td><td><span class="badge ${tipoBadge[m.tipo] || 'badge-gray'}">${esc(tipoLabel[m.tipo] || m.tipo)}</span></td><td><b>${m.tipo === 'entrada' || m.tipo === 'ajuste' ? '+' : '−'}${m.quantidade}</b></td><td class="text-muted">${esc(m.motivo || '—')}</td>`;
+        tr.innerHTML = `<td>${esc(fmtDateTime(m.data))}</td><td><b>${esc(m.produtoNome)}</b></td><td><span class="badge ${tipoBadge[m.tipo] || 'badge-gray'}">${esc(tipoLabel[m.tipo] || m.tipo)}</span></td><td><b>${m.quantidade > 0 && (m.tipo !== 'saida') ? '+' : ''}${m.quantidade}</b></td><td class="text-muted">${esc(m.motivo || '—')}</td><td style="text-align:right"><button class="btn btn-xs btn-ghost" data-del-mov="${m.id}" title="Excluir movimentação (reverte o saldo)">🗑</button></td>`;
         tb.appendChild(tr);
+        const delMov = tr.querySelector('[data-del-mov]');
+        if (delMov) delMov.addEventListener('click', () => {
+          const sinal = m.quantidade < 0 ? '−' + Math.abs(m.quantidade) : '+' + m.quantidade;
+          if (!confirm(`Excluir a movimentação "${tipoLabel[m.tipo] || m.tipo}" de "${m.produtoNome}" (${sinal})?\nO saldo do produto será REVERTIDO. Esta ação não pode ser desfeita.`)) return;
+          const r = O.estoque.excluir(m.id);
+          if (r.ok) { toast('Movimentação excluída.' + (r.saldo != null ? ' Saldo atualizado: ' + r.saldo + '.' : ''), 'success'); renderViewAtual(); }
+          else toast(r.message || 'Não foi possível excluir a movimentação.', 'danger');
+        });
       });
       box.appendChild(table);
     }
@@ -552,17 +563,19 @@ const NEITZEL_OPS_UI = (() => {
       ${sel('mv-tipo', 'Tipo', [
         ['entrada', 'Entrada (compra/recebimento)'],
         ['saida', 'Saída (venda/descarte)'],
-        ['ajuste', 'Ajuste de inventário'],
+        ['ajuste', 'Ajuste de inventário (aceita negativo)'],
       ], tipo === 'ajuste' ? 'ajuste' : 'entrada')}
-      ${field('mv-qtd', 'Quantidade', '1', 'number', 'min="1"')}
+      ${field('mv-qtd', tipo === 'ajuste' ? 'Quantidade (+ soma / − baixa)' : 'Quantidade', '1', 'number', tipo === 'ajuste' ? '' : 'min="1"')}
       ${field('mv-motivo', 'Motivo', '')}
     `, () => {
       const prodId = document.getElementById('mv-prod').value;
       const tipo = document.getElementById('mv-tipo').value;
       const qtd = Number(document.getElementById('mv-qtd').value) || 0;
       const motivo = document.getElementById('mv-motivo').value;
-      if (qtd <= 0) { toast('Quantidade inválida.', 'warn'); return; }
-      const r = O.estoque.registrar({ produtoId: prodId, quantidade: qtd, tipo, motivo });
+      if (qtd === 0 || (tipo !== 'ajuste' && qtd < 0)) { toast('Quantidade inválida.', 'warn'); return; }
+      // Ajuste aceita negativo para dar baixa de inventário; saída é sempre dedução.
+      const qtdFinal = tipo === 'saida' ? Math.abs(qtd) : qtd;
+      const r = O.estoque.registrar({ produtoId: prodId, quantidade: qtdFinal, tipo, motivo });
       if (r.ok) { toast('Movimentação registrada. Saldo: ' + r.saldo, 'success'); const modal = document.querySelector('.modal'); if (modal) modal.remove(); if (window.ECOMIM_APP) window.ECOMIM_APP.renderView('estoque'); }
       else toast(r.message || 'Erro ao registrar.', 'danger');
     });

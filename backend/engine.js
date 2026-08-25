@@ -10,6 +10,14 @@ function purgeExpired(db, agoraTs) {
   for (const h of db.holds) {
     if (h.status === 'active' && h.expiresAt <= agoraTs) { h.status = 'expired'; mudou = true; }
   }
+  // Poda de estados terminais antigos — antes holds mortos ficavam para sempre
+  // e o banco JSON só crescia.
+  const TTL_TERMINAL_MS = 7 * 24 * 60 * 60 * 1000;
+  const vivos = db.holds.filter((h) =>
+    h.status === 'active' ||
+    (agoraTs - new Date(h.criadoEm || 0).getTime()) < TTL_TERMINAL_MS
+  );
+  if (vivos.length !== db.holds.length) { mudou = true; db.holds = vivos; }
   return mudou;
 }
 
@@ -34,7 +42,13 @@ function temVaga(db, ymd, start, end, agoraTs, profId, excluirHoldId) {
   for (const a of db.appointments) {
     if (a.date !== ymd || !['confirmed', 'pending'].includes(a.status)) continue;
     if (profId && a.professionalId && a.professionalId !== profId) continue;
-    if (start < a.endMin && end > a.startMin) concorrentes++;
+    /* O fim OPERACIONAL do agendamento existente inclui o intervalo de
+       limpeza/deslocamento — antes só o hold respeitava isso e o
+       confirmado podia emendar com o próximo cliente. */
+    const serv = db.services.find((s) => s.id === a.serviceId);
+    const intervalo = Math.max(0, Number(serv && serv.intervaloMin != null ? serv.intervaloMin : db.config.intervaloPadraoMin) || 0);
+    const fimEfetivo = a.endMin + (Number.isInteger(a.endMin) ? intervalo : 0);
+    if (start < fimEfetivo && end > a.startMin) concorrentes++;
   }
   for (const h of db.holds) {
     if (!(h.status === 'active' && h.expiresAt > agoraTs && h.date === ymd)) continue;
@@ -56,6 +70,7 @@ function disponibilidade(db, servico, ymd, ctx) {
   const dur = Math.max(5, Number(servico.duracaoMin) || slot);
   const intervalo = Math.max(0, Number(servico.intervaloMin != null ? servico.intervaloMin : db.config.intervaloPadraoMin) || 0);
   const antMin = Number(db.config.antecedenciaMinMinutos) || 0;
+  const vistos = new Set(); // períodos sobrepostos não podem duplicar o mesmo slot
   for (const p of periodos) {
     for (let t = p.start; t + dur <= p.end; t += slot) {
       const fimOp = t + dur + intervalo;
@@ -64,6 +79,8 @@ function disponibilidade(db, servico, ymd, ctx) {
       if (ymd === ctx.hojeYmd && t < ctx.agoraMin + antMin) continue;
       if (bloqueadoPorHorario(db, ymd, t, fimOp)) continue;
       if (!temVaga(db, ymd, t, fimOp, ctx.agoraTs, null)) continue;
+      if (vistos.has(t)) continue;
+      vistos.add(t);
       out.slots.push({ start: t, end: t + dur, fimOperacional: fimOp });
     }
   }

@@ -74,7 +74,10 @@ if (typeof window.ECOMIM === 'undefined') {
           return { ok: false, code: 'PRODUTO_NAO_ENCONTRADO', message: 'Produto não encontrado' };
         }
         
-        if (produto.status !== 'ativo') {
+        // Bloqueia movimentação apenas para produtos desativados/arquivados.
+        // 'esgotado' é um estado automático de saldo baixo — DEVE aceitar
+        // entrada (reposição) e saída (venda), senão o produto "trava".
+        if (produto.status === 'inativo' || produto.status === 'arquivado') {
           return { ok: false, code: 'PRODUTO_INATIVO', message: 'Produto não está ativo' };
         }
         
@@ -156,6 +159,60 @@ if (typeof window.ECOMIM === 'undefined') {
         return { ok: true, movimento: item };
       },
       
+      /**
+       * Excluir DEFINITIVAMENTE uma movimentação do histórico e REVERTER
+       * o efeito dela no saldo do produto:
+       *  - entrada (+N) excluída → saldo volta a diminuir N
+       *  - saída/utilização/perda (−N) excluída → saldo volta a receber N
+       *  - ajuste → reverte o valor com sinal
+       * Bloqueia se a reversão deixaria o saldo negativo.
+       * @param {string} id - ID da movimentação
+       * @returns {Object} Resultado ({ ok, saldo } quando bem-sucedida)
+       */
+      excluirMovimento(id) {
+        const idx = this.movimentos.findIndex((m) => m.id === id);
+        if (idx === -1) return { ok: false, code: 'NOT_FOUND', message: 'Movimentação não encontrada' };
+
+        const mov = this.movimentos[idx];
+        const qtd = Number(mov.quantidade) || 0;
+        const produto = E.modules.produtos ? E.modules.produtos.getById(mov.produtoId) : null;
+
+        let saldoNovo = null;
+        if (produto && qtd !== 0) {
+          saldoNovo = Number(produto.estoqueAtual) - qtd; // reversão exata do efeito
+          if (saldoNovo < 0) {
+            return {
+              ok: false,
+              code: 'SALDO_FICARIA_NEGATIVO',
+              message: `Não é possível excluir: o saldo de "${produto.nome}" ficaria negativo (${saldoNovo}). Registre as baixas correspondentes primeiro.`
+            };
+          }
+          // Reverte pelo caminho oficial (valida, transiciona status e persiste)
+          const r = E.modules.produtos.update(produto.id, { estoqueAtual: saldoNovo });
+          if (!r.ok) {
+            return { ok: false, code: r.code || 'REVERSAO_FALHOU', message: r.message || ('Falha ao reverter o saldo (' + r.code + ').') };
+          }
+        }
+
+        const before = { ...mov };
+        this.movimentos.splice(idx, 1);
+        this.save();
+
+        if (E._internals.audit) {
+          E._internals.audit.record('estoque.movimento_excluido', 'estoque', before, null);
+        }
+
+        if (E._internals.eventBus) {
+          E._internals.eventBus.emit('estoque.movimento.excluido', {
+            movimentoId: id,
+            produtoId: mov.produtoId,
+            saldo: saldoNovo
+          });
+        }
+
+        return { ok: true, saldo: saldoNovo };
+      },
+
       /**
        * Registrar entrada de estoque (compra/recebimento)
        * @param {string} produtoId - ID do produto

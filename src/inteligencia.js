@@ -59,24 +59,26 @@ const NEITZEL_IA = (() => {
   async function buscarWeb(termo, limit = 5) {
     const q = encodeURIComponent(termo);
     try {
-      // HTML de busca do DuckDuckGo (funciona sem API key, com CORS liberado via servidor local)
-      const res = await fetch(`https://html.duckduckgo.com/html/?q=${q}`, {
-        headers: { 'Accept-Language': 'pt-BR,pt;q=0.8' },
+      // Busca via PROXY do backend local (/api/ia/search → DuckDuckGo IA +
+      // Wikipédia PT). A chamada direta ao html.duckduckgo.com nunca funciona
+      // do navegador: o endpoint não envia cabeçalhos CORS.
+      const base = (window.NEITZEL_API_BASE || '');
+      const res = await fetch(`${base}/api/ia/search?q=${q}`, {
+        headers: { 'Accept': 'application/json' },
       });
-      if (!res.ok) return { ok: false, motivo: 'http_' + res.status };
-      const html = await res.text();
-      const resultados = [];
-      const re = /<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)<\/a>[\s\S]*?<a[^>]*class="result__snippet"[^>]*>(.*?)<\/a>/g;
-      let m;
-      while ((m = re.exec(html)) !== null && resultados.length < limit) {
-        resultados.push({
-          titulo: m[2].replace(/<[^>]+>/g, '').trim(),
-          url: m[1].replace(/^\/\/duckduckgo\.com\/l\/\?uddg=/, '').replace(/&rut=.*$/, ''),
-          trecho: m[3].replace(/<[^>]+>/g, '').trim(),
-        });
+      if (!res.ok) {
+        if (res.status === 404) return { ok: false, motivo: 'sem_backend' };
+        return { ok: false, motivo: 'http_' + res.status };
       }
-      if (!resultados.length) return { ok: false, motivo: 'sem_resultados' };
-      return { ok: true, resultados };
+      const data = await res.json();
+      if (!data || data.ok !== true) return { ok: false, motivo: 'sem_resultados' };
+      const resultados = (data.fontes || []).slice(0, limit).map((f) => ({
+        titulo: f.titulo || f.url || 'Resultado',
+        url: f.url || '',
+        trecho: (f.trecho || f.titulo || '').replace(/<[^>]+>/g, '').trim(),
+      })).filter((r) => r.trecho || r.url);
+      if (!resultados.length && !data.texto) return { ok: false, motivo: 'sem_resultados' };
+      return { ok: true, resultados, texto: String(data.texto || '') };
     } catch (e) {
       return { ok: false, motivo: 'erro', erro: e.message };
     }
@@ -95,12 +97,13 @@ const NEITZEL_IA = (() => {
     const precisaWeb = !/(lead|cliente|tarefa|venda|financeiro|estoque|lucro|agenda|atendimento|produto|serviço)/i.test(pergunta);
     if (precisaWeb) {
       const b = await buscarWeb(pergunta);
-      if (b.ok && b.resultados.length) {
+      if (b.ok && (b.resultados.length || b.texto)) {
+        const resumo = b.texto ? `Resumo da busca:\n${b.texto}` : '';
         const trechos = b.resultados.slice(0, 3).map((r, i) => `${i + 1}. ${r.titulo} — ${r.trecho} (Fonte: ${r.url})`).join('\n');
-        partes.push(`Encontrei esta informação na web:\n${trechos}`);
+        partes.push(`Encontrei esta informação na web:\n${[resumo, trechos].filter(Boolean).join('\n')}`);
         origem.buscado = b.resultados.length;
       } else {
-        partes.push('Não consegui buscar informações externas agora (a busca depende de conexão). Posso responder sobre seus dados internos. Se preferir, informe o que precisa com mais detalhes.');
+        partes.push('Não consegui buscar informações externas agora (a busca depende de conexão com o backend local). Posso responder sobre seus dados internos. Se preferir, informe o que precisa com mais detalhes.');
       }
     }
 
@@ -123,7 +126,7 @@ const NEITZEL_IA = (() => {
       const d = E.db.get();
       const fin = E.modules.financeiro.saldo();
       const hoje = new Date().toISOString().slice(0, 10);
-      const leadsHoje = d.leads.filter((l) => (l.criadoEm || '').slice(0, 10) === hoje).length;
+      const leadsHoje = d.leads.filter((l) => ((l.created || l.criadoEm || '') + '').slice(0, 10) === hoje).length;
 
       if (p.includes('lead')) {
         const atrasados = E.modules.tarefas.atrasadas().length;

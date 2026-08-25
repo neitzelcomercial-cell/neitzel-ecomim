@@ -21,8 +21,109 @@ function inicializarIntegracao() {
   
   const E = window.ECOMIM;
   const O = window.NEITZEL_OPS;
-  
+
   console.log('Iniciando integração entre ECOMIM e NEITZEL_OPS...');
+
+  /* ============================================
+   * MIGRAÇÃO ÚNICA: dados legados (neitzel_*) → módulos ECOMIM
+   * Antes desta correção, metade do sistema gravava em neitzel_* e a
+   * outra metade lia de ecomim_* — exclusões "não funcionavam" porque o
+   * item era apagado numa loja enquanto a tela lia da outra.
+   * ============================================ */
+  function migrarLegado() {
+    const FLAG = 'ecomim_migracao_legado_v1';
+    if (E._internals && E._internals.storage && E._internals.storage.get(FLAG) === 'ok') return;
+    try {
+      const now = (E.nowISO ? E.nowISO() : new Date().toISOString());
+
+      // Serviços legados → ECOMIM (preço/custo já em centavos; duracaoMin → duracao)
+      const legServ = JSON.parse(localStorage.getItem('neitzel_servicos_v1') || '[]');
+      if (Array.isArray(legServ) && legServ.length) {
+        const ids = new Set(E.modules.servicos.servicos.map((s) => s.id));
+        legServ.forEach((s) => {
+          if (!s || !s.id || ids.has(s.id)) return;
+          E.modules.servicos.servicos.push({
+            ...s,
+            preco: Number(s.preco) || 0,
+            custo: Number(s.custo) || 0,
+            duracao: s.duracao != null ? s.duracao : (s.duracaoMin || 60),
+            created: s.created || s.criadoEm || now,
+            updated: s.updated || null
+          });
+        });
+        E.modules.servicos.save();
+      }
+
+      // Produtos legados → ECOMIM (mesmo esquema de campos)
+      const legProd = JSON.parse(localStorage.getItem('neitzel_produtos_v1') || '[]');
+      if (Array.isArray(legProd) && legProd.length) {
+        const ids = new Set(E.modules.produtos.produtos.map((p) => p.id));
+        legProd.forEach((p) => {
+          if (!p || !p.id || ids.has(p.id)) return;
+          E.modules.produtos.produtos.push({
+            ...p,
+            custo: Number(p.custo) || 0,
+            preco: Number(p.preco) || 0,
+            estoqueAtual: Math.max(0, Number(p.estoqueAtual) || 0),
+            estoqueMinimo: Math.max(0, Number(p.estoqueMinimo) || 0),
+            created: p.created || p.criadoEm || now,
+            updated: p.updated || null
+          });
+        });
+        E.modules.produtos.save();
+      }
+
+      // Movimentações de estoque legadas → ECOMIM (data → timestamp; qtd positiva)
+      const legMov = JSON.parse(localStorage.getItem('neitzel_estoque_mov_v1') || '[]');
+      if (Array.isArray(legMov) && legMov.length) {
+        const ids = new Set(E.modules.estoque.movimentos.map((m) => m.id));
+        legMov.forEach((m) => {
+          if (!m || !m.id || ids.has(m.id)) return;
+          const ts = m.data || m.timestamp || now;
+          const tipo = m.tipo === 'venda' ? 'saida'
+            : m.tipo === 'utilizado_servico' ? 'utilizacao' : (m.tipo || 'ajuste');
+          E.modules.estoque.movimentos.push({
+            ...m,
+            tipo,
+            quantidade: tipo === 'ajuste' ? (Number(m.quantidade) || 0)
+              : (tipo === 'entrada' || tipo === 'devolucao' ? Math.abs(Number(m.quantidade) || 0)
+                : -Math.abs(Number(m.quantidade) || 0)),
+            timestamp: ts,
+            created: ts
+          });
+        });
+        E.modules.estoque.save();
+      }
+
+      if (E._internals.storage) E._internals.storage.set(FLAG, 'ok');
+      console.log('✓ Migração de dados legados concluída');
+    } catch (e) {
+      console.warn('Migração legada falhou (seguindo sem bloquear):', e);
+    }
+  }
+  migrarLegado();
+
+  /* Normalizações de esquema entre os dois mundos */
+  const toCentavos = (v) => {
+    const n = Number(v);
+    return isNaN(n) || n <= 0 ? 0 : Math.round(n * 100);
+  };
+  const servicoOut = (s) => {
+    if (!s) return s;
+    return Object.assign({}, s, { duracaoMin: s.duracaoMin != null ? s.duracaoMin : (s.duracao || 60) });
+  };
+  const movOut = (m) => ({
+    id: m.id,
+    produtoId: m.produtoId,
+    produtoNome: m.produtoNome,
+    tipo: m.tipo === 'utilizacao' ? 'utilizado_servico' : m.tipo,
+    quantidade: ['saida', 'utilizacao', 'perda'].includes(m.tipo) ? Math.abs(Number(m.quantidade) || 0)
+      : ['entrada', 'devolucao'].includes(m.tipo) ? Math.abs(Number(m.quantidade) || 0)
+      : (Number(m.quantidade) || 0),
+    motivo: m.motivo || '',
+    referencia: m.referencia || null,
+    data: m.timestamp || m.created || m.data || null
+  });
   
   /* ============================================
    * INTEGRAÇÃO DO MÓDULO DE SERVIÇOS
@@ -30,64 +131,65 @@ function inicializarIntegracao() {
   
   if (E.modules.servicos && O.servicos) {
     console.log('Integrando módulo de serviços...');
-    
+
     // Sobrescrever/adicionar métodos ao O.servicos
     Object.assign(O.servicos, {
       // Métodos básicos de CRUD
       list: function(filters = {}) {
-        return E.modules.servicos.search(filters);
+        return E.modules.servicos.search(filters).map(servicoOut);
       },
-      
+
       add: function(servico) {
-        // Converter preços para centavos se necessário
+        // A UI sempre envia valores em REAIS — converter para centavos.
         const servicoConvertido = { ...servico };
-        
-        if (servicoConvertido.preco && servicoConvertido.preco > 0 && servicoConvertido.preco < 1000) {
-          // Assume que está em reais (ex: 500 = R$ 500,00) e converte para centavos
-          servicoConvertido.preco = Math.round(servicoConvertido.preco * 100);
+        servicoConvertido.preco = toCentavos(servicoConvertido.preco);
+        servicoConvertido.custo = toCentavos(servicoConvertido.custo);
+        if (servicoConvertido.duracaoMin !== undefined) {
+          servicoConvertido.duracao = Number(servicoConvertido.duracaoMin) || 60;
+          delete servicoConvertido.duracaoMin;
         }
-        
-        if (servicoConvertido.custo && servicoConvertido.custo > 0 && servicoConvertido.custo < 1000) {
-          servicoConvertido.custo = Math.round(servicoConvertido.custo * 100);
-        }
-        
         return E.modules.servicos.add(servicoConvertido);
       },
-      
+
       update: function(id, patch) {
-        // Converter preços para centavos se necessário
         const patchConvertido = { ...patch };
-        
-        if (patchConvertido.preco !== undefined && patchConvertido.preco > 0 && patchConvertido.preco < 1000) {
-          patchConvertido.preco = Math.round(patchConvertido.preco * 100);
+        if (patchConvertido.preco !== undefined) patchConvertido.preco = toCentavos(patchConvertido.preco);
+        if (patchConvertido.custo !== undefined) patchConvertido.custo = toCentavos(patchConvertido.custo);
+        if (patchConvertido.duracaoMin !== undefined) {
+          patchConvertido.duracao = Number(patchConvertido.duracaoMin) || 60;
+          delete patchConvertido.duracaoMin;
         }
-        
-        if (patchConvertido.custo !== undefined && patchConvertido.custo > 0 && patchConvertido.custo < 1000) {
-          patchConvertido.custo = Math.round(patchConvertido.custo * 100);
-        }
-        
         return E.modules.servicos.update(id, patchConvertido);
       },
-      
+
+      /** Exclusão REAL: remove o item da loja ECOMIM e persiste. */
       remove: function(id) {
-        return E.modules.servicos.remove(id);
+        return E.modules.servicos.excluir(id);
       },
-      
+      excluir: function(id) {
+        return E.modules.servicos.excluir(id);
+      },
+
       // Métodos auxiliares
       get: function(id) {
-        return E.modules.servicos.getById(id);
+        return servicoOut(E.modules.servicos.getById(id));
       },
-      
+
       margem: function(servico) {
         if (!servico) return 0;
         const preco = servico.preco || 0;
         const custo = servico.custo || 0;
         return preco > 0 ? Math.round(((preco - custo) / preco) * 100) : 0;
       },
-      
+
+      // Métodos legados do motor (antes apontavam para a loja errada)
+      ativos: function() {
+        return E.modules.servicos.getAtivos().map(servicoOut);
+      },
+
       // Novos métodos adicionados
       getAtivos: function() {
-        return E.modules.servicos.getAtivos();
+        return E.modules.servicos.getAtivos().map(servicoOut);
       },
       
       getEstatisticas: function() {
@@ -108,56 +210,53 @@ function inicializarIntegracao() {
   
   if (E.modules.produtos && O.produtos) {
     console.log('Integrando módulo de produtos...');
-    
+
     Object.assign(O.produtos, {
       // Métodos básicos de CRUD
       list: function(filters = {}) {
         return E.modules.produtos.search(filters);
       },
-      
+
       add: function(produto) {
-        // Converter preços para centavos se necessário
+        // A UI sempre envia valores em REAIS — converter para centavos.
         const produtoConvertido = { ...produto };
-        
-        if (produtoConvertido.preco && produtoConvertido.preco > 0 && produtoConvertido.preco < 1000) {
-          produtoConvertido.preco = Math.round(produtoConvertido.preco * 100);
-        }
-        
-        if (produtoConvertido.custo && produtoConvertido.custo > 0 && produtoConvertido.custo < 1000) {
-          produtoConvertido.custo = Math.round(produtoConvertido.custo * 100);
-        }
-        
+        produtoConvertido.preco = toCentavos(produtoConvertido.preco);
+        produtoConvertido.custo = toCentavos(produtoConvertido.custo);
         return E.modules.produtos.add(produtoConvertido);
       },
-      
+
       update: function(id, patch) {
-        // Converter preços para centavos se necessário
         const patchConvertido = { ...patch };
-        
-        if (patchConvertido.preco !== undefined && patchConvertido.preco > 0 && patchConvertido.preco < 1000) {
-          patchConvertido.preco = Math.round(patchConvertido.preco * 100);
-        }
-        
-        if (patchConvertido.custo !== undefined && patchConvertido.custo > 0 && patchConvertido.custo < 1000) {
-          patchConvertido.custo = Math.round(patchConvertido.custo * 100);
-        }
-        
+        if (patchConvertido.preco !== undefined) patchConvertido.preco = toCentavos(patchConvertido.preco);
+        if (patchConvertido.custo !== undefined) patchConvertido.custo = toCentavos(patchConvertido.custo);
         return E.modules.produtos.update(id, patchConvertido);
       },
-      
-      remove: function(id) {
-        return E.modules.produtos.remove(id);
+
+      /** Exclusão REAL (antes gravava na loja legada e a linha nunca sumia). */
+      excluir: function(id) {
+        return E.modules.produtos.excluir(id);
       },
-      
+      remove: function(id) {
+        return E.modules.produtos.excluir(id);
+      },
+
       // Métodos auxiliares
       get: function(id) {
         return E.modules.produtos.getById(id);
       },
-      
+
       getBySku: function(sku) {
         return E.modules.produtos.getBySku(sku);
       },
-      
+
+      // Métodos legados do motor (antes apontavam para a loja errada)
+      ativos: function() {
+        return E.modules.produtos.getAtivos();
+      },
+      estoqueBaixo: function() {
+        return E.modules.produtos.getEstoqueBaixo();
+      },
+
       // Novos métodos adicionados
       getAtivos: function() {
         return E.modules.produtos.getAtivos();
@@ -189,8 +288,44 @@ function inicializarIntegracao() {
   
   if (E.modules.estoque && O.estoque) {
     console.log('Integrando módulo de estoque...');
-    
+
     Object.assign(O.estoque, {
+      /** Registro unificado: aceita os tipos do motor legado e delega ao módulo
+        * ECOMIM (mesma loja que a UI lê). Sem isso, "Finalizar atendimento" e
+        * "Registrar movimentação" gravavam num lugar e a tela lia de outro. */
+      registrar: function(input) {
+        const tipoMap = { venda: 'saida', utilizado_servico: 'utilizacao', perda: 'perda' };
+        const tipo = tipoMap[input.tipo] || input.tipo;
+        let qtd = Number(input.quantidade) || 0;
+        // Motor legado usava quantidade POSITIVA para saída/venda/uso
+        if (tipo === 'saida' || tipo === 'utilizacao') qtd = -Math.abs(qtd);
+        const r = E.modules.estoque.registrarMovimento({
+          produtoId: input.produtoId,
+          tipo,
+          quantidade: qtd,
+          motivo: input.motivo || '',
+          referencia: input.referencia || null,
+          metadata: input.metadata || {}
+        });
+        if (!r.ok) return r;
+        return { ok: true, mov: movOut(r.movimento), saldo: r.movimento.estoqueAtual };
+      },
+
+      historico: function(produtoId, limit = 120) {
+        const all = produtoId
+          ? E.modules.estoque.getHistoricoProduto(produtoId, limit)
+          : E.modules.estoque.getRecentes(limit);
+        return all.map(movOut);
+      },
+
+      /** Exclui a movimentação e reverte o saldo do produto. */
+      excluir: function(id) {
+        return E.modules.estoque.excluirMovimento(id);
+      },
+      excluirMovimento: function(id) {
+        return E.modules.estoque.excluirMovimento(id);
+      },
+
       // Métodos básicos
       movimentar: function(movimento) {
         return E.modules.estoque.registrarMovimento(movimento);
@@ -210,7 +345,7 @@ function inicializarIntegracao() {
       
       // Métodos de consulta
       list: function(filters = {}) {
-        return E.modules.estoque.search(filters);
+        return E.modules.estoque.search(filters).map(movOut);
       },
       
       getHistoricoProduto: function(produtoId, limite = 50) {

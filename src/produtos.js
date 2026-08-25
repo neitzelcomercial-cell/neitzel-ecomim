@@ -265,6 +265,31 @@ if (typeof window.ECOMIM === 'undefined') {
       },
       
       /**
+       * Excluir produto DEFINITIVAMENTE (remove da lista e persiste).
+       * Histórico de estoque/atendimentos permanece (dados denormalizados por nome).
+       * @param {string} id - ID do produto
+       * @returns {Object} Resultado da operação
+       */
+      excluir(id) {
+        const idx = this.produtos.findIndex((p) => p.id === id);
+        if (idx === -1) return { ok: false, code: 'NOT_FOUND' };
+
+        const before = { ...this.produtos[idx] };
+        this.produtos.splice(idx, 1);
+        this.save();
+
+        if (E._internals.audit) {
+          E._internals.audit.record('produto.excluido', 'produtos', before, null);
+        }
+
+        if (E._internals.eventBus) {
+          E._internals.eventBus.emit('produto.deleted', { produtoId: id });
+        }
+
+        return { ok: true };
+      },
+
+      /**
        * Buscar produtos com filtros
        * @param {Object} filters - Filtros de busca
        * @returns {Array} Lista de produtos filtrados
@@ -358,7 +383,9 @@ if (typeof window.ECOMIM === 'undefined') {
         const produto = this.getById(produtoId);
         if (!produto) return { ok: false, code: 'PRODUTO_NAO_ENCONTRADO' };
         
-        if (produto.status !== 'ativo') {
+        // 'esgotado' é estado automático de saldo baixo — deve aceitar movimento
+        // (reposição/venda), senão o produto fica travado. Bloqueia só desativados.
+        if (produto.status === 'inativo' || produto.status === 'arquivado') {
           return { ok: false, code: 'PRODUTO_INATIVO', message: 'Produto não está ativo' };
         }
         

@@ -10,10 +10,12 @@ const sseClients = new Set();
 
 function broadcast(tipo, payload) {
   const msg = 'event: changed\ndata: ' + JSON.stringify({ tipo, payload, t: Date.now() }) + '\n\n';
-  for (const res of sseClients) { try { res.write(msg); } catch (e) { /* ignora */ } }
+  for (const res of sseClients) { try { res.write(msg); } catch (e) { sseClients.delete(res); } }
 }
 
 function handleSSE(res) {
+  // Erros de stream (conexão abortada) não podem virar uncaughtException
+  res.on('error', () => sseClients.delete(res));
   res.writeHead(200, {
     'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store',
     'Connection': 'keep-alive', 'Access-Control-Allow-Origin': '*'
@@ -22,6 +24,16 @@ function handleSSE(res) {
   sseClients.add(res);
   res.on('close', () => sseClients.delete(res));
 }
+
+// Heartbeat: mantém proxies/NAT de derrubar a conexão parada e limpa
+// clientes zumbis cujo socket já morreu sem disparar 'close'.
+setInterval(() => {
+  for (const res of sseClients) {
+    try {
+      if (res.write(': ping\n\n') === false) sseClients.delete(res);
+    } catch (e) { sseClients.delete(res); }
+  }
+}, 25000).unref();
 
 /** Ponto de entrada. `body` já é objeto (ou null). Retorna true se tratou. */
 function handle(req, res, url, body, ip) {
@@ -48,13 +60,19 @@ function handle(req, res, url, body, ip) {
     const s = api.servicoPublico(db, sid);
     if (!s) return api.errJson(res, 404, 'SERVICO_INVALIDO'), true;
     if (!T.isValidYmd(ymd)) return api.errJson(res, 400, 'DATA_INVALIDA'), true;
-    engine.purgeExpired(db, Date.now());
+    // (a limpeza de holds expirados roda na varredura periódica do servidor;
+    //  temVaga já ignora holds expirados — mutar aqui fora da transação
+    //  gravaria o banco sem save e violava o invariant do store)
     const ctx = api.ctxAgora(db);
     return api.json(res, 200, engine.disponibilidade(db, s, ymd, ctx)), true;
   }
 
   /* ---------- PÚBLICO: escrita (rate-limited) ---------- */
-  const escrita = url.pathname.startsWith('/api/public/hold') || url.pathname === '/api/public/appointments';
+  // Cancelamento é ESCRITA: antes caía no balde de leitura (240/min), o que
+  // permitia força-bruta dos 4 dígitos do telefone.
+  const escrita = url.pathname.startsWith('/api/public/hold')
+    || url.pathname === '/api/public/appointments'
+    || /^\/api\/public\/appointments\/[^/]+\/cancel$/.test(url.pathname);
   if (!api.rateLimit(ip, escrita ? 40 : 240)) return api.errJson(res, 429, 'MUITAS_REQUISICOES'), true;
 
   if (rota === 'POST /api/public/holds') {
@@ -74,7 +92,9 @@ function handle(req, res, url, body, ip) {
       h.status = 'released';
       store.audit('hold.liberado', { holdId: id });
       return { ok: true };
-    }).then((r) => { if (r.ok) broadcast('release', {}); api.json(res, r.ok ? 200 : 404, r); }).catch(() => {});
+    }).then((r) => { if (r.ok) broadcast('release', {}); api.json(res, r.ok ? 200 : 404, r); })
+      // Antes o erro era engolido (.catch(() => {})) e a requisição ficava pendente para sempre
+      .catch((e) => api.errJson(res, 500, 'ERRO_INTERNO', e.message));
     return true;
   }
 
@@ -143,12 +163,14 @@ function handle(req, res, url, body, ip) {
     if (rota === 'GET /api/admin/audit') return api.json(res, 200, api.rotasAdmin[rota](db)), true;
 
     const mut = api.adminMutacao;
+    // Broadcast só quando a mutação TEM sucesso — antes falhas de validação
+    // também disparavam o evento e faziam os clientes recarregarem à toa.
     if (rota === 'PUT /api/admin/config') {
-      store.transact((d) => mut(d, 'put-config', body)).then((r) => { broadcast('config', {}); api.json(res, r.ok ? 200 : 400, r); }).catch((e) => api.errJson(res, 500, 'ERRO_INTERNO', e.message));
+      store.transact((d) => mut(d, 'put-config', body)).then((r) => { if (r.ok) broadcast('config', {}); api.json(res, r.ok ? 200 : 400, r); }).catch((e) => api.errJson(res, 500, 'ERRO_INTERNO', e.message));
       return true;
     }
     if (rota === 'PUT /api/admin/schedule') {
-      store.transact((d) => mut(d, 'put-schedule', body)).then((r) => { broadcast('schedule', {}); api.json(res, r.ok ? 200 : 400, r); }).catch((e) => api.errJson(res, 500, 'ERRO_INTERNO', e.message));
+      store.transact((d) => mut(d, 'put-schedule', body)).then((r) => { if (r.ok) broadcast('schedule', {}); api.json(res, r.ok ? 200 : 400, r); }).catch((e) => api.errJson(res, 500, 'ERRO_INTERNO', e.message));
       return true;
     }
     if (req.method === 'POST' && /^\/api\/admin\/(blockedDates|blockedTimes|specialHours)$/.test(url.pathname)) {
@@ -167,14 +189,14 @@ function handle(req, res, url, body, ip) {
       return true;
     }
     if (rota === 'POST /api/admin/sync-catalog') {
-      store.transact((d) => api.syncCatalogo(d, body || {})).then((r) => { broadcast('catalogo', {}); api.json(res, 200, r); }).catch((e) => api.errJson(res, 500, 'ERRO_INTERNO', e.message));
+      store.transact((d) => api.syncCatalogo(d, body || {})).then((r) => { if (r.ok) broadcast('catalogo', {}); api.json(res, 200, r); }).catch((e) => api.errJson(res, 500, 'ERRO_INTERNO', e.message));
       return true;
     }
     if (rota === 'POST /api/admin/publicar-portal') {
       api.publicarPortal(db, body || {}).then((r) => {
         if (r.ok) broadcast('publicacao', { url: r.url });
         api.json(res, r.ok ? 200 : 400, r);
-      });
+      }).catch((e) => api.errJson(res, 500, 'ERRO_INTERNO', e && e.message));
       return true;
     }
     if (req.method === 'PATCH' && /^\/api\/admin\/appointments\/[^/]+\/status$/.test(url.pathname)) {

@@ -256,13 +256,19 @@ async function etapaHorario() {
     '</div><div class="erro-box"></div></div>';
   try {
     if (!esRef && !REMOTO) { esRef = new EventSource(API+'/api/events'); }
-    if (esRef) esRef.addEventListener('changed', async ()=>{
-      const nova = await buscar();
-      fluxo.querySelectorAll('[data-slots] .chip').forEach((c)=>{
-        const t = Number(c.dataset.t);
-        c.disabled = !(nova.slots||[]).some((s)=>s.start===t) && t!==S.time;
-      });
-    });
+    if (esRef) {
+      // Um único handler por conexão: antes cada visita à etapa 3 ADICIONAVA
+      // outro listener à mesma conexão (N handlers re-buscando em paralelo).
+      if (esRef._handlerSlots) esRef.removeEventListener('changed', esRef._handlerSlots);
+      esRef._handlerSlots = async ()=>{
+        const nova = await buscar();
+        fluxo.querySelectorAll('[data-slots] .chip').forEach((c)=>{
+          const t = Number(c.dataset.t);
+          c.disabled = !(nova.slots||[]).some((s)=>s.start===t) && t!==S.time;
+        });
+      };
+      esRef.addEventListener('changed', esRef._handlerSlots);
+    }
   } catch(e){}
   fluxo.querySelectorAll('[data-t]').forEach((b)=>b.addEventListener('click', async ()=>{
     b.disabled = true;

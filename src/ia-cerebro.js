@@ -91,17 +91,23 @@ window.NEITZEL_CEREBRO = (() => {
     const D = dados();
     const hj = hojeYmd(), mes = hj.slice(0,7);
     const ativos = D.atendimentos.filter((a)=>a.status!=='cancelado');
-    const hoje_ = ativos.filter((a)=>String(a.inicio||'').slice(0,10)===hj);
+    const hoje_ = ativos.filter((a)=>{ const d=new Date(a.inicio); return isNaN(d.getTime())?false:(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'))===hj; });
     const conclMes = ativos.filter((a)=>a.status==='concluido' && String(a.inicio||'').slice(0,7)===mes);
     const valorAt = (a)=> (Number(a.servicoPreco)||0) + (a.itensProdutos||[]).reduce((s,it)=>s+(Number(it.precoUnitario)||0)*(it.quantidade||1),0);
     const receitaMes = receitaTotal(conclMes.map(valorAt));
     const ticketMedio = conclMes.length ? receitaMes/conclMes.length : 0;
     const proximo = hoje_.filter((a)=>['agendado','confirmado'].includes(a.status))
       .sort((a,b)=>String(a.inicio).localeCompare(String(b.inicio)))[0];
-    const estBaixo = D.produtos.filter((p)=>{
-      const q = Number(p.estoque != null ? p.estoque : p.quantidade != null ? p.quantidade : 99);
-      return q <= Number(p.estoqueMinimo != null ? p.estoqueMinimo : 5);
-    });
+    const estBaixo = (() => {
+      // Preferir o cálculo oficial do motor operacional (mesmos campos da UI)
+      if (ops.produtos && typeof ops.produtos.estoqueBaixo === 'function') {
+        try { return ops.produtos.estoqueBaixo(); } catch (e) { /* segue abaixo */ }
+      }
+      return D.produtos.filter((p)=>{
+        const q = Number(p.estoqueAtual != null ? p.estoqueAtual : 0);
+        return q <= Number(p.estoqueMinimo != null ? p.estoqueMinimo : 0) && p.status !== 'inativo';
+      });
+    })();
     const svSemDuracao = D.servicos.filter((s)=>s.status!=='inativo' && !(Number(s.duracaoMin)>0));
     return { D, hj, mes, hoje_, conclMes, receitaMes, ticketMedio, proximo, estBaixo, svSemDuracao };
   }
@@ -339,8 +345,12 @@ window.NEITZEL_CEREBRO = (() => {
       // 3) ação: abrir tela
       const querAbrir = TIPOS.abrir.re.test(frase);
       if (querAbrir) {
-        const alvo = ctx.tokens.map((tk)=>({ planner:'planner', tarefas:'tarefas', tarefa:'tarefas', dashboard:'dashboard', financeiro:'financeiro', clientes:'clientes', cliente:'clientes', leads:'leads', servicos:'servicos', servico:'servicos', produtos:'produtos', produto:'produtos', estoque:'estoque', portal:'portal', agenda:'agenda', bi:'bi', memoria:'memoria', suporte:'seguranca', diagnostico:'seguranca', seguranca:'seguranca', configuracoes:'config', funil:'funil', estrategia:'estrategia', cenario:'estrategia', projetos:'projetos', marketing:'marketing', rh:'rh', inteligencia:'inteligencia', automacoes:'automacoes', comunicacao:'comunicacao', acessor:'acessor' })[tk]).find(Boolean)
-          || ({ 'portal do cliente':'portal' }[frase]);
+        // Portal do Cliente abre em nova aba (não é uma view interna)
+        if (/portal/.test(frase)) {
+          const url = (window.NEITZEL_API_BASE || '') + '/agendamento';
+          return { texto:'Abrindo o **Portal do Cliente** em uma nova aba…', acao: () => { try { window.open(url, '_blank'); } catch (e) {} } };
+        }
+        const alvo = ctx.tokens.map((tk)=>({ planner:'planner', tarefas:'tarefas', tarefa:'tarefas', dashboard:'dashboard', financeiro:'financeiro', clientes:'clientes', cliente:'clientes', leads:'leads', servicos:'servicos', servico:'servicos', produtos:'produtos', produto:'produtos', estoque:'estoque', agenda:'agenda', bi:'bi', memoria:'memoria', suporte:'seguranca', diagnostico:'seguranca', seguranca:'seguranca', configuracoes:'config', funil:'funil', estrategia:'estrategia', cenario:'estrategia', projetos:'projetos', marketing:'marketing', rh:'rh', inteligencia:'inteligencia' })[tk]).find(Boolean);
         if (alvo) {
           return { texto:`Abrindo **${alvo}** para você…`, acao: acaoNavegar(alvo) };
         }
@@ -360,7 +370,8 @@ window.NEITZEL_CEREBRO = (() => {
             return { texto:`Você tem **${m.D.leads.length} lead(s)** no CRM.`, acao: null };
           }
           if (/atendimento|planner|agenda/.test(topico)) {
-            return { texto: m.hoje_.length ? `**${m.hoje_.length} atendimento(s) hoje:**\n${m.hoje_.slice(0,8).map((a)=>`• ${String(a.inicio).slice(11,16)} — ${a.cliente} (${a.servicoNome||'—'})`).join('\n')}` : 'Nenhum atendimento agendado para hoje.', acao:null };
+            const horaLocal = (iso) => { const d = new Date(iso); return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); };
+            return { texto: m.hoje_.length ? `**${m.hoje_.length} atendimento(s) hoje:**\n${m.hoje_.slice(0,8).map((a)=>`• ${horaLocal(a.inicio)} — ${a.cliente} (${a.servicoNome||'—'})`).join('\n')}` : 'Nenhum atendimento agendado para hoje.', acao:null };
           }
           if (/cliente/.test(topico)) return { texto:`**${m.D.clientesCore.length} cliente(s)** cadastrados.`, acao:null };
           if (/financeiro|receita|faturamento|lucro/.test(topico)) {

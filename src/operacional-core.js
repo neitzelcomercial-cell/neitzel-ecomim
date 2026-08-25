@@ -513,11 +513,15 @@ const NEITZEL_OPS = (() => {
       return this.list().filter((a) => String(a.cliente).toLowerCase().includes(String(cliente).toLowerCase()));
     },
     stats() {
-      const hoje = new Date().toISOString().slice(0, 10);
-      const mes = hoje.slice(0, 7);
+      /* Data LOCAL (não UTC): `inicio` é ISO/UTC e fatiar a string deslocava
+         atendimentos noturnos (21h+ no BRT) para o dia seguinte. */
+      const agora = new Date();
+      const hojeLocal = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}-${String(agora.getDate()).padStart(2, '0')}`;
       const l = this.list();
+      const localYmd = (iso) => { const d = new Date(iso); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+      const mes = hojeLocal.slice(0, 7);
       return {
-        hoje: l.filter((a) => (a.inicio || '').slice(0, 10) === hoje).length,
+        hoje: l.filter((a) => localYmd(a.inicio) === hojeLocal).length,
         concluidos: l.filter((a) => a.status === 'concluido' && (a.inicio || '').slice(0, 7) === mes).length,
         pendentes: l.filter((a) => ['agendado', 'confirmado', 'em_andamento'].includes(a.status)).length,
       };

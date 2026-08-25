@@ -2477,7 +2477,9 @@ function renderAgenda(c) {
     `);
     const rmBtn = item.querySelector('[data-remove]');
     if (rmBtn) rmBtn.addEventListener('click', () => {
+      if (!confirm(`Remover o evento "${ev.titulo || 'sem título'}"?\nEsta ação não pode ser desfeita.`)) return;
       E.modules.agenda.remove(ev.id);
+      toast('Evento removido', 'info');
       renderAgenda(document.querySelector('.ecomim-content'));
     });
     list.appendChild(item);
@@ -2592,7 +2594,7 @@ function renderFinanceiro(c) {
   if (tbody2) {
     E.modules.financeiro.contas.sort((a, b) => new Date(a.vencimento) - new Date(b.vencimento)).forEach((co) => {
       const tr = el('tr', '', '');
-      tr.innerHTML = `<td><b>${esc(co.descricao || '—')}</b></td><td>${co.tipo === 'receber' ? ' Receber' : ' Pagar'}</td><td>${E.fmtDate(co.vencimento)}</td><td>${E.fmtMoney(co.valor)}</td><td><span class="badge badge-${co.status === 'pago' ? 'green' : 'orange'}">${co.status}</span></td><td><button class="btn btn-xs" data-pagar>${co.status === 'pago' ? '—' : 'Marcar pago'}</button></td>`;
+      tr.innerHTML = `<td><b>${esc(co.descricao || '—')}</b></td><td>${co.tipo === 'receber' ? ' Receber' : ' Pagar'}</td><td>${E.fmtDate(co.vencimento)}</td><td>${E.fmtMoney(co.valor)}</td><td><span class="badge badge-${co.status === 'pago' ? 'green' : 'orange'}">${co.status}</span></td><td style="white-space:nowrap"><button class="btn btn-xs" data-pagar ${co.status === 'pago' ? 'disabled title="Já pago"' : ''}>${co.status === 'pago' ? 'Pago ✓' : 'Marcar pago'}</button> <button class="btn btn-xs btn-ghost" data-remover-conta="${co.id}" title="Excluir conta">🗑</button></td>`;
       const pagarBtn = tr.querySelector('[data-pagar]');
       if (pagarBtn) pagarBtn.addEventListener('click', () => {
         if (co.status !== 'pago') {
@@ -2602,6 +2604,13 @@ function renderFinanceiro(c) {
           const s2 = E.modules.financeiro.saldo();
           inlineInsight(` Movimentação registrada: **${co.descricao || 'conta'}** (${E.fmtMoney(co.valor)}).\nNovo saldo do caixa: **${E.fmtMoney(s2.saldo)}** · A receber: **${E.fmtMoney(s2.aReceber)}** · A pagar: **${E.fmtMoney(s2.aPagar)}**.\nDica: ${s2.aPagar > 0 ? `há ${E.modules.financeiro.vencidas().length} conta(s) vencida(s) para regularizar.` : 'sem contas vencidas no momento. Continue acompanhando o fluxo de caixa.'}`);
         }
+      });
+      const removerBtn = tr.querySelector('[data-remover-conta]');
+      if (removerBtn) removerBtn.addEventListener('click', () => {
+        if (!confirm(`Excluir a conta "${co.descricao || 'sem descrição'}" (${E.fmtMoney(co.valor)})?\nEsta ação não pode ser desfeita.`)) return;
+        const r = E.modules.financeiro.removerConta(co.id);
+        if (r.ok) { toast('Conta excluída', 'success'); renderView('financeiro'); }
+        else toast(r.message || 'Não foi possível excluir a conta.', 'danger');
       });
       tbody2.appendChild(tr);
     });
@@ -2847,10 +2856,48 @@ function openClienteDetail(id) {
         <div class="ldp-field"><span class="k">NPS:</span><span>${x.nps != null ? x.nps : '—'}</span></div>
       </div>
       <div class="ldp-section"><h4>Histórico</h4><div class="ldp-timeline">${(x.historico || []).map((h) => `<div class="tl-item"><div class="tl-time">${E.fmtDateTime(h.at)}</div><div>${esc(h.desc)}</div></div>`).join('') || '<div class="text-muted">Sem histórico</div>'}</div></div>
+      <div class="ldp-section"><h4>Ações</h4><div class="btn-group"><button class="btn btn-sm btn-danger" data-excluir-cliente>Excluir cliente</button></div></div>
     </div>
   `;
   document.body.appendChild(panel);
   panel.querySelector('[data-close]').addEventListener('click', () => panel.remove());
+  panel.querySelector('[data-excluir-cliente]').addEventListener('click', () => {
+    const modal = el('div', 'modal', `
+      <div class="modal-box">
+        <h3>Excluir cliente</h3>
+        <p class="text-muted" style="margin-bottom:12px">Esta ação é permanente e fica registrada na auditoria (LGPD). O cliente <b>${esc(x.nome || x.empresa || '')}</b> será removido do sistema.</p>
+        <label>Motivo da exclusão (obrigatório)</label>
+        <select class="input" id="exc-motivo" style="margin-bottom:10px">
+          <option value="">Selecione o motivo...</option>
+          <option value="duplicado">Registro duplicado</option>
+          <option value="solicitacao">Solicitação do titular (LGPD)</option>
+          <option value="dados_invalidos">Dados inválidos</option>
+          <option value="outros">Outros</option>
+        </select>
+        <label>Observações</label>
+        <textarea class="input" id="exc-obs" rows="2" placeholder="Detalhe o motivo (opcional)"></textarea>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" data-close>Cancelar</button>
+          <button class="btn btn-danger" id="exc-confirmar">Excluir definitivamente</button>
+        </div>
+      </div>
+    `);
+    document.body.appendChild(modal);
+    const mc = modal.querySelector('[data-close]');
+    if (mc) mc.addEventListener('click', () => modal.remove());
+    modal.querySelector('#exc-confirmar').addEventListener('click', () => {
+      const motivo = modal.querySelector('#exc-motivo').value;
+      const obs = modal.querySelector('#exc-obs').value.trim();
+      if (!motivo) { toast('Selecione o motivo da exclusão.', 'warn'); return; }
+      const r = cl.deleteCliente(x.id, (motivo + (obs ? ' — ' + obs : '')));
+      if (r.ok) {
+        toast('Cliente excluído. Ação registrada na auditoria.', 'success');
+        modal.remove();
+        panel.remove();
+        renderView('clientes');
+      } else toast('Não foi possível excluir: ' + (r.message || 'erro desconhecido'), 'danger');
+    });
+  });
 }
 
 /* ------------------------------------------------------------------ *

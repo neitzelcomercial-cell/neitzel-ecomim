@@ -48,7 +48,11 @@
         if (existentes.has(a.id)) continue;
         atd.push({
           id: 'pt-' + a.id, portalId: a.id,
-          cliente: a.clienteNome, clienteId: a.clienteIdLocal || null,
+          cliente: a.clienteNome,
+          // vínculo real com o cliente replicado no CRM (mesmo esquema de ids
+          // usado em sincronizarClientes) — antes usava um campo fantasma
+          // `clienteIdLocal` que nunca existia e ficava null para sempre.
+          clienteId: a.clienteId ? ('ptc-' + a.clienteId) : null,
           telefone: String(a.clienteTelefone || ''),
           inicio: a.inicioISO, fim: a.fimISO,
           servicoNome: a.servicoNome, servicoId: a.serviceId,

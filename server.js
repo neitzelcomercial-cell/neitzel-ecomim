@@ -40,11 +40,14 @@ store.load();
   } catch (e) { console.error('[admin] Falha ao preparar token:', e.message); }
 })();
 
-// Limpeza de reservas temporárias expiradas (mecanismo automático)
+// Limpeza de reservas temporárias expiradas + poda de idempotência (automático)
 setInterval(() => {
   store.transact((db) => {
     const engine = require('./backend/engine');
-    if (engine.purgeExpired(db, Date.now())) router.broadcast('purge', {});
+    const api = require('./backend/api');
+    let mudou = engine.purgeExpired(db, Date.now());
+    if (api.podarIdempotencia(db)) mudou = true;
+    if (mudou) router.broadcast('purge', {});
   }).catch(() => {});
 }, 30000).unref();
 
@@ -63,13 +66,27 @@ const MIME_TYPES = {
 const server = http.createServer((req, res) => {
   console.log(`${new Date().toISOString()} ${req.method} ${req.url}`);
   const ip = (req.socket.remoteAddress || '?').replace('::ffff:', '');
+  // Conexões abortadas não podem derrubar o processo (EPIPE/ERR_STREAM_DESTROYED)
+  res.on('error', () => { try { res.destroy(); } catch (e) {} });
+  req.on('error', () => {});
+  req.socket.on('error', () => {});
+
+  try {
+    tratarRequisicao(req, res, ip);
+  } catch (e) {
+    // URL malformada, decode inválido etc. — responde 400 em vez de crashar.
+    try { res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end('Requisição inválida'); } catch (e2) {}
+  }
+});
+
+function tratarRequisicao(req, res, ip) {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
 
   /* ------------------------------ API /api/* ------------------------------ */
   if (url.pathname.startsWith('/api/')) {
     if (req.method === 'OPTIONS') {
       res.writeHead(204, {
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': FRONTEND_URL || '*',
         'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization'
       });
@@ -79,24 +96,37 @@ const server = http.createServer((req, res) => {
     let dados = '';
     req.on('data', (c) => { dados += c; if (dados.length > 1e6) req.destroy(); });
     req.on('end', () => {
-      if (dados) { try { body = JSON.parse(dados); } catch (e) { res.writeHead(400); return res.end('{"ok":false,"code":"JSON_INVALIDO"}'); } }
-      const tratou = router.handle(req, res, url, body, ip);
-      if (!tratou) { res.writeHead(404); res.end('{"ok":false,"code":"ROTA_INEXISTENTE"}'); }
+      try {
+        if (dados) { try { body = JSON.parse(dados); } catch (e) { res.writeHead(400); return res.end('{"ok":false,"code":"JSON_INVALIDO"}'); } }
+        const tratou = router.handle(req, res, url, body, ip);
+        if (!tratou) { res.writeHead(404); res.end('{"ok":false,"code":"ROTA_INEXISTENTE"}'); }
+      } catch (e) {
+        console.error('[api] erro não tratado:', e.message);
+        try { res.writeHead(500); res.end('{"ok":false,"code":"ERRO_INTERNO"}'); } catch (e2) {}
+      }
     });
     return;
   }
 
   /* --------------------------- arquivos estáticos -------------------------- */
-  // Proteção: banco e token nunca são servidos
-  if (/^\/data\//.test(url.pathname) || /(^|\/)\./.test(url.pathname)) {
+  // Proteção: banco e token nunca são servidos. O teste é feito no caminho
+  // DECODIFICADO e em minúsculas — antes, "/%64ata/neitzel-db.json" ou
+  // "/Data/..." no Windows burlavam a checagem e expunham o banco e tokens.
+  let filePath;
+  try { filePath = decodeURIComponent(url.pathname); } catch (e) {
+    res.writeHead(400); return res.end('Acesso negado');
+  }
+  const decLower = filePath.toLowerCase();
+  if (decLower.startsWith('/data/') || decLower === '/data' || /(^|\/)\./.test(decLower)) {
     res.writeHead(403); return res.end('Acesso negado');
   }
 
-  let filePath = decodeURIComponent(url.pathname);
   if (filePath === '/' ) filePath = '/SISTEMA NEITZEL.html';
   if (filePath === '/agendamento' || filePath === '/portal') filePath = '/agendamento.html';
-  filePath = path.join(ROOT_DIR, filePath);
-  if (!filePath.startsWith(ROOT_DIR)) { res.writeHead(403); return res.end('Acesso negado'); }
+  filePath = path.resolve(path.join(ROOT_DIR, filePath));
+  // path.relative evita o falso positivo de pastas irmãs com prefixo igual
+  const rel = path.relative(ROOT_DIR, filePath);
+  if (rel.startsWith('..') || path.isAbsolute(rel)) { res.writeHead(403); return res.end('Acesso negado'); }
 
   fs.readFile(filePath, (err, content) => {
     if (err) { res.writeHead(404); return res.end('Não encontrado'); }
@@ -107,7 +137,7 @@ const server = http.createServer((req, res) => {
     });
     res.end(content);
   });
-});
+}
 
 server.listen(PORT, () => {
   console.log(`🚀 Servidor Neitzel rodando em http://localhost:${PORT}`);
@@ -127,5 +157,14 @@ process.on('SIGINT', () => {
   console.log('\nEncerrando servidor...');
   server.close();
   process.exit(0);
+});
+
+// Última linha de defesa: um erro imprevisto nunca deve derrubar o sistema
+// (implantação local/kiosk). Loga e continua.
+process.on('uncaughtException', (err) => {
+  console.error('[erro não tratado]', err && err.message);
+});
+process.on('unhandledRejection', (err) => {
+  console.error('[promise rejeitada]', err && (err.message || err));
 });
 

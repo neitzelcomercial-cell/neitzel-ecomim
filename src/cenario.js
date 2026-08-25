@@ -362,6 +362,15 @@
     function dim() { W = canvas.width = canvas.clientWidth * dpr; H = canvas.height = canvas.clientHeight * dpr; }
     dim();
     window.addEventListener('resize', dim, { passive: true });
+    // Teardown completo: sem isso cada análise acumulava um listener de resize
+    // (com o canvas desanexado na memória) para sempre.
+    let encerrado = false;
+    const parar = () => {
+      if (encerrado) return;
+      encerrado = true;
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', dim);
+    };
     const cx = () => W / 2, cy = () => H / 2;
     const particulas = Array.from({ length: 46 }, () => ({
       ang: Math.random() * Math.PI * 2, raio: 40 + Math.random() * 260,
@@ -420,7 +429,7 @@
       raf = requestAnimationFrame(frame);
     }
     frame();
-    return () => cancelAnimationFrame(raf);
+    return parar;
   }
 
   /* ============================== PALCO ================================= */
@@ -541,9 +550,11 @@
 
     const cores = { alta: 'var(--e-green)', baixa: 'var(--e-danger)', estavel: 'var(--text-muted)' };
     const setas = { alta: '↗', baixa: '↘', estavel: '→' };
+    /* Os valores das contas já estão em CENTAVOS (padrão do core) — fmtMoney
+       divide por 100. Multiplicar de novo inflava a projeção 100×. */
     const fmtMoeda = (v) => {
-      try { const Em = E(); if (Em && Em.fmtMoney) return Em.fmtMoney(Math.round((v || 0) * 100)); } catch (e) {}
-      return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',');
+      try { const Em = E(); if (Em && Em.fmtMoney) return Em.fmtMoney(Math.round(v || 0)); } catch (e) {}
+      return 'R$ ' + (Number(v || 0) / 100).toFixed(2).replace('.', ',');
     };
 
     /* ---- Revisão das 8 semanas passadas ---- */

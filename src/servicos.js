@@ -184,6 +184,30 @@ if (typeof window.ECOMIM === 'undefined') {
       },
       
       /**
+       * Excluir serviço DEFINITIVAMENTE (remove da lista e persiste).
+       * @param {string} id - ID do serviço
+       * @returns {Object} Resultado da operação
+       */
+      excluir(id) {
+        const idx = this.servicos.findIndex((s) => s.id === id);
+        if (idx === -1) return { ok: false, code: 'NOT_FOUND' };
+
+        const before = { ...this.servicos[idx] };
+        this.servicos.splice(idx, 1);
+        this.save();
+
+        if (E._internals.audit) {
+          E._internals.audit.record('servico.excluido', 'servicos', before, null);
+        }
+
+        if (E._internals.eventBus) {
+          E._internals.eventBus.emit('servico.deleted', { servicoId: id });
+        }
+
+        return { ok: true };
+      },
+
+      /**
        * Buscar serviços com filtros
        * @param {Object} filters - Filtros de busca
        * @param {string} filters.status - Filtrar por status
