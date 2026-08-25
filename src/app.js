@@ -181,6 +181,7 @@ const VIEWS = [
   { id: 'leads', nome: 'Leads & CRM', icone: 'leads' },
   { id: 'funil', nome: 'Funil', icone: 'funil' },
   { id: 'planner', nome: 'Planner', icone: 'agenda' },
+  { id: 'tarefas', nome: 'Tarefas', icone: 'fila' },
   { id: 'agenda', nome: 'Agenda', icone: 'agenda' },
   { id: 'servicos', nome: 'Serviços', icone: 'projetos' },
   { id: 'produtos', nome: 'Produtos', icone: 'automacoes' },
@@ -202,7 +203,7 @@ const VIEWS = [
 
 const NAV_SECTIONS = [
   { nome: 'Operação', itens: ['dashboard', 'leads', 'funil'] },
-  { nome: 'Agenda', itens: ['planner', 'agenda'] },
+  { nome: 'Agenda', itens: ['planner', 'tarefas', 'agenda'] },
   { nome: 'Catálogo', itens: ['servicos', 'produtos', 'estoque'] },
   { nome: 'Operação & Gestão', itens: ['atendimento_ops', 'financeiro', 'atendimento', 'clientes', 'projetos', 'marketing', 'rh'] },
   { nome: 'Inteligência', itens: ['bi', 'inteligencia', 'estrategia'] },
@@ -227,7 +228,12 @@ function renderApp(unlocked) {
   if (features.security && !features.security.isOnboardingDone()) {
     if (window.NEITZEL_ONBOARDING) window.NEITZEL_ONBOARDING.start();
     else initApp();
-  } else if (features.security && features.security.hasPin() && !unlocked) showLogin();
+  } else if (features.security && features.security.hasPin() && !unlocked) {
+    /* App vive ATRÁS do login (dashboard pronto, menu funcional);
+       o overlay de login apenas bloqueia a frente. */
+    initApp(false);
+    showLogin();
+  }
   else initApp(unlocked === true);
 }
 
@@ -281,6 +287,8 @@ function renderSidebar() {
       const v = VIEWS.find((x) => x.id === id);
       if (!v) return; // defesa: view desconhecida não quebra a navegação
       const navBtn = el('button', 'ecomim-nav-item' + (id === 'dashboard' ? ' active' : ''), `<span class="nav-icon">${ICONS[v.icone] || ''}</span><span class="nav-label">${esc(v.nome)}</span><span class="nav-count" data-count="${id}"></span>`);
+      navBtn.type = 'button';
+      navBtn.title = v.nome; /* tooltip — essencial no modelo de menu em ícones */
       navBtn.dataset.view = id;
       // Tooltip com a essência do espaço (1ª frase da dica, sem tags)
       const dicaBruta = HELP_DICAS[id] || '';
@@ -322,7 +330,6 @@ function renderMain() {
     <div class="topbar-title" id="topbar-title">${esc('Painel')}</div>
     <div class="topbar-search"></div>
     <div class="topbar-right">
-      <button class="btn btn-icon" id="btn-tema" title="${document.documentElement.getAttribute('data-theme') === 'light' ? 'Tema claro' : 'Tema escuro'}">${document.documentElement.getAttribute('data-theme') === 'light' ? ICONS.sol : ICONS.lua}</button>
       <button class="btn btn-icon ecomim-bell" id="btn-notif" title="Notificações">${ICONS.bi}<span class="bell-dot" style="display:none"></span></button>
       <button class="btn btn-icon" id="btn-user" title="Usuário">${ICONS.rh}</button>
     </div>
@@ -337,9 +344,6 @@ function renderMain() {
   `);
   main.insertBefore(fundoArte, main.firstChild);
   iniciarChuvaCodigo(fundoArte.querySelector('.fa-chuva'));
-  // Fundo discreto do sistema: particulas suaves + brilho diagonal raro (CSS puro)
-  const fundoSuave = el('div', 'fundo-suave', '<span class="fp f1"></span><span class="fp f2"></span><span class="fp f3"></span><span class="fp f4"></span><span class="fp f5"></span><span class="fs-brilho"></span>');
-  main.insertBefore(fundoSuave, fundoArte.nextSibling);
 
   // Balão flutuante de IA no canto inferior direito
   const floatingAiButton = el('button', 'ecomim-ai-floating', `
@@ -364,8 +368,9 @@ function renderMain() {
 function iniciarChuvaCodigo(canvas) {
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
+  if (!ctx) return; /* ambientes sem canvas (ex.: jsdom) */
   const GLIFOS = '01<>{}[]#$%&*+=/\\|?~^;:0123456789ABCDEF';
-  let W = 0, H = 0, raf = 0, t = 0, visivel = true;
+  let W = 0, H = 0, raf = 0, t = 0;
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const reduzir = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -392,21 +397,23 @@ function iniciarChuvaCodigo(canvas) {
 
   function corBase() {
     const COR_TEMA = document.documentElement.getAttribute('data-theme') === 'light';
-    const POR_COR = { ambar: [245, 158, 11], oceano: [56, 189, 248], vinho: [244, 63, 94], roxo: [167, 139, 250], matrix: [74, 222, 128] };
+    const POR_COR = { ambar: [245, 158, 11], oceano: [56, 189, 248], vinho: [244, 63, 94], roxo: [167, 139, 250], matrix: [74, 222, 128], azul: [96, 165, 250] };
     const cor = POR_COR[document.documentElement.getAttribute('data-arte-cor') || ''];
     if (cor) {
       // no claro, escurece para manter contraste sobre papel
       return COR_TEMA ? cor.map((v) => Math.round(v * 0.55)) : cor;
     }
-    return COR_TEMA ? [30, 64, 175] : [62, 207, 142];
+    return COR_TEMA ? [37, 99, 235] : [62, 207, 142];
   }
 
   function frame() {
-    if (!canvas.isConnected) { cancelAnimationFrame(raf); return; }
     raf = requestAnimationFrame(frame);
+    if (!canvas.isConnected) return; /* main ainda não montado — espera, sem matar o loop */
     t++;
-    if (!visivel || document.hidden || reduzir) return;
-    if (document.documentElement.getAttribute('data-fundo') === 'padrao') return;
+    if (document.hidden || reduzir) return;
+    /* A chuva de código é a animação de fundo principal: cai nos dois modos
+       (arte e padrão). Intensidade/desligamento via [data-chuva] (CSS + aqui). */
+    if (document.documentElement.getAttribute('data-chuva') === 'off') return;
     if (document.documentElement.classList.contains('no-anim')) return;
     if (W !== canvas.clientWidth || H !== canvas.clientHeight) dimensionar();
 
@@ -433,7 +440,6 @@ function iniciarChuvaCodigo(canvas) {
     }
   }
 
-  document.addEventListener('visibilitychange', () => { visivel = !document.hidden; });
   window.addEventListener('resize', dimensionar, { passive: true });
   dimensionar();
   frame();
@@ -690,6 +696,10 @@ function initApp(fromLogin) {
 function bindShell() {
   const shell = document.querySelector('.ecomim-shell');
   if (!shell) return;
+  /* Idempotente: initApp pode rodar mais de uma vez (boot → login → pós-login)
+     sem duplicar listeners no MESMO shell. */
+  if (shell.dataset.bound === '1') return;
+  shell.dataset.bound = '1';
   shell.querySelectorAll('[data-action="collapse"]').forEach((b) => b.addEventListener('click', () => {
     document.querySelector('.ecomim-sidebar')?.classList.toggle('collapsed');
   }));
@@ -714,6 +724,7 @@ function bindShell() {
     }).observe(sbObs, { attributes: true, attributeFilter: ['class'] });
   }
   shell.querySelector('[data-action="mobile-nav"]')?.addEventListener('click', () => {
+    window.__nzNavClicks = (window.__nzNavClicks || 0) + 1;
     document.querySelector('.ecomim-sidebar')?.classList.toggle('mobile-open');
   });
   // Nav items — usa data-view (id canônico), nunca o texto da label
@@ -724,7 +735,6 @@ function bindShell() {
   // Topbar
   shell.querySelector('#btn-notif')?.addEventListener('click', () => toggleNotifPanel());
   shell.querySelector('#btn-user')?.addEventListener('click', () => openUserMenu());
-  shell.querySelector('#btn-tema')?.addEventListener('click', () => toggleTheme());
   // Busca global (topbar) — simples
   const searchBox = shell.querySelector('.topbar-search');
   if (searchBox) {
@@ -814,7 +824,12 @@ function renderView(id) {
     case 'dashboard': renderDashboard(content); break;
     case 'leads': renderLeads(content); break;
     case 'funil': renderFunil(content); break;
+    case 'cacador':
+      if (window.__ECOMIM_HUNTER_UI && window.ECOMIM_HUNTER) window.__ECOMIM_HUNTER_UI.renderCacador(content);
+      else content.appendChild(el('div', 'card', '<div class="empty">Caçador de Leads indisponível — recarregue a página.</div>'));
+      break;
     case 'planner': renderPlanner(content); break;
+    case 'tarefas': renderTarefas(content); break;
     case 'agenda': renderAgenda(content); break;
     case 'servicos': renderServicos(content); break;
     case 'produtos': renderProdutos(content); break;
@@ -1381,6 +1396,13 @@ const ATIV_ROTULOS = {
   'financeiro.conta_removida': ['Financeiro', 'Conta removida'],
   'payment.completed': ['Financeiro', 'Pagamento concluído'],
   'servico.criado': ['Serviços', 'Serviço criado no catálogo'],
+  'projeto.excluido': ['Projetos', 'Projeto excluído'],
+  'projeto.tarefa_excluida': ['Projetos', 'Tarefa excluída do projeto'],
+  'marketing.campanha_excluida': ['Marketing', 'Campanha excluída'],
+  'rh.colaborador_excluido': ['RH', 'Colaborador excluído'],
+  'atendimento.ticket_excluido': ['Atendimento', 'Ticket excluído'],
+  'operacional.produto_excluido': ['Estoque/Produtos', 'Produto excluído'],
+  'operacional.atendimento_excluido': ['Atendimentos', 'Atendimento operacional excluído'],
   'servico.atualizado': ['Serviços', 'Serviço atualizado'],
   'produto.criado': ['Produtos', 'Produto criado'],
   'produto.atualizado': ['Produtos', 'Produto atualizado'],
@@ -1961,6 +1983,166 @@ function renderFunil(c) {
 /* ------------------------------------------------------------------ *
  * VIEWS OPERACIONAIS (delegadas a operacional-ui.js: Expansão)
  * ------------------------------------------------------------------ */
+
+/* ------------------------------------------------------------------ *
+ * VIEW: TAREFAS — tudo que foi criado num lugar só, com AGENTE de
+ * acompanhamento (avisa atrasos e conclusões) e integração com a IA.
+ * ------------------------------------------------------------------ */
+
+/** Fonte unificada: tarefas gerais + tarefas dos projetos. */
+function nzTarefasFonte() {
+  const gerais = (E.db.get().tarefas || []).map((t) => Object.assign({}, t, { _origem: 'Geral' }));
+  const deProjeto = [];
+  try {
+    E.modules.projetos.projetos.forEach((p) => (p.tarefas || []).forEach((t) => deProjeto.push(Object.assign({}, t, {
+      titulo: t.nome || t.titulo,
+      due: t.prazo || null,
+      status: t.status === 'concluida' ? 'concluida' : 'pendente',
+      _origem: 'Projeto · ' + p.nome,
+      _projetoId: p.id,
+      _deProjeto: true,
+    }))));
+  } catch (e) {}
+  return deProjeto.concat(gerais);
+}
+function nzTarefaAtrasada(t) {
+  if (!t.due || t.status === 'concluida') return false;
+  return new Date(t.due).getTime() < new Date().setHours(0, 0, 0, 0);
+}
+
+/** AGENTE — aviso diário de atrasadas + notificações de criação/conclusão.
+ *  Roda em segundo plano depois da primeira abertura da view. */
+function nzAgenteTarefasIniciar() {
+  if (window.__nzAgenteTarefasOn) return;
+  window.__nzAgenteTarefasOn = true;
+  const avisar = () => {
+    try {
+      const chave = 'nz_tarefas_aviso_' + new Date().toISOString().slice(0, 10);
+      const atrasadas = nzTarefasFonte().filter(nzTarefaAtrasada);
+      if (atrasadas.length && !localStorage.getItem(chave)) {
+        localStorage.setItem(chave, '1');
+        E.modules.notificacoes.push({
+          titulo: '⏰ ' + atrasadas.length + ' tarefa(s) atrasada(s)',
+          corpo: 'Começando por: ' + atrasadas.slice(0, 3).map((t) => t.titulo || t.nome || '—').join(' · '),
+          tipo: 'automacao',
+        });
+      }
+    } catch (e) {}
+  };
+  avisar();
+  setInterval(avisar, 10 * 60 * 1000);
+  try {
+    E.eventBus.on('task.created', (d) => {
+      E.modules.notificacoes.push({ titulo: 'Nova tarefa criada', corpo: (d && d.titulo) || '', tipo: 'automacao' });
+    });
+    E.eventBus.on('task.completed', () => {
+      const c = window.__nzContagemTarefas ? window.__nzContagemTarefas() : null;
+      if (c && c.atrasadas > 0) E.modules.notificacoes.push({ titulo: '✔ Tarefa concluída', corpo: c.atrasadas + ' ainda atrasada(s) — vale dar uma olhada.', tipo: 'automacao' });
+    });
+  } catch (e) {}
+}
+
+/** Contagem exposta para a IA local e o Supervisor. */
+window.__nzContagemTarefas = function () {
+  const f = nzTarefasFonte();
+  const hojeStr = new Date().toDateString();
+  return {
+    total: f.length,
+    abertas: f.filter((t) => t.status !== 'concluida').length,
+    atrasadas: f.filter(nzTarefaAtrasada).length,
+    hoje: f.filter((t) => t.status !== 'concluida' && t.due && new Date(t.due).toDateString() === hojeStr).length,
+  };
+};
+
+function renderTarefas(c) {
+  nzAgenteTarefasIniciar();
+  const contagem = window.__nzContagemTarefas();
+  c.appendChild(el('div', 'page-header', `<h1>Tarefas</h1><p>${contagem.abertas} abertas · <span style="color:${contagem.atrasadas ? 'var(--e-danger)' : 'inherit'}">${contagem.atrasadas} atrasadas</span> · ${contagem.hoje} para hoje.</p>`));
+
+  /* Criação rápida */
+  const cardAdd = el('div', 'card', `
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <input class="input" id="tf-titulo" placeholder="Nova tarefa… (ex.: Ligar para o cliente)" style="flex:1;min-width:200px" />
+      <input class="input" id="tf-prazo" type="date" style="width:auto" />
+      <select class="input" id="tf-prio" style="width:auto"><option value="normal">Normal</option><option value="alta">Alta</option></select>
+      <button class="btn btn-primary btn-sm" id="tf-add">Adicionar</button>
+    </div>`);
+  c.appendChild(cardAdd);
+  cardAdd.querySelector('#tf-add').addEventListener('click', () => {
+    const titulo = cardAdd.querySelector('#tf-titulo').value.trim();
+    if (!titulo) { toast('Digite o título da tarefa.', 'warn'); return; }
+    const prazo = cardAdd.querySelector('#tf-prazo').value;
+    E.modules.tarefas.add({
+      titulo,
+      due: prazo ? prazo + 'T12:00:00' : nowISO(),
+      prioridade: cardAdd.querySelector('#tf-prio').value,
+    });
+    toast('Tarefa adicionada.', 'success');
+    renderView('tarefas');
+  });
+
+  /* Filtros */
+  let filtro = 'abertas';
+  const chips = el('div', 'group-strip', '');
+  [['abertas', 'Abertas'], ['hoje', 'Hoje'], ['atrasadas', 'Atrasadas'], ['concluidas', 'Concluídas'], ['todas', 'Todas']].forEach(([v, n]) => {
+    const chip = el('button', 'chip' + (filtro === v ? ' on' : ''), n);
+    chip.addEventListener('click', () => { filtro = v; renderView('tarefas'); });
+    chip.dataset.filtro = v;
+    chips.appendChild(chip);
+  });
+  // marca ativo após re-render
+  requestAnimationFrame(() => chips.querySelectorAll('.chip').forEach((ch) => ch.classList.toggle('on', ch.dataset.filtro === filtro)));
+  c.appendChild(chips);
+
+  const agora = Date.now();
+  const todas = nzTarefasFonte();
+  const visiveis = todas.filter((t) => {
+    if (filtro === 'abertas') return t.status !== 'concluida';
+    if (filtro === 'hoje') return t.status !== 'concluida' && t.due && new Date(t.due).toDateString() === new Date().toDateString();
+    if (filtro === 'atrasadas') return nzTarefaAtrasada(t);
+    if (filtro === 'concluidas') return t.status === 'concluida';
+    return true;
+  }).sort((a, b) => (a.due || '').localeCompare(b.due || ''));
+
+  const box = el('div', 'card', '');
+  if (!visiveis.length) box.appendChild(el('div', 'empty', filtro === 'todas' ? 'Nenhuma tarefa ainda — crie a primeira acima.' : 'Nada neste filtro.'));
+  visiveis.forEach((t) => {
+    const atrasada = nzTarefaAtrasada(t);
+    const concluida = t.status === 'concluida';
+    const row = el('div', 'fila-card', `
+      <div class="fila-head">
+        <input type="checkbox" ${concluida ? 'checked' : ''} data-toggle="${t.id}" style="width:18px;height:18px;accent-color:var(--e-brand);cursor:pointer" />
+        <b style="${concluida ? 'text-decoration:line-through;opacity:.6' : ''}">${esc(t.titulo || t.nome || '—')}</b>
+        <span class="badge badge-gray">${esc(t._origem)}</span>
+        ${t.prioridade === 'alta' && !concluida ? '<span class="badge badge-orange">Alta</span>' : ''}
+        <span class="badge ${atrasada ? 'badge-red' : concluida ? 'badge-green' : 'badge-gray'}">${t.due ? (atrasada ? 'Atrasada · ' : '') + new Date(t.due).toLocaleDateString('pt-BR') : (concluida ? 'Concluída' : 'Sem prazo')}</span>
+        <span style="margin-left:auto"></span>
+        <button class="btn btn-xs btn-ghost" data-del="${t.id}" title="Excluir tarefa">🗑</button>
+      </div>
+      ${t.desc ? `<div class="fila-meta">${esc(t.desc)}</div>` : ''}
+    `);
+    row.style.cursor = 'default';
+    row.querySelector('[data-toggle]').addEventListener('change', (ev) => {
+      const novoStatus = ev.target.checked ? 'concluida' : 'pendente';
+      if (t._deProjeto) E.modules.projetos.updateTarefa(t._projetoId, t.id, { status: novoStatus });
+      else E.modules.tarefas.update(t.id, { status: novoStatus });
+      toast(novoStatus === 'concluida' ? 'Tarefa concluída ✔' : 'Tarefa reaberta.', 'success');
+      setTimeout(() => renderView('tarefas'), 60);
+    });
+    row.querySelector('[data-del]').addEventListener('click', () => {
+      if (!confirm(`Excluir a tarefa "${t.titulo || t.nome}"?\nEsta ação não pode ser desfeita.`)) return;
+      if (t._deProjeto) E.modules.projetos.excluirTarefa(t._projetoId, t.id);
+      else E.modules.tarefas.remove(t.id);
+      toast('Tarefa excluída.', 'info');
+      setTimeout(() => renderView('tarefas'), 60);
+    });
+    box.appendChild(row);
+  });
+  c.appendChild(box);
+
+  /* Dica do agente/IA */
+  c.appendChild(el('div', 'card', `<h4>🤖 Agente das Tarefas</h4><div class="text-muted" style="font-size:12.5px;line-height:1.6">O agente acompanha suas tarefas em segundo plano: avisa quando algo <b>atrasa</b>, registra criações e conclusões nas notificações e alimenta a IA local — pergunte ao assistente <i>"quais tarefas estão atrasadas?"</i> que ele responde com base nos dados reais.</div>`));
+}
 
 function renderPlanner(c) {
   if (window.NEITZEL_OPS_UI && window.NEITZEL_OPS_UI.renderPlanner) { window.NEITZEL_OPS_UI.renderPlanner(c); return; }
@@ -2685,12 +2867,20 @@ function renderProjetos(c) {
       <div class="text-muted">${esc(p.cliente || '')} · ${esc(p.tipo || '')} · resp. ${esc(p.responsavel || '—')}</div>
       <div class="progress" style="margin-top:8px"><div class="progress-bar" style="width:${p.progresso || 0}%"></div></div>
       <div class="text-muted" style="margin-top:4px">${p.progresso || 0}% · ${(p.tarefas || []).length} tarefas</div>
-      <div class="btn-group" style="margin-top:8px"><button class="btn btn-sm" data-ver>Ver</button><button class="btn btn-sm btn-ghost" data-tarefa>+ Tarefa</button></div>
+      <div class="btn-group" style="margin-top:8px"><button class="btn btn-sm" data-ver>Ver</button><button class="btn btn-sm btn-ghost" data-tarefa>+ Tarefa</button><button class="btn btn-sm btn-ghost" data-excluir-proj="${esc(p.id)}" title="Excluir projeto">🗑</button></div>
     `);
     const verBtn2 = card.querySelector('[data-ver]');
     if (verBtn2) verBtn2.addEventListener('click', () => openProjetoDetail(p.id));
     const tarBtn = card.querySelector('[data-tarefa]');
     if (tarBtn) tarBtn.addEventListener('click', () => openTarefaProjetoModal(p.id));
+    const exProj = card.querySelector(`[data-excluir-proj="${esc(p.id)}"]`);
+    if (exProj) exProj.addEventListener('click', () => {
+      if (!confirm(`Excluir o projeto "${p.nome}"?\nTodas as ${ (p.tarefas || []).length } tarefa(s) dele serão excluídas junto.`)) return;
+      if (!confirm('Segunda confirmação: excluir projeto definitivamente?')) return;
+      const r = pj.excluirProjeto(p.id);
+      if (r.ok) { toast('Projeto excluído.', 'info'); renderView('projetos'); }
+      else toast('Não foi possível excluir.', 'danger');
+    });
     grid.appendChild(card);
   });
   c.appendChild(grid);
@@ -2791,6 +2981,7 @@ function renderMarketing(c) {
       <div class="btn-group" style="margin-top:6px">
         <button class="btn btn-sm" data-lead>+ Lead</button>
         <button class="btn btn-sm btn-success" data-conv>+ Conversão</button>
+        <button class="btn btn-sm btn-ghost" data-excluir-camp="${esc(cm.id)}" title="Excluir campanha">🗑</button>
       </div>
     `);
     const leadBtn = card.querySelector('[data-lead]');
@@ -2807,6 +2998,14 @@ function renderMarketing(c) {
       renderView('marketing');
       const roi2 = cm.orcamento ? Math.round(((cm.conversoes * E.modules.bi.ticketMedio() - cm.orcamento) / cm.orcamento) * 100) : null;
       inlineInsight(` Campanha **${cm.nome}** registrou +1 conversão (total: ${cm.conversoes}).\nROI estimado: ${roi2 != null ? roi2 + '%' : 'sem orçamento definido'}.\nDica: considere ampliar o orçamento se o ROI estiver positivo.`);
+    });
+    const exCamp = card.querySelector('[data-excluir-camp]');
+    if (exCamp) exCamp.addEventListener('click', () => {
+      if (!confirm(`Excluir a campanha "${cm.nome}"?\nLeads/conversões registrados continuam no histórico geral.`)) return;
+      if (!confirm('Segunda confirmação: excluir campanha definitivamente?')) return;
+      const r = mk.excluirCampanha(cm.id);
+      if (r.ok) { toast('Campanha excluída.', 'info'); renderView('marketing'); }
+      else toast('Não foi possível excluir.', 'danger');
     });
     grid.appendChild(card);
   });
@@ -2859,12 +3058,20 @@ function renderRh(c) {
   if (tbody4) {
     rh.colaboradores.forEach((c2) => {
       const tr = el('tr', '', '');
-      tr.innerHTML = `<td><b>${esc(c2.nome)}</b></td><td>${esc(c2.cargo || '—')}</td><td>${esc(c2.departamento || '—')}</td><td><span class="badge badge-${c2.status === 'ativo' ? 'green' : 'red'}">${esc(c2.status || '')}</span></td><td><button class="btn btn-xs btn-ghost" data-dem="${esc(c2.id)}">Desligar</button></td>`;
+      tr.innerHTML = `<td><b>${esc(c2.nome)}</b></td><td>${esc(c2.cargo || '—')}</td><td>${esc(c2.departamento || '—')}</td><td><span class="badge badge-${c2.status === 'ativo' ? 'green' : 'red'}">${esc(c2.status || '')}</span></td><td><button class="btn btn-xs btn-ghost" data-dem="${esc(c2.id)}">Desligar</button> <button class="btn btn-xs btn-ghost" data-excluir-colab="${esc(c2.id)}" title="Excluir colaborador">🗑</button></td>`;
       const demBtn = tr.querySelector(`[data-dem="${esc(c2.id)}"]`);
       if (demBtn) demBtn.addEventListener('click', () => {
         rh.updateColaborador(c2.id, { status: 'inativo' });
         toast('Colaborador desligado', 'info');
         renderView('rh');
+      });
+      const exCol = tr.querySelector(`[data-excluir-colab="${esc(c2.id)}"]`);
+      if (exCol) exCol.addEventListener('click', () => {
+        if (!confirm(`Excluir o colaborador "${c2.nome}" definitivamente?\nO registro de desligamento some junto.`)) return;
+        if (!confirm('Segunda confirmação: excluir colaborador?')) return;
+        const r = rh.excluirColaborador(c2.id);
+        if (r.ok) { toast('Colaborador excluído.', 'info'); renderView('rh'); }
+        else toast('Não foi possível excluir.', 'danger');
       });
       tbody4.appendChild(tr);
     });
@@ -3407,8 +3614,8 @@ function lerAparencia() {
     fundo: '', surface: '', borda: '', fonte: 'sistema', botao: 'padrao',
     menu: 'lateral', cartao: 'padrao', letraTamanho: 'normal',
     somTipo: 'none', somVolume: 50,
-    fundoModo: 'arte', fundoOpacidade: 55, temaArt: '',
-    arteCor: '',
+    fundoModo: 'arte', fundoOpacidade: 20, temaArt: '',
+    arteCor: '', chuva: 'sutil',
     iaAtiva: true, agentesAtivos: true, notificacoesIA: true };
   let ap;
   try { ap = Object.assign({}, padrao, JSON.parse(localStorage.getItem(AP_KEY) || '{}')); }
@@ -3544,13 +3751,22 @@ function aplicarAparencia(patch) {
     if (['flat', 'elevado'].includes(ap.cartao)) root.classList.add('cartao-' + ap.cartao);
 
     root.classList.toggle('no-anim', ap.animacoes === false);
-    try { document.body.style.zoom = (Number(ap.zoom) || 100) + '%'; } catch (e) {}
+    /* Zoom: além do body, publica --nz-zoom p/ overlays fixos compensarem e
+       continuarem cobrindo exatamente a tela (modais, buscas, toasts...). */
+    try {
+      const z = Math.min(1.3, Math.max(0.8, (Number(ap.zoom) || 100) / 100));
+      document.body.style.zoom = (z * 100) + '%';
+      document.documentElement.style.setProperty('--nz-zoom', String(z));
+    } catch (e) {}
 
     /* Tela de fundo: arte da logo ou padrão limpo */
     const modo = ap.fundoModo === 'padrao' ? 'padrao' : 'arte';
     root.setAttribute('data-fundo', modo);
     const op = Math.max(0, Math.min(100, Number(ap.fundoOpacidade) == null || isNaN(Number(ap.fundoOpacidade)) ? 55 : Number(ap.fundoOpacidade)));
     root.style.setProperty('--nz-arte-opacidade', String(op / 100));
+
+    /* Chuva de código: intensidade da animação de fundo (sutil | normal | off) */
+    root.setAttribute('data-chuva', ['sutil', 'normal', 'off'].includes(ap.chuva) ? ap.chuva : 'sutil');
 
     /* Assinatura animada dos temas autorais */
     root.classList.remove('tema-art-on');
@@ -3573,6 +3789,7 @@ function aplicarAparencia(patch) {
     if (ap.titulo != null) I18N.titulo = String(ap.titulo).slice(0, 24) || 'NEITZEL';
     if (ap.sufixo != null) I18N.sufixo = String(ap.sufixo).slice(0, 36) || 'Sistema Digital';
     try { document.title = I18N.titulo + ' — ' + I18N.sufixo; } catch (e) {}
+    atualizarFavicon();
   } catch (e) {}
 }
 
@@ -3631,12 +3848,26 @@ document.addEventListener('click', (ev) => {
   if (alvo) tocarClique(false);
 }, true);
 
+/** Favicon acompanha o tema: selo verde no escuro, azul no claro. */
+function atualizarFavicon() {
+  try {
+    const escuro = document.documentElement.getAttribute('data-theme') !== 'light';
+    const cor = escuro ? '%233ecf8e' : '%232563eb';
+    const fundo = escuro ? '%23111318' : '%230d1526';
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='${fundo}'/><circle cx='82' cy='18' r='9' fill='${cor}'/><text x='50' y='70' font-size='54' text-anchor='middle' fill='white' font-family='Arial' font-weight='bold'>N</text></svg>`;
+    let link = document.querySelector('link[rel="icon"]');
+    if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link); }
+    link.href = 'data:image/svg+xml,' + svg;
+  } catch (e) {}
+}
+
 function applySavedTheme() {
   try {
     const t = localStorage.getItem('ecomim_theme');
     if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
   } catch (e) {}
   aplicarAparencia(lerAparencia());
+  atualizarFavicon();
 }
 
 /* ------------------------------------------------------------------ *
@@ -3651,27 +3882,31 @@ function renderConfig(c) {
   /* --- PERSONALIZAÇÃO COMPLETA DO SISTEMA --- */
   /* Famílias de tema: cada uma com modelo ESCURO e CLARO na mesma cor-assinatura.
      `arteCor` tinge a obra de fundo (foto + aurora + chuva de código) para combinar. */
-  /* Famílias de tema: identidade em dois atos — ESCURO veste o VERDE da marca,
-     CLARO veste AZUL profissional. O tom de fundo e a arte continuam por família. */
+  /* Famílias de tema — cada uma é uma IDENTIDADE completa e ÚNICA (sem cores
+     repetidas entre famílias): controla fundo, superfície, texto, bordas e
+     destaque nos dois modos. Editável depois em Personalização. */
   const TEMAS_FAMILIAS = [
-    { nome: 'Verde Neitzel', arteCor: 'verde', art: '',
+    { nome: 'NEITZEL GREEN', arteCor: 'verde', art: '',
       escuro: { tema: 'dark', destaque: '', fundo: '', surface: '', texto: '', borda: '' },
-      claro: { tema: 'light', destaque: '#2563eb', fundo: '#f5f7f6', surface: '#ffffff', texto: '#101913', borda: '#dfe6e1' } },
-    { nome: 'Grafite & Âmbar', arteCor: 'ambar', art: '',
-      escuro: { tema: 'dark', destaque: '', fundo: '#0b0c10', surface: '#15171e', texto: '#eceae4', borda: '#272a33' },
-      claro: { tema: 'light', destaque: '#2563eb', fundo: '#faf8f4', surface: '#ffffff', texto: '#1f1910', borda: '#eadfc9' } },
-    { nome: 'Oceano Profundo', arteCor: 'oceano', art: 'oceano',
-      escuro: { tema: 'dark', destaque: '', fundo: '#081019', surface: '#0f1a26', texto: '#e6f0f7', borda: '#1c2d3d' },
-      claro: { tema: 'light', destaque: '#2563eb', fundo: '#eff4f9', surface: '#ffffff', texto: '#101c28', borda: '#d8e3ee' } },
-    { nome: 'Vinho Executivo', arteCor: 'vinho', art: '',
-      escuro: { tema: 'dark', destaque: '', fundo: '#120b0e', surface: '#1b1216', texto: '#f7edf0', borda: '#2f1d24' },
-      claro: { tema: 'light', destaque: '#2563eb', fundo: '#fbf5f6', surface: '#ffffff', texto: '#241016', borda: '#eedde1' } },
-    { nome: 'Roxo Neon', arteCor: 'roxo', art: 'neon',
-      escuro: { tema: 'dark', destaque: '', fundo: '#0c0a14', surface: '#14111f', texto: '#ece9fa', borda: '#251f3a' },
-      claro: { tema: 'light', destaque: '#2563eb', fundo: '#f6f4fb', surface: '#ffffff', texto: '#171129', borda: '#e4def2' } },
-    { nome: 'Matrix Terminal', arteCor: 'matrix', art: 'matrix',
-      escuro: { tema: 'dark', destaque: '', fundo: '#050807', surface: '#0b110d', texto: '#d9f4e4', borda: '#17251c' },
-      claro: { tema: 'light', destaque: '#2563eb', fundo: '#f2f7f2', surface: '#ffffff', texto: '#0d1b11', borda: '#d8e6da' } },
+      claro: { tema: 'light', destaque: '#0e7a46', fundo: '#f2f6f3', surface: '#fbfdfc', texto: '#101814', borda: '#dfe7e2' } },
+    { nome: 'NEITZEL BLUE', arteCor: 'azul', art: '',
+      escuro: { tema: 'dark', destaque: '#60a5fa', fundo: '#0b1220', surface: '#111a2c', texto: '#e7eef8', borda: '#1f2c44' },
+      claro: { tema: 'light', destaque: '#2563eb', fundo: '#f2f5f9', surface: '#fbfcfe', texto: '#10151c', borda: '#e0e6ee' } },
+    { nome: 'GRAPHITE', arteCor: '', art: '',
+      escuro: { tema: 'dark', destaque: '#94a8bd', fundo: '#101214', surface: '#181b1f', texto: '#eceef1', borda: '#2a2f36' },
+      claro: { tema: 'light', destaque: '#475569', fundo: '#f4f5f7', surface: '#fcfcfd', texto: '#14171c', borda: '#e3e6ea' } },
+    { nome: 'OCEAN', arteCor: 'oceano', art: 'oceano',
+      escuro: { tema: 'dark', destaque: '#06b6d4', fundo: '#081019', surface: '#0f1a26', texto: '#e6f0f7', borda: '#1c2d3d' },
+      claro: { tema: 'light', destaque: '#0e7490', fundo: '#eff4f9', surface: '#fafcff', texto: '#101c28', borda: '#d8e3ee' } },
+    { nome: 'EXECUTIVE', arteCor: 'ambar', art: '',
+      escuro: { tema: 'dark', destaque: '#d4af37', fundo: '#121110', surface: '#1b1916', texto: '#f2ede4', borda: '#2e2921' },
+      claro: { tema: 'light', destaque: '#a16207', fundo: '#f7f5f1', surface: '#fdfcf9', texto: '#191512', borda: '#e7e1d6' } },
+    { nome: 'VIOLET TECH', arteCor: 'roxo', art: 'neon',
+      escuro: { tema: 'dark', destaque: '#a78bfa', fundo: '#0c0a14', surface: '#14111f', texto: '#ece9fa', borda: '#251f3a' },
+      claro: { tema: 'light', destaque: '#7c3aed', fundo: '#f6f4fb', surface: '#fdfcff', texto: '#171129', borda: '#e4def2' } },
+    { nome: 'TERMINAL', arteCor: 'matrix', art: 'matrix',
+      escuro: { tema: 'dark', destaque: '#84cc16', fundo: '#050807', surface: '#0b110d', texto: '#d9f4e4', borda: '#17251c' },
+      claro: { tema: 'light', destaque: '#4d7c0f', fundo: '#f1f6f2', surface: '#fafdfb', texto: '#0d1b11', borda: '#dbe8df' } },
   ];
   const MODELOS_BOTAO = [
     ['padrao', 'Padrão'], ['arredondado', 'Arredondado'], ['pill', 'Pílula'], ['quadrado', 'Quadrado'],
@@ -3700,14 +3935,26 @@ function renderConfig(c) {
       </label>
       <label>Título do sistema <input class="input" id="pz-titulo" maxlength="24" value="${esc(ap.titulo || 'NEITZEL')}" /></label>
       <label>Subtítulo <input class="input" id="pz-sub" maxlength="36" value="${esc(I18N.sufixo || 'Sistema Digital')}" /></label>
-      <label>Logo — JPG/PNG/WebP (até 3 MB; comprimimos e redimensionamos automaticamente)
-        <span style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          ${ap.logoDataUrl ? `<img src="${ap.logoDataUrl}" alt="logo atual" style="width:46px;height:46px;object-fit:contain;border-radius:11px;border:1px solid var(--border);background:var(--surface-2)" />` : ''}
-          <input type="file" id="pz-logo" accept="image/png,image/jpeg,image/webp,image/svg+xml,image/avif" style="max-width:250px" />
-          ${ap.logoDataUrl ? '<button class="btn btn-sm btn-ghost" id="pz-logo-remover">Remover</button>' : ''}
-        </span>
-        <span id="pz-logo-status" class="text-muted" style="font-size:11.5px">${ap.logoDataUrl ? '✔ Logo ativa na barra lateral, abertura e cenários.' : 'Sem logo — usando a letra N padrão.'}</span>
-      </label>
+      <div style="grid-column:1/-1">
+        <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:6px">Logo do sistema</div>
+        <div class="pz-logo-box">
+          <div class="pz-logo-preview">
+            ${ap.logoDataUrl
+              ? `<img src="${ap.logoDataUrl}" alt="logo atual" />`
+              : `<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="opacity:.45"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-4.5-4.5L7 20"/></svg>`}
+          </div>
+          <div style="flex:1;min-width:180px">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <label class="btn btn-sm btn-primary" for="pz-logo" style="cursor:pointer;margin:0">Escolher imagem</label>
+              <input type="file" id="pz-logo" accept="image/png,image/jpeg,image/webp,image/svg+xml,image/avif" hidden />
+              ${ap.logoDataUrl ? '<button class="btn btn-sm btn-ghost" id="pz-logo-remover">Remover</button>' : ''}
+            </div>
+            <div id="pz-logo-status" style="font-size:11.5px;color:var(--text-subtle);margin-top:7px;line-height:1.45">
+              ${ap.logoDataUrl ? '✔ Logo ativa na barra lateral, abertura e cenários.' : 'JPG · PNG · WebP ou SVG — até 3 MB. Comprimimos e redimensionamos automaticamente.'}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <h4 style="margin-top:16px">Cores</h4>
@@ -3741,12 +3988,6 @@ function renderConfig(c) {
           <input type="color" id="pz-borda" value="${esc(ap.borda || '#22242c')}" style="width:46px;height:34px;padding:2px;border-radius:8px;border:1px solid var(--border);background:var(--surface);cursor:pointer" />
           <button class="btn btn-sm btn-ghost pz-reset-cor" data-alvo="borda">Padrão</button>
         </span>
-      </label>
-      <label>Tema base
-        <select class="input" id="pz-tema">
-          <option value="dark" ${ap.tema !== 'light' ? 'selected' : ''}>Escuro</option>
-          <option value="light" ${ap.tema === 'light' ? 'selected' : ''}>Claro</option>
-        </select>
       </label>
     </div>
     <div style="margin-top:10px">
@@ -3788,7 +4029,15 @@ function renderConfig(c) {
           <span class="text-muted" style="font-size:12px">${ap.animacoes !== false ? 'ligadas' : 'desligadas'}</span>
         </span>
       </label>
-      <label>Zoom da interface <input type="range" id="pz-zoom" min="80" max="130" step="5" value="${Number(ap.zoom) || 100}" style="accent-color:var(--e-brand)" /></label>
+      <label>Zoom da interface
+        <span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button type="button" class="btn btn-sm" id="pz-zoom-menos" title="Diminuir zoom" style="width:34px;padding:6px 0">−</button>
+          <input type="range" id="pz-zoom" min="80" max="130" step="5" value="${Number(ap.zoom) || 100}" style="flex:1;min-width:140px;accent-color:var(--e-brand)" />
+          <button type="button" class="btn btn-sm" id="pz-zoom-mais" title="Aumentar zoom" style="width:34px;padding:6px 0">+</button>
+          <b id="pz-zoom-val" style="min-width:52px;text-align:center;font-variant-numeric:tabular-nums">${Number(ap.zoom) || 100}%</b>
+          <button type="button" class="btn btn-sm btn-ghost" id="pz-zoom-reset">Padrão</button>
+        </span>
+      </label>
     </div>
 
     <h4 style="margin-top:16px">Tela de fundo &amp; arte</h4>
@@ -3799,7 +4048,12 @@ function renderConfig(c) {
           <option value="padrao" ${ap.fundoModo === 'padrao' ? 'selected' : ''}>Padrão limpo (sem imagem)</option>
         </select>
       </label>
-      <label>Intensidade da arte <input type="range" id="pz-fundoop" min="10" max="100" step="5" value="${Number(ap.fundoOpacidade) == null || isNaN(Number(ap.fundoOpacidade)) ? 55 : Number(ap.fundoOpacidade)}" style="accent-color:var(--e-brand)" /></label>
+      <label>Intensidade da arte <input type="range" id="pz-fundoop" min="10" max="100" step="5" value="${Number(ap.fundoOpacidade) == null || isNaN(Number(ap.fundoOpacidade)) ? 20 : Number(ap.fundoOpacidade)}" style="accent-color:var(--e-brand)" /></label>
+      <label>Chuva de código (animação)
+        <select class="input" id="pz-chuva">
+          ${[['sutil', 'Sutil (padrão)'], ['normal', 'Normal'], ['off', 'Desligada']].map(([v, n]) => `<option value="${v}" ${(ap.chuva || 'sutil') === v ? 'selected' : ''}>${n}</option>`).join('')}
+        </select>
+      </label>
       <label>Animação autoral do tema
         <select class="input" id="pz-temaart">
           ${[['', 'Nenhuma'], ['aurora', 'Véu Aurora Boreal'], ['neon', 'Grade Neon Cyberpunk'], ['sakura', 'Pétalas Sakura'], ['matrix', 'Chuva Matrix'], ['oceano', 'Ondas do Oceano'], ['deserto', 'Calor do Deserto']].map(([v, n]) => `<option value="${v}" ${(ap.temaArt || '') === v ? 'selected' : ''}>${n}</option>`).join('')}
@@ -3890,7 +4144,7 @@ function renderConfig(c) {
     const mapa = { destaque: '#pz-destaque', fundo: '#pz-fundo', surface: '#pz-surface', texto: '#pz-texto', borda: '#pz-borda' };
     const inp = c.querySelector(mapa[alvo]);
     if (inp) {
-      const padroes = { destaque: document.documentElement.getAttribute('data-theme') === 'light' ? '#2563eb' : '#3ecf8e', fundo: document.documentElement.getAttribute('data-theme') === 'light' ? '#f5f6f8' : '#0c0d12', surface: document.documentElement.getAttribute('data-theme') === 'light' ? '#ffffff' : '#14151c', texto: document.documentElement.getAttribute('data-theme') === 'light' ? '#131418' : '#e8eaee', borda: document.documentElement.getAttribute('data-theme') === 'light' ? '#e4e6ea' : '#262933' };
+      const padroes = { destaque: document.documentElement.getAttribute('data-theme') === 'light' ? '#2563eb' : '#3ecf8e', fundo: document.documentElement.getAttribute('data-theme') === 'light' ? '#f2f5f9' : '#0f1211', surface: document.documentElement.getAttribute('data-theme') === 'light' ? '#fbfcfe' : '#161a18', texto: document.documentElement.getAttribute('data-theme') === 'light' ? '#10151c' : '#e9edeb', borda: document.documentElement.getAttribute('data-theme') === 'light' ? '#e0e6ee' : '#272e2a' };
       inp.value = padroes[alvo];
     }
     toast('Cor restaurada ao padrão', 'info');
@@ -3900,6 +4154,34 @@ function renderConfig(c) {
   if (pzTitulo) pzTitulo.addEventListener('change', () => salvarPz({ titulo: pzTitulo.value.trim() || 'NEITZEL', sufixo: c.querySelector('#pz-sub')?.value.trim() || '' }, true));
   const pzSub = c.querySelector('#pz-sub');
   if (pzSub) pzSub.addEventListener('change', () => salvarPz({ sufixo: pzSub.value.trim() || 'Sistema Digital', titulo: c.querySelector('#pz-titulo')?.value.trim() || 'NEITZEL' }, true));
+
+  /* Empresa: salva na aparência E nos dados (nome usado na marca da sidebar/portal) */
+  const pzEmpresa = c.querySelector('#pz-empresa');
+  if (pzEmpresa) pzEmpresa.addEventListener('change', () => {
+    const nome = pzEmpresa.value.trim();
+    salvarPz({ empresa: nome });
+    try {
+      const dbd = d();
+      dbd.config = dbd.config || {};
+      dbd.config.empresa = Object.assign({}, dbd.config.empresa, { nome });
+      E.db.save();
+      if (nome) E.audit.record('config.empresa', 'sistema', null, { nome });
+    } catch (e) {}
+    toast(nome ? 'Empresa salva — marca atualizada' : 'Nome da empresa limpo', 'success');
+    setTimeout(rebrandar, 60);
+  });
+  const pzEmpWhats = c.querySelector('#pz-empwhats');
+  if (pzEmpWhats) pzEmpWhats.addEventListener('change', () => {
+    const whats = pzEmpWhats.value.replace(/\D/g, '').slice(0, 13);
+    pzEmpWhats.value = whats;
+    try {
+      const dbd = d();
+      dbd.config = dbd.config || {};
+      dbd.config.empresa = Object.assign({}, dbd.config.empresa, { whatsapp: whats });
+      E.db.save();
+      toast(whats ? 'WhatsApp comercial salvo' : 'WhatsApp removido', 'success');
+    } catch (e) { toast('Não foi possível salvar o WhatsApp', 'danger'); }
+  });
 
   const pzLogo = c.querySelector('#pz-logo');
   if (pzLogo) pzLogo.addEventListener('change', async () => {
@@ -3928,16 +4210,42 @@ function renderConfig(c) {
     setTimeout(rebrandar, 80);
   }));
 
-  const pzTema = c.querySelector('#pz-tema');
-  if (pzTema) pzTema.addEventListener('change', () => salvarPz({ tema: pzTema.value }));
   const pzBtn = c.querySelector('#pz-btn');
   if (pzBtn) pzBtn.addEventListener('change', () => salvarPz({ botao: pzBtn.value }));
   const pzFont = c.querySelector('#pz-font');
   if (pzFont) pzFont.addEventListener('change', () => salvarPz({ fonte: pzFont.value }));
   const pzAnim = c.querySelector('#pz-anim');
   if (pzAnim) pzAnim.addEventListener('change', () => salvarPz({ animacoes: pzAnim.checked }));
+  /* Zoom ao vivo: aplica já no arrastar, botões ±, leitura em % e retorno rápido */
+  const aplicarZoomAgora = (v, salvar) => {
+    const z = Math.min(130, Math.max(80, Math.round(Number(v) || 100)));
+    aplicarAparencia({ zoom: z });
+    const val = c.querySelector('#pz-zoom-val');
+    if (val) val.textContent = z + '%';
+    const sl = c.querySelector('#pz-zoom');
+    if (sl && Number(sl.value) !== z) sl.value = String(z);
+    if (salvar) salvarAparencia({ zoom: z });
+  };
   const pzZoom = c.querySelector('#pz-zoom');
-  if (pzZoom) pzZoom.addEventListener('change', () => salvarPz({ zoom: Number(pzZoom.value) }));
+  if (pzZoom) {
+    pzZoom.addEventListener('input', () => aplicarZoomAgora(pzZoom.value, false));
+    pzZoom.addEventListener('change', () => salvarAparencia({ zoom: Number(pzZoom.value) }));
+  }
+  const passoZoom = (delta) => aplicarZoomAgora((Number((c.querySelector('#pz-zoom') || {}).value) || 100) + delta, true);
+  const pzZoomMenos = c.querySelector('#pz-zoom-menos');
+  if (pzZoomMenos) pzZoomMenos.addEventListener('click', () => passoZoom(-5));
+  const pzZoomMais = c.querySelector('#pz-zoom-mais');
+  if (pzZoomMais) pzZoomMais.addEventListener('click', () => passoZoom(5));
+  const pzZoomReset = c.querySelector('#pz-zoom-reset');
+  if (pzZoomReset) pzZoomReset.addEventListener('click', () => { aplicarZoomAgora(100, true); toast('Zoom restaurado para 100%', 'info'); });
+
+  /* Controles de formato — antes sem listener (não salvavam nada) */
+  const pzTamLetra = c.querySelector('#pz-tamletra');
+  if (pzTamLetra) pzTamLetra.addEventListener('change', () => salvarPz({ letraTamanho: pzTamLetra.value }));
+  const pzMenu = c.querySelector('#pz-menu');
+  if (pzMenu) pzMenu.addEventListener('change', () => salvarPz({ menu: pzMenu.value }, true));
+  const pzCartao = c.querySelector('#pz-cartao');
+  if (pzCartao) pzCartao.addEventListener('change', () => salvarPz({ cartao: pzCartao.value }));
 
   const pzSom = c.querySelector('#pz-som');
   if (pzSom) pzSom.addEventListener('change', () => salvarPz({ som: pzSom.checked }));
@@ -3950,6 +4258,8 @@ function renderConfig(c) {
   });
   const pzTemaArt = c.querySelector('#pz-temaart');
   if (pzTemaArt) pzTemaArt.addEventListener('change', () => salvarPz({ temaArt: pzTemaArt.value }));
+  const pzChuva = c.querySelector('#pz-chuva');
+  if (pzChuva) pzChuva.addEventListener('change', () => salvarPz({ chuva: pzChuva.value }));
   const pzSomTipo = c.querySelector('#pz-somtipo');
   if (pzSomTipo) pzSomTipo.addEventListener('change', () => salvarPz({ somTipo: pzSomTipo.value }));
   const pzSomVol = c.querySelector('#pz-somvol');
@@ -3959,10 +4269,17 @@ function renderConfig(c) {
 
   const pzReset = c.querySelector('#pz-reset');
   if (pzReset) pzReset.addEventListener('click', () => {
-    if (!confirm('Restaurar TODA a personalização ao padrão de criação?\n(tema, cores, título, logo, modelo de botões, letras, sons e zoom)')) return;
+    if (!confirm('Restaurar TODA a personalização ao padrão de criação?\n(tema, cores, título, LOGO, NOME DA EMPRESA, WHATSAPP, botões, letras, sons, animações e zoom)')) return;
     try { localStorage.removeItem(AP_KEY); } catch (e) {}
     I18N.titulo = 'NEITZEL';
     I18N.sufixo = 'Sistema Digital';
+    /* Identidade da empresa também vive nos DADOS (marca da sidebar/portal) */
+    try {
+      const dbd = d();
+      dbd.config = dbd.config || {};
+      delete dbd.config.empresa;
+      E.db.save();
+    } catch (e) {}
     aplicarAparencia(lerAparencia());
     toast('Sistema restaurado ao padrão de criação', 'success');
     setTimeout(rebrandar, 80);
@@ -3977,6 +4294,7 @@ function renderConfig(c) {
       <button class="btn btn-sm" id="bk-import">⬆ Importar backup</button>
       <button class="btn btn-sm" id="bk-csv"> Exportar leads CSV</button>
       <button class="btn btn-sm" id="bk-migrar">Migrar dados do LeadsCRM antigo</button>
+      <button class="btn btn-sm btn-danger" id="bk-zero" title="Apaga TODOS os dados deste navegador e volta ao estado de primeira execução">Apagar tudo — começar do zero</button>
     </div>
     <div id="cfg-msg" class="text-muted" style="margin-top:8px;font-size:12px"></div>
   `);
@@ -4021,6 +4339,16 @@ function renderConfig(c) {
     a.href = URL.createObjectURL(blob);
     a.download = `neitzel-leads-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
+  });
+
+  /* ZERO DADO — apaga tudo deste navegador e volta à primeira execução */
+  const bkZero = bk.querySelector('#bk-zero');
+  if (bkZero) bkZero.addEventListener('click', () => {
+    if (!confirm('APAGAR TUDO?\n\nLeads, clientes, agenda, financeiro, estoque, histórico e personalização deste navegador serão EXCLUÍDOS permanentemente.\n\nExporte um backup antes, se precisar.')) return;
+    if (!confirm('Confirma pela segunda vez? Esta ação não pode ser desfeita.')) return;
+    try { localStorage.clear(); sessionStorage.clear(); } catch (e) {}
+    toast('Tudo apagado — reiniciando como primeira execução…', 'success');
+    setTimeout(() => { try { location.href = location.pathname; } catch (e) {} setTimeout(() => location.reload(), 60); }, 500);
   });
 }
 
@@ -4273,11 +4601,16 @@ function toggleNotifPanel() {
   if (ui.notifOpen) {
     const itens = E.modules.notificacoes.items;
     panel.innerHTML = '';
-    panel.appendChild(el('div', 'notif-head', `<div style="padding:12px 14px;font-weight:650">Notificações <button class="btn btn-xs" data-allread>Marcar todas lidas</button></div>`));
-    panel.querySelector('[data-allread]').addEventListener('click', (e) => {
+    const head = el('div', 'notif-head', `<b style="font-size:13px">Notificações</b><button class="btn btn-xs" data-allread>Marcar todas lidas</button><button class="notif-x" data-closepanel title="Fechar (Esc)">✕</button>`);
+    panel.appendChild(head);
+    head.querySelector('[data-allread]').addEventListener('click', (e) => {
       e.stopPropagation();
       E.modules.notificacoes.markAllRead();
       toggleNotifPanel();
+    });
+    head.querySelector('[data-closepanel]').addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeAllPanels();
     });
     if (!itens.length) panel.appendChild(el('div', 'empty', 'Sem notificações.'));
     itens.slice(0, 30).forEach((n) => {
@@ -4296,7 +4629,7 @@ function openUserMenu() {
   const shell = document.querySelector('.ecomim-shell');
   let panel = shell.querySelector('.user-menu');
   if (!panel) {
-    panel = el('div', 'notif-panel', '');
+    panel = el('div', 'notif-panel user-menu', '');
     shell.querySelector('#btn-user').appendChild(panel);
   }
   panel.classList.toggle('open');
@@ -4305,7 +4638,8 @@ function openUserMenu() {
     const g = sec.getGoogle();
     const nome = (g && g.nome) || 'Operador';
     const email = (g && g.email) || 'Administrador · local';
-    panel.innerHTML = `<div class="notif-head" style="padding:12px 14px"><b> ${esc(nome)}</b><div class="text-muted">${esc(email)} · NEITZEL</div></div><div style="padding:10px;display:flex;flex-direction:column;gap:8px"><button class="btn btn-sm btn-block" id="um-mail"> Recuperar senha</button><button class="btn btn-sm btn-block" id="um-sair">Bloquear sistema (pedir senha)</button></div>`;
+    panel.innerHTML = `<div class="notif-head"><div><b>${esc(nome)}</b><div class="text-muted">${esc(email)} · NEITZEL</div></div><button class="notif-x" data-closepanel title="Fechar (Esc)">✕</button></div><div style="padding:10px;display:flex;flex-direction:column;gap:8px"><button class="btn btn-sm btn-block" id="um-mail"> Recuperar senha</button><button class="btn btn-sm btn-block" id="um-sair">Bloquear sistema (pedir senha)</button></div>`;
+    panel.querySelector('[data-closepanel]').addEventListener('click', (e) => { e.stopPropagation(); closeAllPanels(); });
     panel.querySelector('#um-mail').addEventListener('click', () => { panel.classList.remove('open'); showRecoveryFlow(); });
     panel.querySelector('#um-sair').addEventListener('click', () => {
       if (!window.ECOMIM_EXT.security.hasPin()) { toast('Defina a senha em Segurança para bloquear', 'warn'); return; }

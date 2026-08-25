@@ -738,4 +738,7 @@ const ECOMIM_HUNTER = (() => {
 
 if (typeof window !== 'undefined') {
   window.ECOMIM_HUNTER = ECOMIM_HUNTER;
+  /* Garante catálogo de fontes ativas em QUALQUER navegador (primeira execução
+     inclusive) — antes, quem nunca tinha aberto o Caçador ficava sem fontes. */
+  try { ECOMIM_HUNTER.init(); } catch (e) {}
 }

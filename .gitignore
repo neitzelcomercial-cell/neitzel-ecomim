@@ -14,3 +14,9 @@ Thumbs.db
 # Banco de dados local do portal
 data/
 data/admin-token.txt
+
+# Artefatos locais desta máquina (backups legados e validações visuais)
+_legado/
+_validacao/
+tools/_shot_report.json
+tools/_patch-*.js

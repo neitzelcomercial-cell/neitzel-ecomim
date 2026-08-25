@@ -224,6 +224,32 @@
     secTitulo.innerHTML = '<h1 style="font-size:22px">Ciclo automático da memória</h1><p>Ligado ao relógio e ao calendário: captura todo dia · arquiva 30 dias após o fim do mês · gera o PDF aos 60 dias.</p>';
     c.appendChild(secTitulo);
 
+    /* Cartão de LIMPEZA — sempre com DUAS confirmações */
+    const cardLimpar = document.createElement('div');
+    cardLimpar.className = 'card';
+    cardLimpar.innerHTML = `
+      <h4>Limpeza de registros</h4>
+      <div class="text-muted" style="font-size:12px;margin-bottom:10px">Apaga registros de atividade e memória deste dispositivo. As duas ações pedem <b>duas confirmações</b> e não podem ser desfeitas.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-sm btn-danger" id="mem-limpar-ativ">Limpar ATIVIDADES (período atual + auditoria)</button>
+        <button class="btn btn-sm btn-danger" id="mem-limpar-arq">Limpar MEMÓRIA ARQUIVADA (histórico)</button>
+      </div>`;
+    c.appendChild(cardLimpar);
+    cardLimpar.querySelector('#mem-limpar-ativ').addEventListener('click', () => {
+      if (!confirm('Limpar TODAS as ATIVIDADES do período atual e o registro de auditoria?')) return;
+      if (!confirm('Segunda confirmação: isso apaga definitivamente o histórico recente de atividades. Continuar?')) return;
+      NEITZEL_MEMORIA.limparAtividades();
+      toast('Atividades e auditoria limpas.', 'success');
+      setTimeout(() => render(c), 80);
+    });
+    cardLimpar.querySelector('#mem-limpar-arq').addEventListener('click', () => {
+      if (!confirm('Limpar toda a MEMÓRIA ARQUIVADA (histórico mensal consolidado)?')) return;
+      if (!confirm('Segunda confirmação: o arquivo histórico será apagado para sempre. Continuar?')) return;
+      NEITZEL_MEMORIA.limparArquivo();
+      toast('Memória arquivada limpa.', 'success');
+      setTimeout(() => render(c), 80);
+    });
+
     // Status do mês corrente
     const totalMes = (buf.dias || []).reduce((s, x) => s + (x.totalEventos || 0), 0);
     const fimMes = fimDoMesMs(buf.mes);
@@ -362,5 +388,22 @@
   setTimeout(tickAgenda, 2500);
   setInterval(tickAgenda, 60 * 1000);
 
-  window.NEITZEL_MEMORIA = { capturarSnapshot: () => capturarHoje(true), consolidarPendentes: tickAgenda, render, tickAgenda };
+  window.NEITZEL_MEMORIA = { capturarSnapshot: () => capturarHoje(true), consolidarPendentes: tickAgenda, render, tickAgenda,
+  /** Limpa as ATIVIDADES capturadas do período + auditoria (chamar com dupla confirmação). */
+  limparAtividades() {
+    try {
+      localStorage.removeItem(KEY_MES);
+      if (window.ECOMIM && window.ECOMIM.audit && window.ECOMIM.audit.limpar) window.ECOMIM.audit.limpar();
+    } catch (e) {}
+    return { ok: true };
+  },
+  /** Limpa a MEMÓRIA ARQUIVADA (histórico mensal consolidado/PDFs registrados). */
+  limparArquivo() {
+    try {
+      localStorage.removeItem(KEY_ARQ);
+      localStorage.removeItem(KEY_PDF);
+    } catch (e) {}
+    return { ok: true };
+  },
+ };
 })();

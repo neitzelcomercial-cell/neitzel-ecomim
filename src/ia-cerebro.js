@@ -119,6 +119,10 @@ window.NEITZEL_CEREBRO = (() => {
     agenda: { nome:'Agenda', tela:'agenda', chaves:['agenda','calendario','calendario','eventos'],
       oQue:'o calendário de eventos e compromissos gerais do negócio.',
       passos:['Menu Agenda → Agenda.','Selecione a data e crie o evento.','Edite ou exclua clicando sobre o evento.'] },
+    tarefas: { nome:'Tarefas', tela:'tarefas', chaves:['tarefa','tarefas','pendente','pendencias','atrasadas','afazeres','to-do'],
+      oQue:'a lista unificada de TAREFAS — gerais e de projetos — com prazos, atraso, conclusão e agente de avisos.',
+      passos:['Menu Agenda → Tarefas (ou diga "abra as tarefas").','Digite título + prazo e clique Adicionar.','Marque o check para concluir; a lixeira exclui com confirmação.','O agente avisa quando algo atrasa; pergunte "o que está atrasado?" aqui mesmo.'],
+      dicas:['Atrasadas ficam em vermelho no topo da lista — comece por elas.'] },
     servicos: { nome:'Serviços', tela:'servicos', chaves:['servico','servicos','catalogo de servicos','preco do servico'],
       oQue:'o catálogo de serviços com preço, custo, margem e duração.',
       passos:['Menu Catálogo → Serviços (diga "abra os serviços").','Clique Novo serviço.','Nome, descrição e categoria.','Preço e custo (a margem calcula sozinha).','Defina a DURAÇÃO em minutos — o Portal usa isso para montar horários.','Salve e depois publique o catálogo no Portal.'],
@@ -335,7 +339,7 @@ window.NEITZEL_CEREBRO = (() => {
       // 3) ação: abrir tela
       const querAbrir = TIPOS.abrir.re.test(frase);
       if (querAbrir) {
-        const alvo = ctx.tokens.map((tk)=>({ planner:'planner', dashboard:'dashboard', financeiro:'financeiro', clientes:'clientes', cliente:'clientes', leads:'leads', servicos:'servicos', servico:'servicos', produtos:'produtos', produto:'produtos', estoque:'estoque', portal:'portal', agenda:'agenda', bi:'bi', memoria:'memoria', suporte:'seguranca', diagnostico:'seguranca', seguranca:'seguranca', configuracoes:'config', funil:'funil', estrategia:'estrategia', cenario:'estrategia', projetos:'projetos', marketing:'marketing', rh:'rh', inteligencia:'inteligencia', automacoes:'automacoes', comunicacao:'comunicacao', acessor:'acessor' })[tk]).find(Boolean)
+        const alvo = ctx.tokens.map((tk)=>({ planner:'planner', tarefas:'tarefas', tarefa:'tarefas', dashboard:'dashboard', financeiro:'financeiro', clientes:'clientes', cliente:'clientes', leads:'leads', servicos:'servicos', servico:'servicos', produtos:'produtos', produto:'produtos', estoque:'estoque', portal:'portal', agenda:'agenda', bi:'bi', memoria:'memoria', suporte:'seguranca', diagnostico:'seguranca', seguranca:'seguranca', configuracoes:'config', funil:'funil', estrategia:'estrategia', cenario:'estrategia', projetos:'projetos', marketing:'marketing', rh:'rh', inteligencia:'inteligencia', automacoes:'automacoes', comunicacao:'comunicacao', acessor:'acessor' })[tk]).find(Boolean)
           || ({ 'portal do cliente':'portal' }[frase]);
         if (alvo) {
           return { texto:`Abrindo **${alvo}** para você…`, acao: acaoNavegar(alvo) };

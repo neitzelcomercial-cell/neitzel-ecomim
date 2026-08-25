@@ -1,0 +1,99 @@
+/* ============================================================================
+ * NEITZEL — TOKENS BASE (claro + escuro)
+ * Carregado ANTES de styles.css. Personalização do cliente sobrescreve via
+ * style inline no <html> — não remover os nomes de variáveis.
+ * ========================================================================== */
+
+/* ============================================================================
+ * 1. TOKENS — TEMA CLARO (padrão): CLARO + AZUL TECNOLÓGICO
+ * ========================================================================== */
+:root {
+  --bg: #f2f5f9;
+  --surface: #fbfcfe;
+  --surface-2: #eef2f7;
+  --surface-3: #e4eaf1;
+  --border: #e0e6ee;
+  --border-strong: #c8d2de;
+  --text: #10151c;
+  --text-muted: #4d5866;
+  --text-subtle: #7b8794;
+
+  /* Assinatura da marca no claro — azul tecnológico sobre neutros frios */
+  --nz-black: #0d1117;
+  --nz-black-2: #151b23;
+  --nz-black-3: #1c2430;
+  --nz-red: #2563eb;
+  --nz-red-strong: #1d4ed8;
+  --nz-red-soft: rgba(37, 99, 235, 0.08);
+  --nz-red-soft-2: rgba(37, 99, 235, 0.15);
+  --nz-red-glow: rgba(37, 99, 235, 0.22);
+
+  /* Semânticos (aparecem apenas com significado funcional) */
+  --e-brand: #2563eb;
+  --e-brand-soft: rgba(37, 99, 235, 0.10);
+  --e-violet: #5b5bd6;
+  --e-violet-soft: #ecebfb;
+  --e-green: #0f7a44;
+  --e-green-soft: #e2f3ea;
+  --e-orange: #b45b0a;
+  --e-orange-soft: #fbeedd;
+  --e-red: #bf3b2e;
+  --e-red-soft: #fcebe8;
+  --e-cyan: #0c7385;
+  --e-cyan-soft: #dff1f4;
+  --e-danger: #bf3b2e;
+  --e-warning: #a16207;
+  --ring: rgba(37, 99, 235, 0.20);
+
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 2px 8px -4px rgba(16, 24, 40, 0.06);
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 14px -8px rgba(16, 24, 40, 0.08);
+  --shadow-lg: 0 14px 36px -12px rgba(16, 24, 40, 0.20);
+}
+
+/* ============================================================================
+ * 2. TOKENS — TEMA ESCURO (grafite elevado, menta como acento)
+ * ========================================================================== */
+[data-theme="dark"] {
+  --bg: #0f1211;
+  --surface: #161a18;
+  --surface-2: #1c211f;
+  --surface-3: #242a27;
+  --border: #272e2a;
+  --border-strong: #3b433e;
+  --text: #e9edeb;
+  --text-muted: #9aa49e;
+  --text-subtle: #6b756f;
+
+  --nz-black: #0c0f0d;
+  --nz-black-2: #141916;
+  --nz-black-3: #1b211d;
+  --nz-red: #3ecf8e;
+  --nz-red-strong: #6fe3ae;
+  --nz-red-soft: rgba(62, 207, 142, 0.12);
+  --nz-red-soft-2: rgba(62, 207, 142, 0.20);
+  --nz-red-glow: rgba(62, 207, 142, 0.28);
+
+  --e-brand: #3ecf8e;
+  --e-brand-soft: rgba(62, 207, 142, 0.12);
+  --e-violet: #a78bfa;
+  --e-violet-soft: rgba(76, 29, 149, 0.40);
+  --e-green: #46d683;
+  --e-green-soft: rgba(22, 101, 52, 0.30);
+  --e-orange: #fb923c;
+  --e-orange-soft: rgba(124, 45, 18, 0.32);
+  --e-red: #f87171;
+  --e-red-soft: rgba(127, 29, 29, 0.35);
+  --e-cyan: #22d3ee;
+  --e-cyan-soft: rgba(22, 78, 99, 0.38);
+  --e-danger: #f87171;
+  --e-warning: #fbbf24;
+  --ring: rgba(62, 207, 142, 0.24);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.40), 0 2px 8px -4px rgba(0, 0, 0, 0.35);
+  --shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.02), 0 4px 14px -8px rgba(0, 0, 0, 0.40);
+  --shadow-lg: 0 16px 40px -12px rgba(0, 0, 0, 0.55);
+}
+
+/* Raio e tipografia */

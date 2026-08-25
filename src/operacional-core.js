@@ -164,6 +164,20 @@ const NEITZEL_OPS = (() => {
       emit('produto.created', { produtoId: p.id });
       return { ok: true, produto: p };
     },
+    /** Remove o produto do catálogo. Histórico de estoque/atendimentos
+        permanece (dados denormalizados por nome). */
+    excluir(id) {
+      const list = this.list();
+      const i = list.findIndex((x) => x.id === id);
+      if (i < 0) return { ok: false, code: 'NOT_FOUND' };
+      const antes = list[i];
+      list.splice(i, 1);
+      this._save(list);
+      audit('operacional.produto_excluido', 'produto', antes, null);
+      emit('produto.deleted', { produtoId: id });
+      saveDb();
+      return { ok: true };
+    },
     update(id, patch) {
       const list = this.list();
       const i = list.findIndex((p) => p.id === id);
@@ -325,6 +339,23 @@ const NEITZEL_OPS = (() => {
       emit('atendimento.updated', { atendimentoId: id });
       saveDb();
       return { ok: true, atendimento: list[i] };
+    },
+    /** Exclui o atendimento. Se concluído, exige { forcar:true } —
+        lançamentos financeiros anteriores NÃO são desfeitos. */
+    excluir(id, opts) {
+      const list = this.list();
+      const i = list.findIndex((x) => x.id === id);
+      if (i < 0) return { ok: false, code: 'NOT_FOUND' };
+      const antes = list[i];
+      if (antes.status === 'concluido' && !(opts && opts.forcar)) {
+        return { ok: false, code: 'CONCLUIDO', message: 'Atendimento concluído — confirme para excluir mesmo assim.' };
+      }
+      list.splice(i, 1);
+      this._save(list);
+      audit('operacional.atendimento_excluido', 'atendimento', antes, null);
+      emit('atendimento.deleted', { atendimentoId: id });
+      saveDb();
+      return { ok: true };
     },
     /**
      * Finaliza um atendimento: baixa estoque dos produtos, gera receita

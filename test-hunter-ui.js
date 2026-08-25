@@ -24,6 +24,25 @@ const dom = new JSDOM(html, {
     w.HTMLElement.prototype.scrollIntoView = function() {};
     w.alert = function() {};
     w.confirm = function() { return true; };
+    /* Ambiente de teste NÃO tem rede (file://): as fontes reais falhariam
+       honestamente. Definimos uma API base fictícia (contorna o bloqueio de
+       file://) e stubamos o fetch para testar pesquisa→dedup→persistência. */
+    w.NEITZEL_API_BASE = 'http://hunter.teste';
+    w.fetch = (url) => {
+      const ehPesquisa = String(url).includes('/api/cacador/pesquisar');
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => (ehPesquisa ? {
+          leads: [
+            { nome: 'Academia Alfa', telefone: '47999990001', email: 'alfa@teste.com', site: 'https://alfa.teste', endereco: 'Joinville SC' },
+            { nome: 'Academia Beta', telefone: '47999990002', whatsapp: '47999990002', email: 'beta@teste.com', endereco: 'Joinville SC' },
+            { nome: 'Academia Gama', telefone: '(47) 99999-0003', email: 'gama@teste.com', endereco: 'Joinville SC' },
+          ],
+          erros: [],
+        } : {}),
+      });
+    };
     try { Object.defineProperty(w, 'crypto', { configurable: true, value: cryptoNode.webcrypto }); } catch (e) {}
   },
 });
@@ -61,6 +80,17 @@ dom.window.addEventListener('load', async () => {
     // renderCacador não lança e não gera artefato de objeto
     win.ECOMIM_APP.renderView('cacador');
     await sleep(300);
+    /* Sincronizações em segundo plano podem re-renderizar outra view após o
+       boot; garante que o CAÇADOR está na tela no momento da leitura. */
+    try {
+      if (process.env.HDBG) {
+        const antes = (doc.querySelector('.ecomim-content') || {}).textContent || '';
+        console.log('[HDBG] len-antes:', antes.length, '| temNovaPesquisa?', antes.includes('Nova pesquisa'));
+        console.log('[HDBG] inicio:', JSON.stringify(antes.slice(0, 160)));
+      }
+      win.ECOMIM_APP.renderView('cacador');
+    } catch (e) { console.log('[HDBG] THROW no renderView cacador:', e.message); }
+    await sleep(80);
     const txt = (doc.querySelector('.ecomim-content') || { textContent: '' }).textContent || '';
     assert(!txt.includes('HTMLButtonElement') && !txt.includes('[object '), 'renderCacador sem artefato "[object ...]"');
     assert(txt.includes('Nova pesquisa'), 'renderCacador monta o formulário de pesquisa');
@@ -73,6 +103,14 @@ dom.window.addEventListener('load', async () => {
     // Pesquisa + exportação em memória (sem download)
     const r = await H.executarPesquisa({ tipo: 'empresa', cidade: 'Joinville', segmento: 'academias', quantidade: 20 });
     assert(r.ok, 'pesquisa executa ok');
+    if (process.env.HDBG) {
+      const s0 = H.DB.pesquisas[0] || {};
+      console.log('[HDBG] resultados:', JSON.stringify(s0.resultados));
+      console.log('[HDBG] porFonte:', JSON.stringify(s0.porFonte));
+      console.log('[HDBG] erros:', JSON.stringify((s0.erros || []).slice(0, 4)));
+      console.log('[HDBG] fontes ativas:', H.DB.sources.filter((x) => x.ativo).map((x) => x.id).join(','));
+      console.log('[HDBG] leads:', H.DB.leads.length);
+    }
     assert(H.DB.leads.length > 0, 'pesquisa gera leads p/ export');
     assert(H.DB.pesquisas.length === 1, 'histórico com 1 item');
     const r2 = H.limparHistorico();

@@ -376,6 +376,12 @@ const ECOMIM = (() => {
         if (raw) auditLog = JSON.parse(raw);
       } catch (e) {}
     },
+    /** Limpa TODO o registro de atividades (atrás de dupla confirmação na UI). */
+    limpar() {
+      auditLog = [];
+      try { storage.set(APP.storageKey + '_audit', '[]'); } catch (e) {}
+      return { ok: true };
+    },
   };
 
   /* ------------------------------------------------------------------ *
@@ -1053,6 +1059,16 @@ const ECOMIM = (() => {
       if (patch.status === 'fechado') eventBus.emit('ticket.closed', { ticketId: t.id });
       return { ok: true, ticket: t };
     },
+    excluirTicket(id) {
+      const i = this.tickets.findIndex((x) => x.id === id);
+      if (i < 0) return { ok: false, code: 'NOT_FOUND' };
+      const antes = this.tickets[i];
+      this.tickets.splice(i, 1);
+      this.save();
+      audit.record('atendimento.ticket_excluido', 'ticket', antes, null);
+      eventBus.emit('ticket.deleted', { ticketId: id });
+      return { ok: true };
+    },
     addMensagem(ticketId, mensagem) {
       const t = this.tickets.find((x) => x.id === ticketId);
       if (!t) return { ok: false, code: 'NOT_FOUND' };
@@ -1168,6 +1184,31 @@ const ECOMIM = (() => {
       this.recalcProgresso(p);
       this.save();
       return { ok: true, tarefa: t };
+    },
+    /** Exclui uma TAREFA do projeto (com auditoria). */
+    excluirTarefa(projetoId, tarefaId) {
+      const p = this.projetos.find((x) => x.id === projetoId);
+      if (!p) return { ok: false, code: 'NOT_FOUND' };
+      const i = p.tarefas.findIndex((x) => x.id === tarefaId);
+      if (i < 0) return { ok: false, code: 'NOT_FOUND_TASK' };
+      const antes = p.tarefas[i];
+      p.tarefas.splice(i, 1);
+      this.recalcProgresso(p);
+      this.save();
+      audit.record('projeto.tarefa_excluida', 'projeto', antes, null);
+      eventBus.emit('project.task_deleted', { projetoId, tarefaId });
+      return { ok: true };
+    },
+    /** Exclui o PROJETO inteiro (inclui tarefas) — sempre atrás de confirmação na UI. */
+    excluirProjeto(id) {
+      const i = this.projetos.findIndex((x) => x.id === id);
+      if (i < 0) return { ok: false, code: 'NOT_FOUND' };
+      const antes = this.projetos[i];
+      this.projetos.splice(i, 1);
+      this.save();
+      audit.record('projeto.excluido', 'projeto', antes, null);
+      eventBus.emit('project.deleted', { projetoId: id, nome: antes.nome });
+      return { ok: true };
     },
     recalcProgresso(p) {
       if (!p.tarefas.length) { p.progresso = 0; return; }
@@ -1332,6 +1373,16 @@ const ECOMIM = (() => {
       this.save();
       return { ok: true, campanha: c };
     },
+    excluirCampanha(id) {
+      const i = this.campanhas.findIndex((x) => x.id === id);
+      if (i < 0) return { ok: false, code: 'NOT_FOUND' };
+      const antes = this.campanhas[i];
+      this.campanhas.splice(i, 1);
+      this.save();
+      audit.record('marketing.campanha_excluida', 'campanha', antes, null);
+      eventBus.emit('campaign.deleted', { campanhaId: id });
+      return { ok: true };
+    },
     registrarLead(campanhaId) {
       const c = this.campanhas.find((x) => x.id === campanhaId);
       if (!c) return { ok: false, code: 'NOT_FOUND' };
@@ -1394,6 +1445,16 @@ const ECOMIM = (() => {
       c.updated = nowISO();
       this.save();
       return { ok: true, colaborador: c };
+    },
+    excluirColaborador(id) {
+      const i = this.colaboradores.findIndex((x) => x.id === id);
+      if (i < 0) return { ok: false, code: 'NOT_FOUND' };
+      const antes = this.colaboradores[i];
+      this.colaboradores.splice(i, 1);
+      this.save();
+      audit.record('rh.colaborador_excluido', 'colaborador', antes, null);
+      eventBus.emit('rh.colaborador_deleted', { colaboradorId: id });
+      return { ok: true };
     },
     ativos() { return this.colaboradores.filter((c) => c.status === 'ativo'); },
     save() {

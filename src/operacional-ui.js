@@ -81,6 +81,11 @@ const NEITZEL_OPS_UI = (() => {
     const opts = options.map(([v, t]) => `<option value="${esc(v)}" ${String(v) === String(selected) ? 'selected' : ''}>${esc(t)}</option>`).join('');
     return `<label for="${id}">${esc(label)}</label><select class="input" id="${id}" style="margin-bottom:10px">${opts}</select>`;
   };
+  /** Re-renderiza a view atual do app (após exclusões/criações). */
+  function renderViewAtual() {
+    const c = document.querySelector('.ecomim-content');
+    if (c && window.ECOMIM_APP && window.ECOMIM_APP.renderView) window.ECOMIM_APP.renderView(c.dataset.view || 'planner');
+  }
 
   /* ------------------------------------------------------------------ *
    * VIEW: PLANNER (dia / semana / mês)
@@ -111,7 +116,6 @@ const NEITZEL_OPS_UI = (() => {
     navNext.addEventListener('click', () => { navigar(1); reRender(); });
     viewBtns.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
       s.view = b.dataset.v;
-      if (s.view === 'semana') { const d = new Date(); d.setDate(Math.floor((d.getDate() + 6) / 7) * 7 - 6); }
       reRender();
     }));
 
@@ -120,9 +124,12 @@ const NEITZEL_OPS_UI = (() => {
     else renderPlannerMes(c);
 
     function navigar(dir) {
-      if (s.view === 'dia') s.base.setDate(s.base.getDate() + dir);
-      else if (s.view === 'semana') s.base.setDate(s.base.getDate() + 7 * dir);
-      else s.base.setMonth(s.base.getMonth() + dir);
+      if (s.view === 'dia') { s.base.setDate(s.base.getDate() + dir); }
+      else if (s.view === 'semana') { s.base.setDate(s.base.getDate() + 7 * dir); }
+      else {
+        /* MÊS: ancora no dia 1º — evita o clássico 31/mar +1 → 1/mai (pula abril) */
+        s.base = new Date(s.base.getFullYear(), s.base.getMonth() + dir, 1);
+      }
     }
     function reRender() {
       const content = document.querySelector('.ecomim-content');
@@ -135,7 +142,8 @@ const NEITZEL_OPS_UI = (() => {
     const opt2 = { month: 'long', year: 'numeric' };
     if (s.view === 'dia') return s.base.toLocaleDateString('pt-BR', opt);
     if (s.view === 'semana') {
-      const ini = new Date(s.base); ini.setDate(ini.getDate() - ini.getDay() + 1);
+      /* MESMA fórmula do grid: segunda-feira da semana da base (domingo → volta 6) */
+      const ini = new Date(s.base); ini.setDate(ini.getDate() - ((ini.getDay() + 6) % 7));
       const fim = new Date(ini); fim.setDate(fim.getDate() + 6);
       return `${ini.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} — ${fim.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}`;
     }
@@ -207,7 +215,8 @@ const NEITZEL_OPS_UI = (() => {
         cell.appendChild(evBox);
       }
       cell.addEventListener('click', () => {
-        plannerState.base = new Date(ano, mes, d.getDate());
+        /* Usa a DATA REAL da célula (células cinzas pertencem a meses vizinhos) */
+        plannerState.base = new Date(d);
         plannerState.view = 'dia';
         const content = document.querySelector('.ecomim-content');
         if (content && window.ECOMIM_APP) window.ECOMIM_APP.renderView('planner');
@@ -271,17 +280,16 @@ const NEITZEL_OPS_UI = (() => {
       <label style="margin-top:6px">Observações</label>
       <textarea class="input" id="at-obs" rows="2">${esc(a ? a.observacoes : '')}</textarea>
     `, () => {
-      const svSel = document.getElementById('at-serv');
-      const prc = document.getElementById('at-prec');
-      if (svSel && prc && !isEdit && !prc.value.trim()) {
-        const sv = servicos.find((s) => s.id === svSel.value);
-        if (sv) prc.value = (sv.preco / 100).toFixed(2);
-      }
       const nome = (document.getElementById('at-clinome').value || '').trim();
       const data = document.getElementById('at-data').value;
       const hIni = document.getElementById('at-hini').value || '09:00';
       const hFim = document.getElementById('at-hfim').value || '10:00';
       if (!nome) { toast('Informe o cliente.', 'warn'); return; }
+      if (!data) { toast('Informe a data.', 'warn'); return; }
+      const iniDt = new Date(`${data}T${hIni}:00`);
+      const fimDt = new Date(`${data}T${hFim}:00`);
+      if (isNaN(iniDt.getTime())) { toast('Data ou hora inicial inválida.', 'warn'); return; }
+      if (!(fimDt > iniDt)) { toast('O horário de FIM deve ser DEPOIS do INÍCIO.', 'warn'); return; }
       // Se o usuário selecionou um cliente no select (valor = id real), usa esse id;
       // senão mantém apenas o texto digitado.
       const cliIdSel = document.getElementById('at-cli') ? document.getElementById('at-cli').value : '';
@@ -304,6 +312,17 @@ const NEITZEL_OPS_UI = (() => {
         despesas: a ? (a.despesas || []) : [],
         pagamentos: a ? (a.pagamentos || []) : [],
       };
+      /* Aviso suave de sobreposição de agenda — não bloqueia o salvamento */
+      const conflitos = O.atendimentos.list().filter((x) => {
+        if (isEdit && a && x.id === a.id) return false;
+        if (!['agendado', 'confirmado', 'em_andamento'].includes(x.status)) return false;
+        const xi = new Date(x.inicio).getTime(), xf = new Date(x.fim).getTime();
+        if (!(iniDt.getTime() < xf && fimDt.getTime() > xi)) return false;
+        const mesmoResp = payload.responsavel && x.responsavel === payload.responsavel;
+        const mesmoCliente = payload.clienteId && x.clienteId === payload.clienteId;
+        return mesmoResp || mesmoCliente;
+      });
+      if (conflitos.length) toast(`Atenção: sobrepõe "${conflitos[0].cliente}" (${fmtTime(conflitos[0].inicio)}).`, 'warn');
       let r;
       if (isEdit) r = O.atendimentos.update(a.id, payload);
       else r = O.atendimentos.add(payload);
@@ -336,6 +355,14 @@ const NEITZEL_OPS_UI = (() => {
         }
       }
     });
+
+    /* Escolher cliente no select sincroniza o nome (evita id apontando p/ nome antigo) */
+    const selCli = modal.querySelector('#at-cli');
+    if (selCli) selCli.addEventListener('change', () => {
+      const c = clientes.find((x) => x.id === selCli.value);
+      const nm = modal.querySelector('#at-clinome');
+      if (c && nm && c.nome) nm.value = c.nome;
+    });
   }
 
   /* ------------------------------------------------------------------ *
@@ -360,9 +387,15 @@ const NEITZEL_OPS_UI = (() => {
           <td><span class="badge ${O.servicos.margem(s) >= 40 ? 'badge-green' : O.servicos.margem(s) >= 15 ? 'badge-orange' : 'badge-red'}">${O.servicos.margem(s)}%</span></td>
           <td>${s.duracaoMin ? s.duracaoMin + ' min' : '—'}</td>
           <td>${s.status === 'inativo' ? '<span class="badge badge-gray">Inativo</span>' : '<span class="badge badge-green">Ativo</span>'}</td>
-          <td style="text-align:right"><button class="btn btn-sm btn-ghost" data-edit="${s.id}">Editar</button></td>
+          <td style="text-align:right"><button class="btn btn-sm btn-ghost" data-edit="${s.id}">Editar</button> <button class="btn btn-sm btn-ghost" data-del="${s.id}" title="Excluir serviço">🗑</button></td>
         `;
         tr.querySelector('[data-edit]').addEventListener('click', () => openServicoModal(s));
+        tr.querySelector('[data-del]').addEventListener('click', () => {
+          if (!confirm(`Excluir o serviço "${s.nome}"?\nAtendimentos antigos mantêm o nome no histórico. Esta ação não pode ser desfeita.`)) return;
+          const r = O.servicos.remove(s.id);
+          if (r.ok) { toast('Serviço excluído.', 'success'); renderViewAtual(); }
+          else toast(r.message || 'Não foi possível excluir.', 'danger');
+        });
         tb.appendChild(tr);
       });
       box.appendChild(table);
@@ -420,9 +453,15 @@ const NEITZEL_OPS_UI = (() => {
           <td><span class="badge ${O.produtos.margem(p) >= 40 ? 'badge-green' : O.produtos.margem(p) >= 15 ? 'badge-orange' : 'badge-red'}">${O.produtos.margem(p)}%</span></td>
           <td><div class="stock-mini"><div class="sm-bar"><div style="width:${Math.min(100, (p.estoqueAtual / Math.max(p.estoqueMinimo, 1)) * 100)}%;background:${baixo ? 'var(--e-red)' : 'var(--e-green)'}"></div></div><span class="sm-qty ${baixo ? 'stock-low' : 'stock-ok'}">${p.estoqueAtual} ${esc(p.unidade)}</span></div>${baixo ? '<div class="text-muted" style="font-size:11px;color:var(--e-red)">Abaixo do mínimo (' + p.estoqueMinimo + ')</div>' : ''}</td>
           <td>${p.status === 'inativo' ? '<span class="badge badge-gray">Inativo</span>' : '<span class="badge badge-green">Ativo</span>'}</td>
-          <td style="text-align:right"><button class="btn btn-sm btn-ghost" data-edit="${p.id}">Editar</button></td>
+          <td style="text-align:right"><button class="btn btn-sm btn-ghost" data-edit="${p.id}">Editar</button> <button class="btn btn-sm btn-ghost" data-del="${p.id}" title="Excluir produto">🗑</button></td>
         `;
         tr.querySelector('[data-edit]').addEventListener('click', () => openProdutoModal(p));
+        tr.querySelector('[data-del]').addEventListener('click', () => {
+          if (!confirm(`Excluir o produto "${p.nome}"?\nO histórico de estoque permanece. Esta ação não pode ser desfeita.`)) return;
+          const r = O.produtos.excluir(p.id);
+          if (r.ok) { toast('Produto excluído.', 'success'); renderViewAtual(); }
+          else toast(r.message || 'Não foi possível excluir.', 'danger');
+        });
         tb.appendChild(tr);
       });
       box.appendChild(table);
@@ -561,9 +600,17 @@ const NEITZEL_OPS_UI = (() => {
           <td>${esc(a.servicoNome || '—')}${a.itensProdutos && a.itensProdutos.length ? '<div class="text-muted">+' + a.itensProdutos.length + ' produto(s)</div>' : ''}</td>
           <td>${statusChip(a.status)}</td>
           <td>${receita ? fmtMoney(receita) : '—'}</td>
-          <td style="text-align:right"><button class="btn btn-sm" data-open="${a.id}">Abrir</button></td>
+          <td style="text-align:right"><button class="btn btn-sm" data-open="${a.id}">Abrir</button> <button class="btn btn-sm btn-ghost" data-del-atend="${a.id}" title="Excluir atendimento">🗑</button></td>
         `;
         tr.querySelector('[data-open]').addEventListener('click', () => openAtendimentoDetail(a.id));
+        tr.querySelector('[data-del-atend]').addEventListener('click', () => {
+          const concluido = a.status === 'concluido';
+          if (!confirm(`Excluir o atendimento de "${a.cliente}"?${concluido ? '\n\nAtenção: CONCLUÍDO — lançamentos financeiros NÃO são desfeitos.' : ''}`)) return;
+          if (concluido && !confirm('Segunda confirmação: excluir atendimento concluído?')) return;
+          const r = O.atendimentos.excluir(a.id, { forcar: true });
+          if (r.ok) { toast('Atendimento excluído.', 'info'); renderViewAtual(); }
+          else toast(r.message || 'Não foi possível excluir.', 'danger');
+        });
         tb.appendChild(tr);
       });
       box.appendChild(table);
@@ -635,6 +682,7 @@ const NEITZEL_OPS_UI = (() => {
               ${a.status !== 'cancelado' ? '<button class="btn btn-sm btn-ghost" data-status="cancelado">Cancelar</button>' : ''}
               ${['concluido', 'cancelado', 'nao_compareceu'].includes(a.status) ? '<button class="btn btn-sm btn-ghost" data-status="agendado">Reagendar</button>' : ''}
               <button class="btn btn-sm btn-ghost" data-editar>Editar</button>
+              <button class="btn btn-sm btn-danger" data-excluir>Excluir</button>
             </div>
           </div>
         </div>
@@ -649,6 +697,15 @@ const NEITZEL_OPS_UI = (() => {
         const r = O.atendimentos.finalizar(id);
         if (r.ok) { toast('Atendimento finalizado. Receita de ' + fmtMoney(r.receita) + ' registrada.', 'success'); render(); }
         else toast(r.message || 'Não foi possível finalizar.', 'danger');
+      });
+      const ex = panel.querySelector('[data-excluir]');
+      if (ex) ex.addEventListener('click', () => {
+        const concluido = a.status === 'concluido';
+        if (!confirm(`Excluir o atendimento de "${a.cliente}"?${concluido ? '\n\nAtenção: ele já está CONCLUÍDO — lançamentos financeiros feitos NÃO serão desfeitos.' : ''}`)) return;
+        if (!confirm('Confirma pela segunda vez a exclusão deste atendimento?')) return;
+        const r = O.atendimentos.excluir(id, { forcar: true });
+        if (r.ok) { toast('Atendimento excluído.', 'info'); panel.remove(); renderViewAtual(); }
+        else toast(r.message || 'Não foi possível excluir.', 'danger');
       });
       const ap = panel.querySelector('[data-addprod]');
       if (ap) ap.addEventListener('click', () => {

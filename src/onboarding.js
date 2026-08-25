@@ -3,9 +3,8 @@
  * Fluxo obrigatório na primeira abertura:
  *   1. Criar senha fixa de 6 dígitos
  *   2. Cadastrar WhatsApp + e-mail para recuperação
- *   3. Conectar conta Google
- *   4. Aviso de confidencialidade (não compartilhar o arquivo)
- *   5. Notificação de boas-vindas
+ *   3. Aviso de confidencialidade (não compartilhar o arquivo)
+ *   4. Notificação de boas-vindas
  * ========================================================================== */
 
 'use strict';
@@ -58,8 +57,7 @@
     const steps = [
       ['Passo 1', 'Senha de 6 dígitos'],
       ['Passo 2', 'Recuperação'],
-      ['Passo 3', 'Conta Google'],
-      ['Passo 4', 'Confidencialidade'],
+      ['Passo 3', 'Confidencialidade'],
     ];
     const bar = document.createElement('div');
     bar.className = 'nz-steps';
@@ -74,7 +72,7 @@
 
   function card(bd, titulo, subtitulo, bodyHtml, botoes, sec) {
     bd.innerHTML = '';
-    bd.appendChild(renderSteps(bd, { 's0': 0, 's1': 1, 's2': 2, 's3': 3 }[sec] != null ? { s0: 0, s1: 1, s2: 2, s3: 3 }[sec] : 0));
+    bd.appendChild(renderSteps(bd, { 's0': 0, 's1': 1, 's2': 2 }[sec] != null ? { s0: 0, s1: 1, s2: 2 }[sec] : 0));
     const c = document.createElement('div');
     c.className = 'nz-card';
     c.innerHTML = `
@@ -125,7 +123,7 @@
         if (!r.ok) { err.textContent = r.message || r.code; return; }
         stepRecovery(bd, sec);
       } },
-    ], sec);
+    ], 's0');
   }
 
   /* ----------------------- Passo 2: recuperação ----------------------- */
@@ -151,40 +149,12 @@
         const err = bd.querySelector('#nz-err');
         const r = await sec.setupRecovery({ whatsapp: whats, email });
         if (!r.ok) { err.textContent = r.message || r.code; return; }
-        stepGoogle(bd, sec);
-      } },
-    ], sec);
-  }
-
-  /* ----------------------- Passo 3: conta Google ----------------------- */
-  function stepGoogle(bd, sec) {
-    card(bd, 'Conecte sua conta Google', 'Associe uma conta Google para identificação e sincronização futura. O vínculo é guardado com segurança local.', `
-      <div class="nz-form">
-        <label class="nz-field">
-          <span>Nome completo</span>
-          <input class="input" id="nz-google-nome" placeholder="Seu nome" />
-        </label>
-        <label class="nz-field">
-          <span>E-mail da conta Google</span>
-          <input class="input" id="nz-google-email" type="email" placeholder="nome@gmail.com" />
-        </label>
-        <div class="nz-note"> Em execução local (usando o arquivo direto), a conexão é registrada com segurança no navegador — sem envio de dados para serviços externos.</div>
-        <div id="nz-err" class="nz-err"></div>
-      </div>
-    `, [
-      { label: 'Voltar', kind: 'btn-ghost', fn: () => stepRecovery(bd, sec) },
-      { label: 'Conectar', kind: 'btn-primary', fn: async (e) => {
-        const nome = bd.querySelector('#nz-google-nome').value;
-        const email = bd.querySelector('#nz-google-email').value;
-        const err = bd.querySelector('#nz-err');
-        const r = await sec.setupGoogle({ nome, email });
-        if (!r.ok) { err.textContent = r.message || r.code; return; }
         stepConfidencialidade(bd, sec);
       } },
-    ], sec);
+    ], 's1');
   }
 
-  /* ----------------------- Passo 4: confidencialidade ----------------------- */
+  /* ----------------------- Passo 3: confidencialidade ----------------------- */
   function stepConfidencialidade(bd, sec) {
     card(bd, 'Termo de confidencialidade', 'Leia atentamente antes de usar o sistema.', `
       <div class="nz-conf">
@@ -194,12 +164,12 @@
         <p>O compartilhamento não autorizado constitui violação de confidencialidade e pode resultar em <b>crime</b>, com consequências legais, civis e criminais para quem compartilhar.</p>
       </div>
     `, [
-      { label: 'Voltar', kind: 'btn-ghost', fn: () => stepGoogle(bd, sec) },
+      { label: 'Voltar', kind: 'btn-ghost', fn: () => stepRecovery(bd, sec) },
       { label: ' Estou ciente e aceito os requisitos', kind: 'btn-primary', fn: async () => {
         sec.completeOnboarding(true);
         finish(bd);
       } },
-    ], sec);
+    ], 's2');
   }
 
   /** Fim do onboarding: restaura o app e mostra boas-vindas. */
