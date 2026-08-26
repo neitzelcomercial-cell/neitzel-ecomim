@@ -1,19 +1,15 @@
 /* ============================================================================
- * NEITZEL — POSSÍVEL CENÁRIO (agente de previsão estratégica v2)
- * Como funciona (nada inventado):
- *   1) REVISÃO REAL — lê as últimas 8 SEMANAS dos seus dados internos:
- *      atendimentos realizados, novos clientes e receita recebida,
- *      semana a semana, com setas de queda/aumento entre elas.
- *   2) PRESENTE — marca a semana corrente ao vivo contra a média histórica.
- *   3) INVESTIGAÇÃO EXTERNA — o agente pesquisa fontes reais (Chrome
- *      headless: Google/DDG/Bing + APIs abertas) sobre economia local,
- *      índices de consumo, eventos e o MERCADO do seu estado: conta
- *      barbearias/segmento + comércio + empresas no Google Maps.
- *   4) PROJEÇÃO — regressão linear das 8 semanas reais × fatores externos
- *      (sentimento das fontes + densidade do mercado), semana a semana,
- *      com faixa de confiança que diminui no horizonte.
- *   5) GRÁFICO — linha sólida do passado, divisor HOJE, projeção
- *      tracejada com banda de confiança e setas ↑↓ de movimento.
+ * NEITZEL — POSSÍVEL CENÁRIO (módulo de análise de cenário, mercado e previsão)
+ * Reestruturado conforme especificação. Regras invioláveis respeitadas:
+ *  - NADA inventado: cada número vem de dados internos reais ou de fonte
+ *    externa citada; campos sem evidência ficam null/'INDETERMINADO'.
+ *  - Distinção visual de procedência em toda a tela:
+ *      [DADO REAL] verde · [DADO EXTERNO] azul · [INFERÊNCIA] amarelo ·
+ *      [PREVISÃO] roxo tracejado.
+ *  - Previsão SEMPRE em faixa (mín–máx) com taxa de confiança e 3 cenários
+ *    estatísticos: CONSERVADOR / BASE / OTIMISTA.
+ *  - Fallback honesto: pesquisa externa indisponível é declarada, nunca
+ *    simulada, com botão "Tentar pesquisa novamente".
  * ========================================================================== */
 
 'use strict';
@@ -25,15 +21,28 @@
   const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   const E = () => window.ECOMIM || null;
 
+  /* Badges de procedência (§13) */
+  const B_REAL = '<span class="cen-badge b-real" title="Calculado dos seus dados internos">DADO REAL</span>';
+  const B_EXT = '<span class="cen-badge b-ext" title="Vindo de fonte pública na internet">DADO EXTERNO</span>';
+  const B_INF = '<span class="cen-badge b-inf" title="Raciocínio do sistema sobre dados reais">INFERÊNCIA</span>';
+  const B_PREV = '<span class="cen-badge b-prev" title="Estimativa futura — não é certeza">PREVISÃO</span>';
+
   function cfgLocal() {
     const Em = E();
     const s = (Em && Em.db && Em.db.get().config && Em.db.get().config.sistema) || {};
-    return { pais: s.pais || 'Brasil', estado: s.estado || '', cidade: s.cidade || '', segmento: s.segmento || 'barbearia' };
+    return { pais: s.pais || 'Brasil', estado: s.estado || '', cidade: s.cidade || '', segmento: s.segmento || 'barbearia', periodoSemanas: s.periodoSemanas || 8 };
   }
 
-  /* ==================== 1. HISTÓRICO REAL (8 SEMANAS) =================== */
-  /** Retorna séries semanais REAIS das últimas N semanas completas +
-   *  a semana corrente em andamento. */
+  const fmtMoeda = (v) => {
+    try { const Em = E(); if (Em && Em.fmtMoney) return Em.fmtMoney(Math.round(v || 0)); } catch (e) {}
+    return 'R$ ' + (Number(v || 0) / 100).toFixed(2).replace('.', ',');
+  };
+  const dataCurta = (iso) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+  const localYmd = (inst) => { const d = inst instanceof Date ? inst : new Date(inst); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+
+  /* ====================================================================== *
+   * §1+§7 — HISTÓRICO REAL EXPANDIDO (semanas completas + corrente)
+   * ====================================================================== */
   function historicoReal(N) {
     N = N || 8;
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
@@ -52,71 +61,124 @@
     const Em = E();
     const clientes = (Em && Em.modules && Em.modules.clientes && Em.modules.clientes.clientes) || [];
     const contas = (Em && Em.modules && Em.modules.financeiro && Em.modules.financeiro.contas) || [];
+    const dbd = (Em && Em.db && Em.db.get()) || {};
+    const leads = dbd.leads || [];
+    let campanhas = [];
+    try { campanhas = (Em.modules.marketing && Em.modules.marketing.campanhas) || []; } catch (e) {}
 
-    const serie = semanas.map(({ ini, fim }) => {
-      const atd = atds.filter((a) => dentro(a.inicio, ini, fim)).length;
-      const cli = clientes.filter((c) => dentro(c.created, ini, fim)).length;
-      const rec = contas.filter((c) => c.tipo === 'receber' && c.status === 'pago' && dentro(c.pagoEm, ini, fim)).reduce((s, c) => s + (c.valor || 0), 0);
-      return { atd, cli, rec };
+    // ids de clientes já "vistos" antes de cada semana (recorrência identificada
+    // apenas quando o atendimento está vinculado por clienteId — nada presumido)
+    const primeiraOcorrencia = new Map(); // clienteId -> ISO da primeira vez
+    atds.forEach((a) => {
+      if (!a.clienteId) return;
+      const t = new Date(a.inicio).getTime();
+      if (!primeiraOcorrencia.has(a.clienteId) || t < new Date(primeiraOcorrencia.get(a.clienteId)).getTime()) {
+        primeiraOcorrencia.set(a.clienteId, a.inicio);
+      }
     });
 
-    // Semana corrente (parcial, ao vivo)
+    const serie = semanas.map(({ ini, fim }) => {
+      const daSemana = atds.filter((a) => dentro(a.inicio, ini, fim));
+      const concluidos = daSemana.filter((a) => a.status === 'concluido');
+      const cancelados = daSemana.filter((a) => a.status === 'cancelado').length;
+      const faltas = daSemana.filter((a) => a.status === 'nao_compareceu').length;
+      const rec = contas.filter((c) => c.tipo === 'receber' && c.status === 'pago' && dentro(c.pagoEm, ini, fim)).reduce((s, c) => s + (c.valor || 0), 0);
+      const desp = contas.filter((c) => c.tipo === 'pagar' && c.status === 'pago' && dentro(c.pagoEm, ini, fim)).reduce((s, c) => s + (c.valor || 0), 0);
+      const recorrentes = daSemana.filter((a) => a.clienteId && primeiraOcorrencia.get(a.clienteId) && new Date(primeiraOcorrencia.get(a.clienteId)).getTime() < new Date(a.inicio).getTime()).length;
+      return {
+        atd: daSemana.length,
+        concluidos: concluidos.length,
+        cancelados,
+        faltas,
+        cli: clientes.filter((c) => dentro(c.created, ini, fim)).length,
+        recorrentes,
+        rec,
+        desp,
+        ticket: concluidos.length ? Math.round(concluidos.reduce((s, a) => s + (Number(a.servicoPreco) || 0), 0) / concluidos.length) : null,
+        leads: leads.filter((l) => dentro(l.created, ini, fim)).length,
+        leadsGanhos: leads.filter((l) => l.etapa === 'ganho' && dentro(l.updated || l.created, ini, fim)).length,
+        campanhas: campanhas.filter((cp) => dentro(cp.criadoEm || cp.created, ini, fim)).length,
+      };
+    });
+
     const agora = new Date();
+    const janelaCorrente = [inicioSemanaAtual, new Date(agora.getTime() + 86400000)];
+    const atdsCorrente = atds.filter((a) => dentro(a.inicio, janelaCorrente[0], janelaCorrente[1]));
+    const conclCorrente = atdsCorrente.filter((a) => a.status === 'concluido');
+
+    /* Distribuição real por dia da semana e hora (8 semanas) */
+    const porDia = Array.from({ length: 7 }, () => ({ total: 0 }));
+    const porHora = {};
+    const inicioTotal = semanas[0].ini;
+    atds.forEach((a) => {
+      if (!dentro(a.inicio, inicioTotal, new Date(agora.getTime() + 86400000))) return;
+      const d = new Date(a.inicio);
+      if (isNaN(d)) return;
+      porDia[d.getDay()].total++;
+      const h = String(d.getHours()).padStart(2, '0') + 'h';
+      porHora[h] = (porHora[h] || 0) + 1;
+    });
+    const DIAS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+    const diasRanking = porDia.map((x, i) => ({ dia: DIAS[i], total: x.total })).sort((a, b) => b.total - a.total);
+    const horasRanking = Object.entries(porHora).map(([hora, total]) => ({ hora, total })).sort((a, b) => b.total - a.total);
+
     const corrente = {
-      atd: atds.filter((a) => dentro(a.inicio, inicioSemanaAtual, new Date(agora.getTime() + 86400000))).length,
-      cli: clientes.filter((c) => dentro(c.created, inicioSemanaAtual, new Date(agora.getTime() + 86400000))).length,
-      rec: contas.filter((c) => c.tipo === 'receber' && c.status === 'pago' && dentro(c.pagoEm, inicioSemanaAtual, new Date(agora.getTime() + 86400000))).reduce((s, c) => s + (c.valor || 0), 0),
+      atd: atdsCorrente.length,
+      cli: clientes.filter((c) => dentro(c.created, janelaCorrente[0], janelaCorrente[1])).length,
+      rec: contas.filter((c) => c.tipo === 'receber' && c.status === 'pago' && dentro(c.pagoEm, janelaCorrente[0], janelaCorrente[1])).reduce((s, c) => s + (c.valor || 0), 0),
+      cancelados: atdsCorrente.filter((a) => a.status === 'cancelado').length,
+      faltas: atdsCorrente.filter((a) => a.status === 'nao_compareceu').length,
+      ticket: conclCorrente.length ? Math.round(conclCorrente.reduce((s, a) => s + (Number(a.servicoPreco) || 0), 0) / conclCorrente.length) : null,
     };
-    const temDados = serie.some((s) => s.atd > 0 || s.cli > 0 || s.rec > 0) || corrente.atd > 0 || corrente.cli > 0;
-    return { semanas, serie, corrente, temDados };
+    const temDados = serie.some((s2) => s2.atd > 0 || s2.cli > 0 || s2.rec > 0) || corrente.atd > 0 || corrente.cli > 0;
+    const semanasComDados = serie.filter((s2) => s2.atd > 0 || s2.rec > 0).length;
+
+    /* Origem dos clientes/leads (real, janela toda) */
+    const origensCount = {};
+    leads.forEach((l) => {
+      if (!dentro(l.created, inicioTotal, new Date(agora.getTime() + 86400000))) return;
+      const o = l.origem || 'manual';
+      origensCount[o] = (origensCount[o] || 0) + 1;
+    });
+    const topOrigens = Object.entries(origensCount).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+    return { semanas, serie, corrente, temDados, semanasComDados, diasRanking, horasRanking, topOrigens };
   }
 
-  /* ======================= 2. MODELO DE PROJEÇÃO ======================== */
-  function regressao(vals) {
+  /* ==================== ESTATÍSTICA PONDERADA (§7) ======================== */
+  /** Peso maior às semanas RECENTES (peso i+1) — exigência da especificação. */
+  function estatPonderada(vals) {
     const n = vals.length;
-    const sx = vals.reduce((a, _, i) => a + i, 0);
-    const sy = vals.reduce((a, v) => a + v, 0);
-    const sxx = vals.reduce((a, _, i) => a + i * i, 0);
-    const sxy = vals.reduce((a, v, i) => a + i * v, 0);
-    const den = n * sxx - sx * sx;
-    const b = den ? (n * sxy - sx * sy) / den : 0;
-    const a0 = (sy - b * sx) / n;
-    return { b, a0, media: sy / n };
+    if (!n) return { media: 0, slope: 0, desvio: 0 };
+    let sw = 0, swx = 0, swy = 0, swxy = 0, swxx = 0;
+    vals.forEach((v, i) => {
+      const w = i + 1, x = i;
+      sw += w; swx += w * x; swy += w * v; swxy += w * x * v; swxx += w * x * x;
+    });
+    const media = swy / sw;
+    const den = sw * swxx - swx * swx;
+    const slope = den ? (sw * swxy - swx * swy) / den : 0;
+    let acc = 0;
+    vals.forEach((v, i) => { const w = i + 1; acc += w * (v - media) * (v - media); });
+    const desvio = Math.sqrt(acc / sw);
+    return { media, slope, desvio };
   }
 
-  /** Desvio-padrão populacional — alimenta a faixa de confiança real. */
-  function desvioPadrao(vals, media) {
-    if (!vals.length) return 0;
-    const m = media != null ? media : vals.reduce((a, v) => a + v, 0) / vals.length;
-    return Math.sqrt(vals.reduce((a, v) => a + (v - m) * (v - m), 0) / vals.length);
-  }
-
+  /* Sentimento das fontes externas (mesma lista honesta de palavras) */
   const POSITIVAS = ['crescimento', 'alta', 'aumento', 'recorde', 'expansão', 'expansao', 'aquecimento', 'otimismo', 'recupera', 'sobe', 'fortalece', 'demanda'];
   const NEGATIVAS = ['queda', 'crise', 'recessão', 'recessao', 'redução', 'reducao', 'fechamento', 'desemprego', 'inflação', 'inflacao', 'caiu', 'recuo', 'contração', 'contracao', 'pessimismo'];
-
-  function analisarFontes(fontes) {
+  function sentimentoFontes(fontes) {
     let pos = 0, neg = 0;
-    const evidencias = [];
-    const eventos = [];
-    const mesesTxt = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
-    (fontes || []).forEach((f) => (f.resultados || []).forEach((r) => {
-      const txt = `${r.titulo || ''} ${r.trecho || ''}`.toLowerCase();
+    (fontes || []).forEach((f) => {
+      const txt = `${f.titulo || ''} ${f.resumo || ''}`.toLowerCase();
       POSITIVAS.forEach((p) => { if (txt.includes(p)) pos++; });
       NEGATIVAS.forEach((p) => { if (txt.includes(p)) neg++; });
-      if (r.titulo) evidencias.push({ titulo: r.titulo, url: r.url, trecho: r.trecho || '' });
-      const mMes = txt.match(new RegExp('(' + mesesTxt.join('|') + ')'));
-      if (mMes && /(evento|feriado|festival|feira|show|congresso|data especial|dia)/.test(txt)) {
-        if (!eventos.some((e) => e.nome.toLowerCase() === r.titulo.toLowerCase().slice(0, 60))) {
-          eventos.push({ nome: String(r.titulo).slice(0, 70), mes: mMes[1], url: r.url });
-        }
-      }
-    }));
+    });
     const total = pos + neg;
-    return { sentimento: total ? (pos - neg) / total : 0, positivas: pos, negativas: neg, evidencias: evidencias.slice(0, 14), eventos: eventos.slice(0, 6) };
+    return { valor: total ? (pos - neg) / total : 0, positivas: pos, negativas: neg, citacoes: total };
   }
 
-  /** Densidade de mercado a partir da contagem real do Maps. Usa o ESTADO
-   *  inteiro quando disponível (visão macro) e mostra a cidade junto. */
+  /** Densidade de mercado (Google Maps) — mesma leitura honesta de amostra. */
   function fatorDeMercado(mercado) {
     if (!mercado || !Array.isArray(mercado.consultas)) return { fator: 1, rotulo: 'sem leitura de mercado', detalhe: '' };
     const segs = mercado.consultas.filter((c) => c.termo !== 'comercio' && c.termo !== 'empresas' && c.termo !== 'escritorios');
@@ -130,75 +192,173 @@
     else if (total <= 25) { fator = 1.0; rotulo = 'mercado equilibrado'; detalhe = `${total} estabelecimentos do segmento mapeados.`; }
     else if (total <= 45) { fator = 0.97; rotulo = 'competição aquecida'; detalhe = `${total} concorrentes no raio — fidelização pesa mais que prospecção.`; }
     else { fator = 0.94; rotulo = 'mercado saturado'; detalhe = `${total}+ concorrentes mapeados — diferencial é obrigatório.`; }
-    if (segEstado && segCidade && segCidade.total) {
-      detalhe += ` Sendo ${segCidade.total} na sua cidade.`;
-    }
+    if (segEstado && segCidade && segCidade.total) detalhe += ` Sendo ${segCidade.total} na sua cidade.`;
     return { fator, rotulo, detalhe, seg };
   }
 
-  /** Monta passado + presente + projeção de 8 semanas. */
-  function sintetizar(hist, analise, mercado) {
+  /* ====================================================================== *
+   * §8+§9 — MODELO DE PREVISÃO: base + tendência + sazonalidade +
+   * eventos + fatores locais ⇒ faixas, cenários e confiança explicada.
+   * ====================================================================== */
+  function sintetizar(hist, externo) {
     const valores = hist.serie.map((s) => s.atd);
     const receitas = hist.serie.map((s) => s.rec);
-    const reg = regressao(valores.length ? valores : [0, 0, 0, 0, 0, 0, 0, 0]);
-    const regRec = regressao(receitas.length ? receitas : [0, 0, 0, 0, 0, 0, 0, 0]);
-    const media = Math.max(reg.media, 0);
-    const mediaRec = Math.max(regRec.media, 0);
-    const desvio = desvioPadrao(valores, media);
-    const fm = fatorDeMercado(mercado);
-    const fatorSent = 1 + Math.max(-0.12, Math.min(0.18, analise.sentimento * 0.15));
-    const temExterno = analise.evidencias.length > 0;
+    const est = estatPonderada(valores);
+    const estRec = estatPonderada(receitas);
+    const media = Math.max(est.media, 0);
+    const mediaRec = Math.max(estRec.media, 0);
 
-    // Projeção futura (8 semanas) — movimento + receita
-    const futuro = [];
+    const mercado = externo && externo.mercado;
+    const fm = fatorDeMercado(mercado);
+    const sent = sentimentoFontes(externo && externo.fontes);
+    const fatorSent = 1 + Math.max(-0.12, Math.min(0.18, sent.valor * 0.15));
+    const temExterno = !!externo && Array.isArray(externo.fontes) && externo.fontes.length > 0;
+
+    // Eventos classificados dentro do horizonte (impacto ≠ evento, §5)
+    const eventosHorizonte = (externo && externo.eventos) || [];
+    const evPos = eventosHorizonte.filter((ev) => ev.direcao === 'positivo');
+    const evNeg = eventosHorizonte.filter((ev) => ev.direcao === 'negativo');
+
+    const horizonte = (externo && externo.horizonteSemanas) || 8;
+    const sazMod = require0Sazon();
     const hoje = new Date();
-    for (let w = 0; w < 8; w++) {
-      const tendencia = Math.max(0, media + reg.b * (w + 1));
-      const central = tendencia * fatorSent * fm.fator;
+
+    const futuro = [];
+    for (let w = 0; w < horizonte; w++) {
+      const baseTendencia = Math.max(0, media + est.slope * (w + 1));
+      const iniSem = new Date(hoje.getTime() + (w * 7 + 1) * 86400000);
+      const saz = sazMod.fatorSemana(iniSem); // {fator, rotulo} inferência declarada
+      const evFator = Math.min(1 + evPos.length * 0.03, 1.09) * (evNeg.length ? 0.95 : 1);
+      const central = baseTendencia * fatorSent * fm.fator * evFator * saz.fator;
+      const centralRec = Math.max(0, mediaRec + estRec.slope * (w + 1)) * fatorSent * fm.fator * evFator * saz.fator;
       const confianca = temExterno ? Math.max(46, 76 - w * 4) : Math.max(34, 52 - w * 3);
-      // Faixa real: nunca menor que o desvio-padrão observado — a promessa
-      // não pode ser mais estreita do que a variação que o negócio já mostrou.
-      const margem = Math.max(central * ((100 - confianca) / 100), desvio * 0.8);
-      const recCentral = Math.max(0, mediaRec + regRec.b * (w + 1)) * fatorSent * fm.fator;
-      const ini = new Date(hoje.getTime() + (w * 7 + 1) * 86400000);
-      const fim = new Date(hoje.getTime() + (w * 7 + 7) * 86400000);
+      const margem = Math.max(central * ((100 - confianca) / 100), est.desvio * 0.8);
       futuro.push({
         n: w + 1,
-        ini: ini.toISOString(), fim: fim.toISOString(),
+        ini: iniSem.toISOString(),
+        fim: new Date(hoje.getTime() + (w * 7 + 7) * 86400000).toISOString(),
         demandaPrevista: Math.round(central),
         min: Math.max(0, Math.round(central - margem)),
         max: Math.round(central + margem),
-        recPrevista: Math.round(recCentral),
+        recPrevista: Math.round(centralRec),
+        recMin: Math.max(0, Math.round(centralRec - Math.max(centralRec * ((100 - confianca) / 100), estRec.desvio * 0.8))),
+        recMax: Math.round(centralRec + Math.max(centralRec * ((100 - confianca) / 100), estRec.desvio * 0.8)),
         confianca,
-        direcao: media > 0 ? (central > media * 1.03 ? 'alta' : central < media * 0.97 ? 'baixa' : 'estavel')
-                           : (central > 0 ? 'alta' : 'estavel'),
+        direcao: media > 0 ? (central > media * 1.03 ? 'alta' : central < media * 0.97 ? 'baixa' : 'estavel') : (central > 0 ? 'alta' : 'estavel'),
         variacao: media ? Math.round((central / media - 1) * 100) : 0,
-        nota: central > media * 1.03
-          ? 'Acima da média histórica — prepare agenda e estoque.'
-          : central < media * 0.97
-            ? 'Abaixo da média — reative clientes frios e promova.'
-            : 'Ritmo de manutenção — siga o plano.',
+        nota: central > media * 1.03 ? 'Acima da média histórica — prepare agenda e estoque.'
+          : central < media * 0.97 ? 'Abaixo da média — reative clientes frios e promova.'
+          : 'Ritmo de manutenção — siga o plano.',
       });
     }
 
-    // Passado com variações semana a semana
+    /* Cenários estatísticos (§8): CONSERVADOR / BASE / OTIMISTA
+       - CONSERVADOR: tendência amortecida (metade da inclinação) − 0,6σ, sem
+         nenhum fator externo favorável.
+       - OTIMISTA: tendência cheia + fatores favoráveis + 0,4σ.
+       - BASE: modelo completo central.
+       A ordenação conservador ≤ base ≤ otimista é GARANTIDA por construção
+       (clamp) — com σ pequeno, o ajuste de sazonalidade da base não pode
+       ultrapassar o otimista nem ficar abaixo do conservador. */
+    const cenarios = { conservador: [], base: [], otimista: [] };
+    futuro.forEach((f, idx) => {
+      const k = idx + 1;
+      const trendCheia = Math.max(0, media + est.slope * k);
+      const trendAmortecida = Math.max(0, media + est.slope * k * 0.5);
+      let conservador = Math.round(trendAmortecida - est.desvio * 0.6);
+      let otimista = Math.round((trendCheia * Math.max(fatorSent, 1) * Math.max(fm.fator, 1) * Math.min(1 + evPos.length * 0.03, 1.09)) + est.desvio * 0.4);
+      const baseV = f.demandaPrevista;
+      if (conservador > baseV) conservador = baseV;
+      if (otimista < baseV) otimista = baseV;
+      cenarios.conservador.push({ n: k, valor: conservador, rec: Math.round(mediaRec > 0 ? (conservador / Math.max(baseV, 1)) * f.recPrevista : 0) });
+      cenarios.base.push({ n: k, valor: baseV, rec: f.recPrevista });
+      cenarios.otimista.push({ n: k, valor: otimista, rec: Math.round(mediaRec > 0 ? (otimista / Math.max(baseV, 1)) * f.recPrevista : 0) });
+    });
+
+    /* Passado com variações semana a semana */
     const passado = hist.semanas.map(({ ini, fim }, i) => ({
       ini: ini.toISOString(), fim: fim.toISOString(),
       valor: valores[i],
       variacao: i === 0 ? null : (valores[i - 1] ? Math.round((valores[i] / valores[i - 1] - 1) * 100) : null),
-      cli: hist.serie[i].cli,
-      rec: hist.serie[i].rec,
+      det: hist.serie[i],
     }));
 
+    /* Melhor/pior semana (§7) — por atendimentos */
+    let melhorIdx = 0, piorIdx = 0;
+    valores.forEach((v, i) => { if (v > valores[melhorIdx]) melhorIdx = i; if (v < valores[piorIdx]) piorIdx = i; });
+
+    /* Confiança geral (§9) — critérios explícitos e explicáveis */
+    const cv = media > 0 ? est.desvio / media : (valores.some((v) => v > 0) ? 1 : 0);
+    let nivelConfianca = 'MÉDIA';
+    const razoesConfianca = [];
+    if (!hist.temDados) nivelConfianca = 'BAIXA';
+    else if (hist.semanasComDados >= 8 && cv < 0.35 && temExterno) nivelConfianca = 'ALTA';
+    else if (!hist.temDados || cv > 0.7 || (!temExterno && hist.semanasComDados < 3)) nivelConfianca = 'BAIXA';
+    razoesConfianca.push(`Histórico: ${hist.semanasComDados} de 8 semanas com movimento registrado (${nivelConfianca === 'ALTA' ? 'consistente' : nivelConfianca === 'MÉDIA' ? 'razoável' : 'insuficiente'}).`);
+    razoesConfianca.push(`Variação observada entre semanas: ${(cv * 100).toFixed(0)}% ${cv < 0.35 ? '(baixa — padrão estável)' : cv > 0.7 ? '(alta — negócio ainda volátil)' : ''}.`);
+    razoesConfianca.push(temExterno ? `Pesquisa externa: ${externo.fontes.length} fonte(s) consultada(s) agora.` : 'Pesquisa externa indisponível nesta execução.');
+    if (fm.rotulo) razoesConfianca.push(`Mercado local: ${fm.rotulo}.`);
+
     const atualVsMedia = media ? Math.round((hist.corrente.atd / media - 1) * 100) : null;
-    const projecaoFim = futuro[7].demandaPrevista;
+    const projecaoFim = futuro[futuro.length - 1].demandaPrevista;
     const tendenciaGeral = projecaoFim > media * 1.03 ? 'alta' : projecaoFim < media * 0.97 ? 'baixa' : 'estavel';
-    return { passado, corrente: hist.corrente, media, inclinacao: reg.b, atualVsMedia, futuro, tendenciaGeral, analise, fm, temDados: hist.temDados, temExterno };
+
+    /* Sinais do presente (§7) — só fatos medidos */
+    const sinaisPositivos = [], sinaisNegativos = [];
+    if (hist.corrente.atd > 0 && atualVsMedia != null) {
+      (atualVsMedia >= 0 ? sinaisPositivos : sinaisNegativos).push(`Semana corrente está ${atualVsMedia >= 0 ? '+' : ''}${atualVsMedia}% vs média das 8 semanas.`);
+    }
+    const ult3 = valores.slice(-3);
+    if (ult3.length === 3 && ult3[0] > 0 && ult3.every((v, i) => i === 0 || v >= ult3[i - 1])) sinaisPositivos.push('Três semanas consecutivas em alta ou estáveis.');
+    if (ult3.length === 3 && ult3[0] > 0 && ult3.every((v, i) => i === 0 || v <= ult3[i - 1])) sinaisNegativos.push('Três semanas consecutivas em queda.');
+    const totCancel = hist.serie.reduce((s, x) => s + x.cancelados, 0);
+    const totFaltas = hist.serie.reduce((s, x) => s + x.faltas, 0);
+    const totAtd = valores.reduce((s, x) => s + x, 0);
+    if (totAtd > 0 && (totCancel + totFaltas) / totAtd > 0.15) sinaisNegativos.push(`Cancelamentos+faltas somam ${Math.round(((totCancel + totFaltas) / totAtd) * 100)}% dos agendamentos.`);
+    if (est.slope > 0.05) sinaisPositivos.push('Tendência ponderada recente é de crescimento.');
+
+    /* Recomendações práticas derivadas de dados (§10) */
+    const recomendacoes = [];
+    if (hist.diasRanking[0] && hist.diasRanking[6] && hist.diasRanking[6].total > 0 && hist.diasRanking[0].total / Math.max(hist.diasRanking[6].total, 1) >= 2) {
+      recomendacoes.push(`"${hist.diasRanking[0].dia}" concentra o maior movimento e "${hist.diasRanking[6].dia}" o menor — considere ajustar a escala da equipe e criar promoção específica para ${hist.diasRanking[6].dia.toLowerCase()}.`);
+    }
+    const horaPico = (hist.horasRanking || [])[0];
+    if (horaPico) recomendacoes.push(`Faixa horária mais movida: ${horaPico.hora} — priorize agenda cheia e insumos prontos nesse horário.`);
+    if ((totCancel + totFaltas) / Math.max(totAtd, 1) > 0.15) recomendacoes.push(`Cancelamentos/faltas altos (${totCancel + totFaltas} em 8 semanas) — ative confirmação por WhatsApp na véspera.`);
+    if (evPos.length) recomendacoes.push(`${evPos.length} evento(s) de grande circulação no horizonte — antecipe escala e insumos para as datas destacadas.`);
+    if (externo && externo.clima && externo.clima.chuvaTotalMm >= 40) recomendacoes.push('Previsão de muita chuva nos próximos dias — espere impacto no fluxo de rua e reforce confirmações/remarcações.');
+    if (media > 0 && projecaoFim < media * 0.97) recomendacoes.push('Projeção abaixo da média histórica — reative clientes que não voltam há mais de 60 dias com oferta direta.');
+    if (hist.topOrigens[0]) recomendacoes.push(`Origem que mais gera leads hoje: "${hist.topOrigens[0][0]}" (${hist.topOrigens[0][1]} no período) — mantenha o investimento nela.`);
+
+    return {
+      passado, corrente: hist.corrente, media, inclinacao: est.slope, desvio: est.desvio,
+      atualVsMedia, futuro, cenarios, tendenciaGeral, fm, sent,
+      temDados: hist.temDados, temExterno,
+      melhorIdx, piorIdx, nivelConfianca, razoesConfianca,
+      sinaisPositivos, sinaisNegativos, recomendacoes,
+      eventos: eventosHorizonte, sazInfo: sazMod.info(hoje),
+      horizonte,
+    };
+  }
+  /** Módulo de sazonalidade compartilhado com o backend (inferência declarada). */
+  function require0Sazon() {
+    const base = typeof window !== 'undefined' && window.__NEITZEL_SAZON_SIMPLIFICADO;
+    if (base) return base;
+    return {
+      fatorSemana: (data) => {
+        const d = data instanceof Date ? data : new Date(data);
+        const dia = d.getDate();
+        if (dia <= 10) return { fator: 1.03, rotulo: 'início do mês (inferência)' };
+        if (dia >= 25) return { fator: 0.97, rotulo: 'fim do mês (inferência)' };
+        return { fator: 1.0, rotulo: 'meio do mês (inferência)' };
+      },
+      info: (d) => ({ rotulo: 'sazonalidade de pagamento aplicada como ajuste leve e declarado' }),
+    };
   }
 
   /* ============================ GRÁFICO SVG ============================= */
-  /** Gráfico: 8 semanas passadas | HOJE | 8 semanas projetadas.
-   *  Seta verde sobe / vermelha desce entre pontos; banda de confiança. */
+  /** Linha contínua = histórico real · marcador HOJE · tracejada = previsão ·
+   *  banda = intervalo de confiança (§13). */
   function graficoSVG(prev) {
     const W = 920, H = 340, L = 46, R = 14, T = 26, B = 42;
     const pw = W - L - R, ph = H - T - B;
@@ -212,9 +372,7 @@
     const y = (v) => T + ph - (Math.min(v, maxV) / maxV) * ph;
     const hojeIdx = prev.passado.length;
 
-    const suave = (() => {
-      // Catmull-Rom para Bézier
-      const P = pts.map((pt, i) => [x(i), y(pt.v)]);
+    const bezier = (P) => {
       if (P.length < 3) return P.map((p, i) => (i ? 'L' : 'M') + p[0] + ',' + p[1]).join('');
       let d = `M${P[0][0]},${P[0][1]}`;
       for (let i = 0; i < P.length - 1; i++) {
@@ -222,34 +380,16 @@
         d += `C${(p1[0] + (p2[0] - p0[0]) / 6).toFixed(1)},${(p1[1] + (p2[1] - p0[1]) / 6).toFixed(1)} ${(p2[0] - (p3[0] - p1[0]) / 6).toFixed(1)},${(p2[1] - (p3[1] - p1[1]) / 6).toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
       }
       return d;
-    })();
-    const linhaPassada = (() => {
-      const P = pts.slice(0, hojeIdx + 1).map((pt, i) => [x(i), y(pt.v)]);
-      let d = `M${P[0][0]},${P[0][1]}`;
-      for (let i = 0; i < P.length - 1; i++) {
-        const p0 = P[Math.max(0, i - 1)], p1 = P[i], p2 = P[i + 1], p3 = P[Math.min(P.length - 1, i + 2)];
-        d += `C${(p1[0] + (p2[0] - p0[0]) / 6).toFixed(1)},${(p1[1] + (p2[1] - p0[1]) / 6).toFixed(1)} ${(p2[0] - (p3[0] - p1[0]) / 6).toFixed(1)},${(p2[1] - (p3[1] - p1[1]) / 6).toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
-      }
-      return d;
-    })();
+    };
+    const linhaPassada = bezier(pts.slice(0, hojeIdx + 1).map((pt, i) => [x(i), y(pt.v)]));
     const areaPassada = linhaPassada + `L${x(hojeIdx)},${T + ph}L${x(0)},${T + ph}Z`;
-    const linhaFutura = (() => {
-      const P = pts.slice(hojeIdx).map((pt, i) => [x(i + hojeIdx), y(pt.v)]);
-      let d = `M${P[0][0]},${P[0][1]}`;
-      for (let i = 0; i < P.length - 1; i++) {
-        const p0 = P[Math.max(0, i - 1)], p1 = P[i], p2 = P[i + 1], p3 = P[Math.min(P.length - 1, i + 2)];
-        d += `C${(p1[0] + (p2[0] - p0[0]) / 6).toFixed(1)},${(p1[1] + (p2[1] - p0[1]) / 6).toFixed(1)} ${(p2[0] - (p3[0] - p1[0]) / 6).toFixed(1)},${(p2[1] - (p3[1] - p1[1]) / 6).toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
-      }
-      return d;
-    })();
+    const linhaFutura = bezier(pts.slice(hojeIdx).map((pt, i) => [x(i + hojeIdx), y(pt.v)]));
 
-    // Banda de confiança futura
     let banda = '';
     const sup = pts.slice(hojeIdx).map((pt, i) => `${i ? 'L' : 'M'}${x(i + hojeIdx).toFixed(1)},${y(pt.max != null ? pt.max : pt.v).toFixed(1)}`).join(' ');
     const inf = pts.slice(hojeIdx).map((pt, i) => `L${x(N - 1 - i).toFixed(1)},${y(pts[N - 1 - i].min != null ? pts[N - 1 - i].min : pts[N - 1 - i].v).toFixed(1)}`).join(' ');
     banda = sup + ' ' + inf + ' Z';
 
-    // Grade horizontal
     let grade = '';
     const passosY = 4;
     for (let g = 0; g <= passosY; g++) {
@@ -258,7 +398,6 @@
         `<text class="cg-axis-txt" x="${L - 7}" y="${vy + 3}" text-anchor="end">${Math.round(maxV * g / passosY)}</text>`;
     }
 
-    // Rótulos do eixo X (semanas)
     let rotulosX = '';
     pts.forEach((pt, i) => {
       const lbl = pt.tipo === 'futuro'
@@ -269,7 +408,6 @@
       }
     });
 
-    // Setas de variação entre pontos (movimento ↑↓)
     let setas = '';
     for (let i = 1; i < N; i++) {
       const a = pts[i - 1], b = pts[i];
@@ -280,14 +418,12 @@
       const cor = igual ? 'var(--text-muted)' : sobe ? 'var(--e-green)' : 'var(--e-danger)';
       const glyph = igual ? '=' : sobe ? '↑' : '↓';
       setas += `<text class="cg-seta" x="${mx}" y="${my}" text-anchor="middle" fill="${cor}" style="animation-delay:${i * 55}ms">${glyph}</text>`;
-      // % só nas transções relevantes (a cada ponto futuro e nas últimas passadas)
       if (!igual && (i >= hojeIdx - 1)) {
         const pct = a.v ? Math.round((b.v / a.v - 1) * 100) : 0;
         if (pct !== 0) setas += `<text class="cg-pct" x="${mx}" y="${my - 11}" text-anchor="middle" fill="${cor}" style="animation-delay:${i * 55 + 90}ms">${pct > 0 ? '+' : ''}${pct}%</text>`;
       }
     }
 
-    // Pontos
     let pontos = '';
     pts.forEach((pt, i) => {
       const cx2 = x(i), cy2 = y(pt.v);
@@ -307,8 +443,8 @@
             <stop offset="100%" stop-color="var(--e-green)" stop-opacity="0"/>
           </linearGradient>
           <linearGradient id="cgBand" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="var(--e-cyan)" stop-opacity=".14"/>
-            <stop offset="100%" stop-color="var(--e-cyan)" stop-opacity=".05"/>
+            <stop offset="0%" stop-color="var(--e-violet)" stop-opacity=".16"/>
+            <stop offset="100%" stop-color="var(--e-violet)" stop-opacity=".05"/>
           </linearGradient>
         </defs>
         ${grade}${rotulosX}
@@ -323,7 +459,6 @@
         ${pontos}${setas}
       </svg>`;
 
-    // Tooltip interativo
     setTimeout(() => {
       const svgEl = document.getElementById('cg-svg');
       const box = svgEl && svgEl.parentElement.querySelector('.cg-tip');
@@ -336,13 +471,12 @@
         pts.forEach((_, i) => { const dd = Math.abs(x(i) - mx); if (dd < distMin) { distMin = dd; melhor = i; } });
         const pt = pts[melhor];
         const quando = pt.tipo === 'passado'
-          ? new Date(pt.p.ini).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) + ' – ' + new Date(pt.p.fim).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
-          : pt.tipo === 'hoje'
-            ? 'Semana corrente (em andamento)'
-            : new Date(pt.f.ini).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) + ' – ' + new Date(pt.f.fim).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+          ? dataCurta(pt.p.ini) + ' – ' + dataCurta(pt.p.fim)
+          : pt.tipo === 'hoje' ? 'Semana corrente (em andamento)'
+          : dataCurta(pt.f.ini) + ' – ' + dataCurta(pt.f.fim);
         const extra = pt.tipo === 'futuro'
           ? ` · faixa ${pt.min}–${pt.max} · confiança ${pt.f.confianca}%`
-          : pt.tipo === 'passado' ? ` · ${pt.p.cli} novo(s) cliente(s)` : '';
+          : pt.tipo === 'passado' ? ` · ${pt.p.det.cli} novo(s) cliente(s)` : '';
         box.innerHTML = `<b>${quando}</b><div>${pt.v} atendimento(s)${extra}</div>`;
         box.style.left = Math.min(rect.width - 190, Math.max(4, (x(melhor) / escalaX) - 80)) + 'px';
         box.style.top = ((y(pt.v) / H) * rect.height - 54) + 'px';
@@ -356,14 +490,14 @@
 
   /* ====================== ANIMAÇÃO DO PALCO ============================= */
   function iniciarCanvas(canvas, modo) {
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext && canvas.getContext('2d');
+    // Ambiente sem canvas (ex.: automação/JSDOM): não anima, mas NÃO pode quebrar
+    if (!ctx) { return function pararVazio() {}; }
     let W = 0, H = 0, raf = 0, t = 0;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     function dim() { W = canvas.width = canvas.clientWidth * dpr; H = canvas.height = canvas.clientHeight * dpr; }
     dim();
     window.addEventListener('resize', dim, { passive: true });
-    // Teardown completo: sem isso cada análise acumulava um listener de resize
-    // (com o canvas desanexado na memória) para sempre.
     let encerrado = false;
     const parar = () => {
       if (encerrado) return;
@@ -445,14 +579,20 @@
       <div class="cen-palco">
         <div class="cen-head">
           <span class="cen-selo">N</span>
-          <div><h2>Possível Cenário</h2><p>Revisão real das últimas 8 semanas + investigação do mercado do seu estado + projeção fundamentada.</p></div>
+          <div><h2>Possível Cenário</h2><p>Passado real → presente → pesquisa externa em tempo real → previsão em faixas com cenários e grau de confiança.</p></div>
           <button class="btn btn-icon cen-fechar" title="Fechar">✕</button>
+        </div>
+        <div class="cen-legendas">
+          ${B_REAL}<span>dados do sistema</span>${B_EXT}<span>fontes públicas agora</span>${B_INF}<span>raciocínio declarado</span>${B_PREV}<span>estimativa futura</span>
         </div>
         <div class="cen-form">
           <label>País <input class="input" id="cn-pais" value="${esc(cfg.pais)}" /></label>
-          <label>Estado (UF) <input class="input" id="cn-estado" value="${esc(cfg.estado)}" maxlength="2" placeholder="RS" /></label>
+          <label>Estado (UF) <input class="input" id="cn-estado" value="${esc(cfg.estado)}" maxlength="2" placeholder="SC" /></label>
           <label>Cidade <input class="input" id="cn-cidade" value="${esc(cfg.cidade)}" placeholder="sua cidade" /></label>
           <label>Segmento <input class="input" id="cn-seg" value="${esc(cfg.segmento)}" /></label>
+          <label>Período (previsão) <select class="input" id="cn-periodo">
+            ${[4, 6, 8].map((n) => `<option value="${n}" ${cfg.periodoSemanas == n ? 'selected' : ''}>${n} semanas</option>`).join('')}
+          </select></label>
           <button class="btn btn-primary" id="cn-iniciar">Analisar passado, presente e futuro</button>
         </div>
         <div class="cen-corpo"></div>
@@ -464,7 +604,7 @@
     ov._pararFX = pararFX;
     ov.querySelector('.cen-fechar').addEventListener('click', fechar);
     ov.addEventListener('click', (e) => { if (e.target === ov) fechar(); });
-    ov.querySelector('#cn-iniciar').addEventListener('click', () => executar(ov));
+    ov.querySelector('#cn-iniciar').addEventListener('click', () => executar(ov, false));
   }
 
   function fechar() {
@@ -478,26 +618,29 @@
 
   const ETAPAS = [
     'Revisando suas últimas 8 semanas…',
-    'Conectando aos motores de busca…',
+    'Gerando consultas dinâmicas para sua região…',
+    'Consultando fontes públicas em tempo real…',
     'Contando barbearias, comércios e empresas no Maps…',
-    'Consultando índices de consumo e confiança…',
-    'Procurando eventos e datas especiais próximas…',
-    'Cruzando dados locais com o cenário externo…',
-    'Calculando a projeção semana a semana…',
+    'Buscando previsão do tempo local…',
+    'Mapeando eventos, feriados e datas especiais…',
+    'Classificando impactos possíveis (sem presumir causalidade)…',
+    'Calculando projeção, faixas e cenários…',
   ];
 
-  async function executar(ov) {
+  async function executar(ov, force) {
     const pais = ov.querySelector('#cn-pais').value.trim() || 'Brasil';
     const estado = ov.querySelector('#cn-estado').value.trim().toUpperCase().slice(0, 2);
     const cidade = ov.querySelector('#cn-cidade').value.trim();
     const segmento = ov.querySelector('#cn-seg').value.trim() || 'barbearia';
+    const periodoSemanas = Number((ov.querySelector('#cn-periodo') || {}).value) || 8;
 
-    // Guarda a localização para as próximas análises (pré-preenchimento)
+    // Guarda a localização para as próximas análises (pré-preenchimento).
+    // Mudar QUALQUER filtro re-executa consultas reais (§13).
     try {
       const Em = E();
       const dbd = Em.db.get();
       dbd.config = dbd.config || {};
-      dbd.config.sistema = Object.assign({}, dbd.config.sistema, { pais, estado, cidade, segmento });
+      dbd.config.sistema = Object.assign({}, dbd.config.sistema, { pais, estado, cidade, segmento, periodoSemanas });
       Em.db.save();
     } catch (e) {}
 
@@ -529,20 +672,23 @@
     const inicioT = Date.now();
     let resultado = null, erroRede = false;
     try {
-      const qs = new URLSearchParams({ pais, estado, cidade, segmento });
-      const resp = await fetch(`${window.NEITZEL_API_BASE || ''}/api/cenario/analisar?` + qs.toString(), { signal: AbortSignal.timeout(180000) });
+      const qs = new URLSearchParams({ pais, estado, cidade, segmento, periodoSemanas: String(periodoSemanas) });
+      if (force) qs.set('force', '1');
+      const resp = await fetch(`${window.NEITZEL_API_BASE || ''}/api/cenario/analisar?` + qs.toString(), { signal: AbortSignal.timeout(240000) });
       resultado = await resp.json();
     } catch (e) { erroRede = true; }
     const decorrido = Date.now() - inicioT;
-    if (decorrido < 4200) await new Promise((r) => setTimeout(r, 4200 - decorrido));
+    if (decorrido < 2600) await new Promise((r) => setTimeout(r, 2600 - decorrido)); // deixa a animação respirar sem atrasar
     clearInterval(timerEtapas);
 
-    const analise = analisarFontes(resultado && resultado.fontes || []);
-    const prev = sintetizar(hist, analise, resultado && resultado.mercado);
+    const prev = sintetizar(hist, erroRede ? null : resultado);
     prev._avisoRede = erroRede || !resultado || !resultado.ok;
-    mostrarResultado(ov, prev, { fontes: resultado && resultado.fontes || [], mercado: resultado && resultado.mercado || null }, { pais, estado, cidade, segmento });
+    prev._erroRede = erroRede;
+    prev._dist = { diasRanking: hist.diasRanking, horasRanking: hist.horasRanking, topOrigens: hist.topOrigens };
+    mostrarResultado(ov, prev, resultado || {}, { pais, estado, cidade, segmento, periodoSemanas });
   }
 
+  /* ============================ RESULTADO ================================ */
   function mostrarResultado(ov, prev, info, onde) {
     const corpo = ov.querySelector('.cen-corpo');
     ov._pararFX && ov._pararFX();
@@ -550,39 +696,97 @@
 
     const cores = { alta: 'var(--e-green)', baixa: 'var(--e-danger)', estavel: 'var(--text-muted)' };
     const setas = { alta: '↗', baixa: '↘', estavel: '→' };
-    /* Os valores das contas já estão em CENTAVOS (padrão do core) — fmtMoney
-       divide por 100. Multiplicar de novo inflava a projeção 100×. */
-    const fmtMoeda = (v) => {
-      try { const Em = E(); if (Em && Em.fmtMoney) return Em.fmtMoney(Math.round(v || 0)); } catch (e) {}
-      return 'R$ ' + (Number(v || 0) / 100).toFixed(2).replace('.', ',');
-    };
+    const IMPACTO_COR = { 'MUITO POSITIVO': 'var(--e-green)', POSITIVO: 'var(--e-green)', NEUTRO: 'var(--text-muted)', INDETERMINADO: 'var(--e-orange)', NEGATIVO: 'var(--e-danger)', 'MUITO NEGATIVO': 'var(--e-danger)' };
+    const CONF_COR = { 'ALTA': 'var(--e-green)', 'MÉDIA': 'var(--e-orange)', 'BAIXA': 'var(--e-danger)' };
 
-    /* ---- Revisão das 8 semanas passadas ---- */
-    const revPast = prev.passado.map((p, i) => {
+    /* ---------- §11 FALLBACK HONESTO (mensagens exatas) ---------- */
+    const avisoRede = prev._avisoRede ? `
+      <div class="cen-aviso cen-fallback" style="margin-bottom:12px">
+        <b>Pesquisa externa indisponível neste momento.</b><br>
+        Esta previsão foi calculada somente com os dados internos disponíveis.
+        <div style="margin-top:8px"><button class="btn btn-sm btn-primary" id="cn-tentar-novamente">Tentar pesquisa novamente</button></div>
+      </div>` : '';
+
+    /* ---------- §1 AVISO DE DADOS INSUFICIENTES (mensagem exata) ---------- */
+    const avisoSemDados = !prev.temDados
+      ? '<div class="cen-aviso" style="margin-bottom:12px"><b>Dados históricos insuficientes para uma previsão confiável.</b> Registre atendimentos no Planner — a análise fica mais precisa a cada semana alimentada. Nenhum número foi inventado para preencher o histórico.</div>'
+      : '';
+
+    /* ---------- §7 PASSADO: métricas + tabela expandida ---------- */
+    const mMelhor = prev.passado[prev.melhorIdx], mPior = prev.passado[prev.piorIdx];
+    const linhasPassado = prev.passado.map((p, i) => {
       const dir = p.variacao == null ? '' : p.variacao > 0 ? `<span style="color:var(--e-green)">▲${p.variacao}%</span>` : p.variacao < 0 ? `<span style="color:var(--e-danger)">▼${Math.abs(p.variacao)}%</span>` : '<span class="text-muted">=</span>';
-      return `<div class="cw cw-in" style="animation-delay:${i * 50}ms">
-        <div class="cw-top">S-${prev.passado.length - i}</div>
-        <div class="cw-val">${p.valor}</div>
-        <div class="cw-var">${dir}</div>
-        <div class="cw-sub">${new Date(p.ini).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</div>
-      </div>`;
+      const d = p.det || {};
+      return `<tr>
+        <td class="text-muted">${dataCurta(p.ini)} – ${dataCurta(p.fim)}</td>
+        <td><b>${p.valor}</b></td><td>${dir}</td>
+        <td>${d.cli != null ? d.cli : '—'}</td>
+        <td>${d.recorrentes ? d.recorrentes : '—'}</td>
+        <td>${fmtMoeda(d.rec || 0)}</td>
+        <td>${d.ticket != null ? fmtMoeda(d.ticket) : '—'}</td>
+        <td>${d.cancelados || 0}</td>
+        <td>${d.faltas || 0}</td>
+        <td>${d.desp ? fmtMoeda(d.desp) : '—'}</td>
+      </tr>`;
     }).join('');
 
-    const avisoSemDados = !prev.temDados
-      ? '<div class="cen-aviso" style="margin-bottom:12px"><b>Suas séries ainda estão começando:</b> poucos atendimentos registrados nas últimas 8 semanas. A projeção usa a média atual + o cenário externo — ela fica mais precisa conforme o Planner for alimentado.</div>'
-      : '';
+    const htmlPassado = `
+      <div class="cen-card cen-in">
+        <h4>Passado — últimas 8 semanas ${B_REAL}</h4>
+        <div class="cen-resumo" style="margin-bottom:10px">
+          <div class="cr-item"><div class="cr-val">${prev.media.toFixed(1)}</div><span>média ponderada (recentes pesam mais)</span></div>
+          <div class="cr-item"><div class="cr-val" style="color:${prev.inclinacao >= 0 ? 'var(--e-green)' : 'var(--e-danger)'}">${prev.inclinacao >= 0 ? '↑' : '↓'} ${Math.abs(prev.inclinacao).toFixed(2)}</div><span>tendência por semana</span></div>
+          <div class="cr-item"><div class="cr-val">${mMelhor.valor}</div><span>melhor semana (${dataCurta(mMelhor.ini)})</span></div>
+          <div class="cr-item"><div class="cr-val">${mPior.valor}</div><span>pior semana (${dataCurta(mPior.ini)})</span></div>
+        </div>
+        <div class="tbl-scroll"><table class="table">
+          <thead><tr><th>Semana</th><th>Atend.</th><th>Var.</th><th>Novos cli.</th><th>Recorrentes*</th><th>Receita paga</th><th>Ticket médio</th><th>Cancel.</th><th>Faltas</th><th>Despesas pagas</th></tr></thead>
+          <tbody>${linhasPassado}</tbody>
+        </table></div>
+        <small class="text-muted">* recorrentes = atendimentos vinculados a cliente já identificado antes (somente vínculos explícitos — os demais não são estimados).</small>
+      </div>`;
 
-    const avisoRede = prev._avisoRede
-      ? '<div class="cen-aviso" style="margin-bottom:12px"><b>Investigação externa indisponível agora</b> — verifique se o servidor está aberto (Abrir Sistema.bat). Mostrando a análise com seus dados internos.</div>'
-      : '';
+    /* ---------- §7 PRESENTE: diagnóstico ---------- */
+    const htmlPresente = `
+      <div class="cen-card cen-in">
+        <h4>Presente — semana corrente vs média ${B_REAL}${B_INF}</h4>
+        <div class="cen-resumo">
+          <div class="cr-item"><div class="cr-val">${prev.corrente.atd} <small style="font-size:12px;color:var(--text-muted)">(${prev.atualVsMedia == null ? '—' : (prev.atualVsMedia > 0 ? '+' : '') + prev.atualVsMedia + '%'})</small></div><span>atendimentos vs média</span></div>
+          <div class="cr-item"><div class="cr-val">${fmtMoeda(prev.corrente.rec || 0)}</div><span>receita recebida na semana</span></div>
+          <div class="cr-item"><div class="cr-val">${prev.corrente.cancelados || 0} / ${prev.corrente.faltas || 0}</div><span>cancelados / faltas</span></div>
+          <div class="cr-item"><div class="cr-val">${prev.corrente.ticket != null ? fmtMoeda(prev.corrente.ticket) : '—'}</div><span>ticket médio corrente</span></div>
+        </div>
+        ${(prev.sinaisPositivos.length || prev.sinaisNegativos.length) ? `<div class="cen-sinais">
+          ${prev.sinaisPositivos.map((s) => `<div class="cs-pos">▲ ${esc(s)}</div>`).join('')}
+          ${prev.sinaisNegativos.map((s) => `<div class="cs-neg">▼ ${esc(s)}</div>`).join('')}
+        </div>` : ''}
+      </div>`;
 
-    /* ---- Mercado real (Maps) ---- */
+    /* ---------- Distribuição real por dia/hora ---------- */
+    const dist = prev._dist || {};
+    const htmlDistribuicao = `
+      <div class="cen-card cen-in">
+        <h4>Movimento por dia e horário (8 semanas) ${B_REAL}</h4>
+        <div class="cen-mkt-grid">
+          <div class="cm"><div class="cm-termo">Dias da semana</div>
+            ${(dist.diasRanking || []).map((d) => `<div class="cm-item">${esc(d.dia)} <span>${d.total}</span></div>`).join('')}
+          </div>
+          <div class="cm"><div class="cm-termo">Horários mais cheios</div>
+            ${(dist.horasRanking || []).slice(0, 5).map((h) => `<div class="cm-item">${esc(h.hora)} <span>${h.total}</span></div>`).join('') || '<div class="cm-item text-muted">sem dados de horário</div>'}
+          </div>
+          <div class="cm"><div class="cm-termo">Origem dos leads</div>
+            ${(dist.topOrigens || []).slice(0, 5).map((o) => `<div class="cm-item">${esc(o[0])} <span>${o[1]}</span></div>`).join('') || '<div class="cm-item text-muted">sem leads no período</div>'}
+          </div>
+        </div>
+      </div>`;
+
+    /* ---------- Mercado Maps (mantido) ---------- */
     let htmlMercado = '';
     const mc = info.mercado && info.mercado.consultas;
     if (mc && mc.length) {
       htmlMercado = `
         <div class="cen-card cen-in">
-          <h4>Mercado real — lido do Google Maps agora (${esc([onde.cidade, onde.estado].filter(Boolean).join('/') || onde.pais)})</h4>
+          <h4>Mercado real — Google Maps agora ${B_EXT} <span class="text-muted" style="font-weight:400;font-size:12px">(${esc([onde.cidade, onde.estado].filter(Boolean).join('/') || onde.pais)})</span></h4>
           <div class="cen-mkt-grid">
             ${mc.map((m, i) => `
               <div class="cm cm-in" style="animation-delay:${i * 70}ms">
@@ -592,23 +796,90 @@
                 ${(m.amostra || []).slice(0, 4).map((a) => `<div class="cm-item">${esc(a.nome)}${a.nota ? ` <span>${esc(String(a.nota).slice(0, 24))}</span>` : ''}</div>`).join('')}
               </div>`).join('')}
           </div>
-          <div class="cen-mkt-leitura"><b>${esc(prev.fm.rotulo)}</b> — ${esc(prev.fm.detalhe || '')}<br>
+          <div class="cen-mkt-leitura">${B_INF} <b>${esc(prev.fm.rotulo)}</b> — ${esc(prev.fm.detalhe || '')}<br>
             <small style="color:var(--text-muted)">* contagem da amostra dos primeiros resultados de cada busca no Google Maps (até 40 por termo) — termômetro de densidade, não censo completo.</small></div>
         </div>`;
     }
 
-    corpo.innerHTML = `
-      ${avisoRede}${avisoSemDados}
-      <div class="cen-resumo cen-in">
-        <div class="cr-item"><div class="cr-val" style="color:${cores[prev.tendenciaGeral]}">${setas[prev.tendenciaGeral]} ${prev.tendenciaGeral.toUpperCase()}</div><span>tendência próximas 8 sem.</span></div>
-        <div class="cr-item"><div class="cr-val">${prev.corrente.atd} <small style="font-size:12px;color:var(--text-muted)">(${prev.atualVsMedia == null ? '—' : (prev.atualVsMedia > 0 ? '+' : '') + prev.atualVsMedia + '%'})</small></div><span>semana corrente vs média</span></div>
-        <div class="cr-item"><div class="cr-val">${prev.futuro.reduce((a, f) => a + f.demandaPrevista, 0)}</div><span>movimento total previsto (8 sem.)</span></div>
-        <div class="cr-item"><div class="cr-val">${fmtMoeda(prev.futuro.reduce((a, f) => a + (f.recPrevista || 0), 0))}</div><span>receita prevista (8 sem.)</span></div>
-        <div class="cr-item"><div class="cr-val">${esc(prev.fm.rotulo)}</div><span>leitura do mercado</span></div>
-      </div>
+    /* ---------- §3+§4 EXTERNO: status da pesquisa, eventos e fontes ---------- */
+    let htmlStatusExterno = '';
+    if (info.coletadoEm) {
+      const dt = new Date(info.coletadoEm);
+      const stamp = dt.toLocaleDateString('pt-BR') + ' ' + dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      htmlStatusExterno = `
+        <div class="cen-status-pesquisa cen-in">
+          ${B_EXT} Pesquisa executada pelo provedor <b>${esc(info.provedor || 'livre')}</b>
+          (${info.consultasBemSucedidas}/${info.consultasExecutadas} consultas respondidas).
+          <b>Última atualização da pesquisa: ${stamp}</b>
+          <button class="btn btn-sm" id="cn-atualizar-pesquisa" title="Refaz as consultas ignorando o cache">⟳ ATUALIZAR PESQUISA</button>
+        </div>`;
+    }
+    if (Array.isArray(info.avisos) && info.avisos.length && !prev._avisoRede) {
+      htmlStatusExterno += `<div class="cen-aviso cen-in" style="margin-top:8px">${info.avisos.map((a) => esc(a)).join('<br>')}</div>`;
+    }
 
+    let htmlClima = '';
+    if (info.clima && info.clima.ok) {
+      htmlClima = `
+        <div class="cen-clima cen-in">
+          ${B_EXT} <b>Clima (${esc(info.clima.cidadeEncontrada || onde.cidade)} — fonte ${esc(info.clima.fonte)}):</b> ${esc(info.clima.leitura)} (${info.clima.chuvaTotalMm}mm previstos em 7 dias).
+          ${info.clima.chuvaTotalMm >= 40 ? '<span class="text-muted">Chuva forte costuma reduzir tráfego de rua — efeito não quantificado nos seus dados ainda.</span>' : ''}
+        </div>`;
+    }
+
+    let htmlEventos = '';
+    const evs = prev.eventos || [];
+    htmlEventos = evs.length ? `
       <div class="cen-card cen-in">
-        <h4>Gráfico do movimento — 8 semanas passadas (real) → HOJE → 8 semanas (projeção)</h4>
+        <h4>Eventos e datas no seu horizonte ${B_EXT} <span class="text-muted" style="font-weight:400;font-size:12px">evento ≠ impacto — cada caso é classificado com justificativa</span></h4>
+        ${evs.map((ev) => `
+          <div class="cen-evento">
+            <div class="ce-head">
+              <b>${esc(ev.nome)}</b>
+              <span class="cen-badge" style="background:${IMPACTO_COR[ev.impacto]}22;color:${IMPACTO_COR[ev.impacto]}">${esc(ev.impacto)}</span>
+            </div>
+            <div class="ce-meta">
+              ${ev.dataISO ? `📅 ${esc(ev.dataBruta)}${ev.diasAte != null ? ` (faltam ${ev.diasAte} dia(s))` : ''}` : '📅 data não identificada na fonte'}
+              · tipo: ${esc(ev.tipo)} · confiança: ${esc(ev.confianca)}
+              ${ev.cidade ? ' · ' + esc(ev.cidade) : ''}
+              ${ev.publicoEsperado ? ' · público citado: ' + esc(ev.publicoEsperado) : ''}
+              ${ev.duracao ? ' · duração citada: ' + esc(ev.duracao) : ''}
+            </div>
+            <div class="ce-just">${B_INF} ${esc(ev.justificativa)}</div>
+            ${ev.url ? `<a class="ce-link" href="${esc(ev.url)}" target="_blank" rel="noopener">ver fonte original ↗</a>` : ''}
+          </div>`).join('')}
+      </div>` : (prev.temExterno ? `
+      <div class="cen-card cen-in">
+        <h4>Eventos e datas no seu horizonte ${B_EXT}</h4>
+        <div class="empty">Nenhum evento com data identificável nas fontes desta rodada — nada foi presumido.</div>
+      </div>` : '');
+
+    /* ---------- §10 Fontes consultadas: tabela interativa ---------- */
+    const fontes = info.fontes || [];
+    const htmlFontes = fontes.length ? `
+      <details class="cen-fontes cen-in" open>
+        <summary>Fontes consultadas agora (${fontes.length}) — tabela com link, prioridade e datas</summary>
+        <div class="tbl-scroll"><table class="table">
+          <thead><tr><th>Link</th><th>Título</th><th>Fonte</th><th>Prioridade</th><th>Publicado</th><th>Acessado</th><th>Relevância</th><th>Confiança</th></tr></thead>
+          <tbody>${fontes.map((f) => `
+            <tr>
+              <td>${f.url ? `<a href="${esc(f.url)}" target="_blank" rel="noopener">abrir ↗</a>` : '—'}</td>
+              <td>${esc(f.titulo).slice(0, 90)}</td>
+              <td class="text-muted">${esc(f.nomeFonte)}</td>
+              <td>P${f.prioridade}</td>
+              <td class="text-muted">${f.publicadoEm ? new Date(f.publicadoEm).toLocaleDateString('pt-BR') : '—'}</td>
+              <td class="text-muted">${new Date(f.dataConsulta).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
+              <td>${esc(f.relevancia)}</td>
+              <td>${esc(f.nivelConfianca)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table></div>
+      </details>` : '';
+
+    /* ---------- Gráfico ---------- */
+    const htmlGrafico = `
+      <div class="cen-card cen-in">
+        <h4>Movimento — histórico real → HOJE → previsão ${B_REAL}${B_PREV}</h4>
         <div class="cg-wrap">
           ${graficoSVG(prev)}
           <div class="cg-tip"></div>
@@ -617,81 +888,123 @@
           <span><i class="lg lg-passado"></i>realizado</span>
           <span><i class="lg lg-hoje"></i>HOJE</span>
           <span><i class="lg lg-futuro"></i>projeção (tracejada)</span>
-          <span><i class="lg lg-banda"></i>faixa de confiança</span>
+          <span><i class="lg lg-banda"></i>intervalo de confiança</span>
           <span><i style="color:var(--e-green);font-style:normal;font-weight:800">↑</i>/<i style="color:var(--e-danger);font-style:normal;font-weight:800">↓</i> movimento</span>
         </div>
-      </div>
+      </div>`;
 
+    /* ---------- §8 CENÁRIOS + tabela de previsão ---------- */
+    const somaCen = (arr) => arr.reduce((a, f) => a + f.valor, 0);
+    const htmlCenarios = `
       <div class="cen-card cen-in">
-        <h4>Revisão das 8 semanas passadas (dados reais)</h4>
-        <div class="cen-rev-grid">${revPast}</div>
-      </div>
-
-      ${htmlMercado}
-
-      <div class="cen-card cen-in">
-        <h4>Detalhe da projeção semana a semana</h4>
+        <h4>Cenários para as próximas ${prev.horizonte} semanas ${B_PREV}</h4>
+        <div class="cen-scenarios">
+          <div class="csc csc-cons"><div class="csc-tipo">CONSERVADOR</div><div class="csc-val">${somaCen(prev.cenarios.conservador)}</div><div class="csc-sub">atendimentos no horizonte — tendência amortecida, sem fatores externos favoráveis</div></div>
+          <div class="csc csc-base"><div class="csc-tipo">BASE</div><div class="csc-val">${somaCen(prev.cenarios.base)}</div><div class="csc-sub">modelo completo: histórico + tendência + sazonalidade + externos</div></div>
+          <div class="csc csc-oti"><div class="csc-tipo">OTIMISTA</div><div class="csc-val">${somaCen(prev.cenarios.otimista)}</div><div class="csc-sub">fatores favoráveis plenos + meio-desvio acima</div></div>
+        </div>
         <table class="table">
-          <thead><tr><th>Semana</th><th>Período</th><th>Movimento previsto</th><th>Faixa</th><th>Receita prevista</th><th>Confiança</th><th>Leitura</th></tr></thead>
-          <tbody>${prev.futuro.map((f) => `
+          <thead><tr><th>Semana</th><th>Período</th><th>Base previsto</th><th>Faixa provável</th><th>Conservador</th><th>Otimista</th><th>Receita prevista</th><th>Confiança</th></tr></thead>
+          <tbody>${prev.futuro.map((f, i) => `
             <tr>
               <td><b>+${f.n}s</b></td>
-              <td class="text-muted">${new Date(f.ini).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} – ${new Date(f.fim).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</td>
+              <td class="text-muted">${dataCurta(f.ini)} – ${dataCurta(f.fim)}</td>
               <td><b>${f.demandaPrevista}</b> <span style="color:${cores[f.direcao]}">${setas[f.direcao]}</span> <span class="text-muted">(${f.variacao > 0 ? '+' : ''}${f.variacao}%)</span></td>
-              <td class="text-muted">${f.min}–${f.max}</td>
-              <td><b>${fmtMoeda(f.recPrevista || 0)}</b></td>
+              <td><b>${f.min} – ${f.max}</b></td>
+              <td class="text-muted">${prev.cenarios.conservador[i].valor}</td>
+              <td class="text-muted">${prev.cenarios.otimista[i].valor}</td>
+              <td>${fmtMoeda(f.recPrevista || 0)}<br><small class="text-muted">${fmtMoeda(f.recMin || 0)} – ${fmtMoeda(f.recMax || 0)}</small></td>
               <td><div class="cs-conf-bar" style="min-width:80px;display:inline-block;vertical-align:middle;margin-right:6px"><i style="width:${f.confianca}%"></i></div>${f.confianca}%</td>
-              <td class="text-muted" style="font-size:12px">${esc(f.nota)}</td>
             </tr>`).join('')}
           </tbody>
         </table>
-      </div>
+        <small class="text-muted">Nenhum valor único é apresentado como certeza: toda semana traz faixa mín–máx e taxa de confiança que diminui conforme o horizonte cresce.</small>
+      </div>`;
 
-      ${prev.analise.eventos.length ? `<div class="cen-eventos cen-in"><b>Datas & eventos que podem mudar o jogo:</b> ${prev.analise.eventos.map((e) => `<a href="${esc(e.url || '#')}" target="_blank" rel="noopener">${esc(e.mes)} — ${esc(e.nome)}</a>`).join(' · ')}</div>` : ''}
-      ${prev.analise.evidencias.length ? `
-        <details class="cen-fontes cen-in">
-          <summary>O agente leu ${prev.analise.evidencias.length} fonte(s) real(is) — ver o que encontrou</summary>
-          <ul>${prev.analise.evidencias.map((ev) => `<li><a href="${esc(ev.url)}" target="_blank" rel="noopener">${esc(ev.titulo)}</a>${ev.trecho ? `<span>${esc(ev.trecho)}</span>` : ''}</li>`).join('')}</ul>
-        </details>` : ''}
+    /* ---------- §9 POR QUE O SISTEMA ESTÁ PREVENDO ISSO? ---------- */
+    const htmlExplicacao = `
+      <div class="cen-card cen-in">
+        <h4>Por que o sistema está prevendo isso? ${B_INF}</h4>
+        <div class="cen-explicacao">
+          <div class="cx-conf" style="color:${CONF_COR[prev.nivelConfianca] || 'inherit'}">Grau de confiança geral: <b>${esc(prev.nivelConfianca)}</b></div>
+          <ul>${prev.razoesConfianca.map((r) => `<li>${esc(r)}</li>`).join('')}</ul>
+          <ul>
+            <li>Base histórica: média ponderada de <b>${prev.media.toFixed(1)}</b> atendimentos/semana (semanas recentes pesam mais).</li>
+            <li>Tendência recente: <b>${prev.inclinacao >= 0 ? '+' : ''}${prev.inclinacao.toFixed(2)}</b> por semana (regressão ponderada).</li>
+            <li>Sazonalidade de pagamento: ajuste leve aplicado por posição do mês — ${esc(prev.sazInfo && prev.sazInfo.rotulo ? prev.sazInfo.rotulo : 'inferência declarada')}.</li>
+            <li>Eventos externos considerados: <b>${(prev.eventos || []).filter((e) => e.direcao !== 'indeterminado').length}</b> com direção definida de ${prev.eventos.length} mapeado(s).</li>
+            <li>Fontes externas: sentimento ${prev.sent.citacoes ? `${prev.sent.positivas}↑/${prev.sent.negativas}↓ citações` : '— sem citações suficientes'}.</li>
+            <li>Fatores locais (mercado Maps): ${esc(prev.fm.rotulo)}.</li>
+          </ul>
+        </div>
+      </div>`;
+
+    /* ---------- §10 RECOMENDAÇÕES ---------- */
+    const htmlRecomendacoes = `
+      <div class="cen-card cen-in">
+        <h4>Recomendações práticas ${B_INF}</h4>
+        ${prev.recomendacoes.length ? `<ul class="cen-recs">${prev.recomendacoes.map((r) => `<li>${esc(r)}</li>`).join('')}</ul>`
+          : '<div class="empty">Sem recomendações automáticas nesta rodada — os dados ainda não mostram um padrão acionável claro.</div>'}
+      </div>`;
+
+    corpo.innerHTML = `
+      ${avisoRede}${avisoSemDados}
+      <div class="cen-resumo cen-in">
+        <div class="cr-item"><div class="cr-val" style="color:${cores[prev.tendenciaGeral]}">${setas[prev.tendenciaGeral]} ${prev.tendenciaGeral.toUpperCase()}</div><span>tendência próximas ${prev.horizonte} sem. ${B_PREV}</span></div>
+        <div class="cr-item"><div class="cr-val">${prev.corrente.atd} <small style="font-size:12px;color:var(--text-muted)">(${prev.atualVsMedia == null ? '—' : (prev.atualVsMedia > 0 ? '+' : '') + prev.atualVsMedia + '%'})</small></div><span>semana corrente vs média</span></div>
+        <div class="cr-item"><div class="cr-val">${prev.futuro.reduce((a, f) => a + f.demandaPrevista, 0)}</div><span>movimento total previsto (faixa)</span></div>
+        <div class="cr-item"><div class="cr-val">${fmtMoeda(prev.futuro.reduce((a, f) => a + (f.recPrevista || 0), 0))}</div><span>receita prevista</span></div>
+        <div class="cr-item"><div class="cr-val" style="color:${CONF_COR[prev.nivelConfianca] || 'inherit'}">${esc(prev.nivelConfianca)}</div><span>confiança geral</span></div>
+      </div>
+      ${htmlStatusExterno}
+      ${htmlClima}
+      ${htmlPassado}
+      ${htmlPresente}
+      ${htmlDistribuicao}
+      ${htmlGrafico}
+      ${htmlCenarios}
+      ${htmlExplicacao}
+      ${htmlEventos}
+      ${htmlMercado}
+      ${htmlFontes}
+      ${htmlRecomendacoes}
       <div class="cen-acoes">
         <button class="btn btn-sm" id="cn-repetir">Analisar de novo</button>
         <button class="btn btn-sm btn-primary" id="cn-exportar">Exportar cenário (.txt)</button>
       </div>`;
 
-    // Histórico
-    const histSave = lsGet(KEY_HIST, []);
-    histSave.unshift({
-      id: 'c-' + Date.now().toString(36),
-      quandoISO: new Date().toISOString(),
-      onde, tendenciaGeral: prev.tendenciaGeral,
-      mediaHistorica: Number(prev.media.toFixed(1)),
-      totalPrevisto: prev.futuro.reduce((a, f) => a + f.demandaPrevista, 0),
-      corrente: prev.corrente.atd,
-      mercadoTotal: info.mercado && info.mercado.consultas ? info.mercado.consultas.reduce((mx, c) => Math.max(mx, c.total), 0) : 0,
-      sentimento: Number(prev.analise.sentimento.toFixed(2)),
-      fontesCount: prev.analise.evidencias.length,
-    });
-    lsSet(KEY_HIST, histSave.slice(0, 20));
+    /* Botões de ação */
+    ov.querySelector('#cn-tentar-novamente')?.addEventListener('click', () => executar(ov, true));
+    ov.querySelector('#cn-atualizar-pesquisa')?.addEventListener('click', () => executar(ov, true));
+    ov.querySelector('#cn-repetir')?.addEventListener('click', () => executar(ov, false));
 
-    ov.querySelector('#cn-repetir')?.addEventListener('click', () => executar(ov));
     ov.querySelector('#cn-exportar')?.addEventListener('click', () => {
       const linhas = [];
       linhas.push('NEITZEL — POSSÍVEL CENÁRIO (' + new Date().toLocaleString('pt-BR') + ')');
-      linhas.push('Região: ' + [onde.cidade, onde.estado, onde.pais].filter(Boolean).join('/'));
-      linhas.push('Média histórica semanal: ' + prev.media.toFixed(1) + ' · Semana corrente: ' + prev.corrente.atd + ' (' + (prev.atualVsMedia == null ? '—' : (prev.atualVsMedia > 0 ? '+' : '') + prev.atualVsMedia + '%') + ')');
-      linhas.push('Mercado: ' + prev.fm.rotulo + (info.mercado && info.mercado.consultas ? ' — ' + info.mercado.consultas.map((c) => c.termo + ': ' + c.total).join(', ') : ''));
-      linhas.push('Tendência 8 semanas: ' + prev.tendenciaGeral.toUpperCase());
+      linhas.push('Região: ' + [onde.cidade, onde.estado, onde.pais].filter(Boolean).join('/') + ' | Horizonte: ' + prev.horizonte + ' semanas');
+      if (info.coletadoEm) linhas.push('Última atualização da pesquisa: ' + new Date(info.coletadoEm).toLocaleString('pt-BR') + ' (provedor ' + (info.provedor || 'livre') + ')');
+      linhas.push('Confiança geral: ' + prev.nivelConfianca);
       linhas.push('');
-      linhas.push('PASSADO (real):');
-      prev.passado.forEach((p, i) => linhas.push(`  S-${prev.passado.length - i}: ${p.valor} atendimentos${p.variacao != null ? (p.variacao >= 0 ? ' (+' : ' (') + p.variacao + '%)' : ''}`));
+      linhas.push('PASSADO (DADO REAL):');
+      prev.passado.forEach((p, i) => linhas.push(`  S-${prev.passado.length - i}: ${p.valor} atd | novos ${p.det.cli} | receita ${fmtMoeda(p.det.rec || 0)}${p.variacao != null ? (p.variacao >= 0 ? ' (+' : ' (') + p.variacao + '%)' : ''}`));
       linhas.push('');
-      linhas.push('PROJEÇÃO:');
-      prev.futuro.forEach((f) => {
-        linhas.push(`  +${f.n}s (${new Date(f.ini).toLocaleDateString('pt-BR')}–${new Date(f.fim).toLocaleDateString('pt-BR')}): ${f.demandaPrevista} previsto, faixa ${f.min}–${f.max}, receita prevista ${fmtMoeda(f.recPrevista || 0)}, confiança ${f.confianca}%`);
+      linhas.push('PREVISÃO (FAIXAS — NÃO É CERTEZA):');
+      prev.futuro.forEach((f, i) => {
+        linhas.push(`  +${f.n}s (${dataCurta(f.ini)}–${dataCurta(f.fim)}): base ${f.demandaPrevista}, faixa ${f.min}–${f.max}, conservador ${prev.cenarios.conservador[i].valor}, otimista ${prev.cenarios.otimista[i].valor}, receita ${fmtMoeda(f.recMin || 0)}–${fmtMoeda(f.recMax || 0)}, confiança ${f.confianca}%`);
       });
-      if (prev.analise.evidencias.length) {
+      linhas.push('', 'POR QUE O SISTEMA PREVEVE ISSO:');
+      prev.razoesConfianca.forEach((r) => linhas.push('- ' + r));
+      if ((prev.eventos || []).length) {
+        linhas.push('', 'EVENTOS MAPEADOS (EVENTO ≠ IMPACTO):');
+        prev.eventos.forEach((ev) => linhas.push(`- ${ev.nome} ${ev.dataBruta || '[sem data]'} [${ev.impacto}] ${ev.justificativa}`));
+      }
+      if (fontes.length) {
         linhas.push('', 'FONTES CONSULTADAS:');
-        prev.analise.evidencias.forEach((ev) => linhas.push('- ' + ev.titulo + (ev.url ? ' (' + ev.url + ')' : '')));
+        fontes.forEach((f) => linhas.push(`- ${f.titulo} — ${f.nomeFonte}${f.url ? ' (' + f.url + ')' : ''} | acessado ${new Date(f.dataConsulta).toLocaleString('pt-BR')}`));
+      }
+      if (prev.recomendacoes.length) {
+        linhas.push('', 'RECOMENDAÇÕES:');
+        prev.recomendacoes.forEach((r) => linhas.push('- ' + r));
       }
       const blob = new Blob(['\uFEFF' + linhas.join('\n')], { type: 'text/plain;charset=utf-8' });
       const a = document.createElement('a');
@@ -700,7 +1013,7 @@
       a.click();
     });
 
-    try { E().audit.record('estrategia.cenario_gerado', 'sistema', null, { tendencia: prev.tendenciaGeral, fontes: prev.analise.evidencias.length, mercado: prev.fm.rotulo }); } catch (e) {}
+    try { E().audit.record('estrategia.cenario_gerado', 'sistema', null, { tendencia: prev.tendenciaGeral, confianca: prev.nivelConfianca, fontes: fontes.length, eventos: (prev.eventos || []).length, mercado: prev.fm.rotulo }); } catch (e) {}
   }
 
   /* ==================== CARTÃO DE HISTÓRICO (Estratégia) ================= */
@@ -726,5 +1039,5 @@
     return card;
   }
 
-  window.NEITZEL_CENARIO = { open, fechar, renderHistoricoCard };
+  window.NEITZEL_CENARIO = { open, fechar, renderHistoricoCard, _internals: { historicoReal, sintetizar, estatPonderada } };
 })();

@@ -526,33 +526,13 @@ async function buscarWeb(q) {
 }
 
 /* ------------------------------------------------------------------------ *
- * AGENTE DE CENÁRIO — pesquisa real multi-motor com país/estado/cidade.
- * Usa o Chrome headless (Google → DDG → Mojeek → Bing) e cai para APIs
- * abertas quando o navegador não está disponível. Nada é inventado:
- * devolvem-se apenas títulos/trechos/URLs que os motores realmente
- * retornaram.
+ * AGENTE DE CENÁRIO — reestruturado conforme especificação do módulo.
+ * A coleta externa (consultas dinâmicas, fontes rastreáveis, eventos, clima,
+ * cache e provedor de busca) vive em backend/cenario.js; aqui fica apenas a
+ * leitura de MERCADO no Google Maps (Chrome headless) e a fusão final.
  * ------------------------------------------------------------------------ */
+const cenarioMod = require('./cenario');
 const chromeMod = (() => { try { return require('./chrome'); } catch (e) { return null; } })();
-const cacheCenario = new Map();
-
-function consultasDeCenario({ pais, estado, cidade, segmento }) {
-  const agora = new Date();
-  const meses = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
-  const mesAtual = meses[agora.getMonth()];
-  const proximoMes = meses[(agora.getMonth() + 1) % 12];
-  const onde = [cidade, estado, pais].filter(Boolean).join(' ');
-  return [
-    { consulta: `previsão economia ${onde} próximos meses`, motor: 'busca', peso: 'alta' },
-    { consulta: `${pais} índice confiança do consumidor IPCA SELIC atual`, motor: 'busca', peso: 'alta' },
-    { consulta: `eventos ${cidade || onde} ${mesAtual} ${proximoMes}`, motor: 'busca', peso: 'media' },
-    { consulta: `feriados e datas especiais ${cidade || estado || pais} próximos 2 meses`, motor: 'busca', peso: 'media' },
-    { consulta: `mercado ${segmento}s ${cidade || onde} movimento demanda`, motor: 'busca', peso: 'alta' },
-    { consulta: `comércio empresas ${cidade || onde} crescimento fechamento`, motor: 'busca', peso: 'alta' },
-    { consulta: `gasto das pessoas consumo pessoal ${pais} tendência`, motor: 'busca', peso: 'media' },
-    { consulta: `economia ${onde}`, motor: 'wikipedia', peso: 'baixa' },
-    { consulta: `${pais} consumer confidence inflation`, motor: 'ddg', peso: 'baixa' },
-  ];
-}
 
 /** Contagem REAL de estabelecimentos no Google Maps (segmento + comércio +
  *  empresas) na cidade/estado informados. Serve de termômetro de mercado:
@@ -599,69 +579,59 @@ async function mercadoLocal({ pais, estado, cidade, segmento }) {
   } catch (e) { return null; }
 }
 
-async function analisarCenario(params) {
+async function analisarCenario(params, opts) {
   const p = {
     pais: String(params.pais || 'Brasil').slice(0, 40),
     estado: String(params.estado || '').slice(0, 2).toUpperCase(),
     cidade: String(params.cidade || '').slice(0, 60),
     segmento: String(params.segmento || '').slice(0, 40),
+    periodoSemanas: Math.min(Math.max(Number(params.periodoSemanas) || 8, 1), 8),
   };
-  const chave = JSON.stringify(Object.assign({ v: 3 }, p));
-  const hit = cacheCenario.get(chave);
-  if (hit && Date.now() - hit.ts < 900000) return hit.val;
 
-  const lista = consultasDeCenario(p);
-  const fontes = [];
+  /* Tudo independente roda EM PARALELO — antes era sequencial
+     (buscas → clima → mercado), o que triplicava o tempo total. */
+  const force = !!(opts && opts.force);
+  const [externo, clima, mercado] = await Promise.all([
+    cenarioMod.coletarExterno(p, { force }),
+    cenarioMod.climaLocal(p.cidade, p.estado),
+    mercadoParalelo(p),
+  ]);
 
-  async function viaChrome() {
-    if (!chromeMod || !chromeMod.disponivel()) return false;
-    try {
-      const respostas = await chromeMod.comAbasIndependentes(
-        lista.filter((x) => x.motor === 'busca'),
-        (aba, item) => chromeMod.buscarResultadosNaAba(aba, item.consulta, 10),
-        4
-      );
-      let achou = 0;
-      respostas.forEach((r, i) => {
-        if (r && r.ok && Array.isArray(r.valor) && r.valor.length) {
-          fontes.push({ consulta: lista[i].consulta, motor: 'chrome-web', resultados: r.valor.slice(0, 8) });
-          achou++;
-        }
-      });
-      return achou > 0;
-    } catch (e) { return false; }
-  }
-
-  async function viaApisAbertas() {
-    const alvos = lista.filter((x) => x.motor !== 'busca').slice(0, 4);
-    const resultados = await Promise.all(alvos.map(async (item) => {
-      const r = await buscarWeb(item.consulta);
-      return { consulta: item.consulta, motor: item.motor === 'ddg' ? 'ddg-api' : 'wikipedia-api', resultados: r.ok ? [{ url: (r.fontes[0] && r.fontes[0].url) || '', titulo: r.texto.slice(0, 140), trecho: r.texto.slice(0, 260) }] : [] };
-    }));
-    let achou = 0;
-    resultados.forEach((r) => { if (r.resultados.length) { fontes.push(r); achou++; } });
-    return achou > 0;
-  }
-
-  // Tenta Chrome primeiro; se falhar usa as APIs abertas como rede de segurança
-  let ok = false;
-  try { ok = await viaChrome(); } catch (e) {}
-  if (!ok) { try { ok = await viaApisAbertas(); } catch (e) {} }
-
-  // Mercado real: quantos estabelecimentos do segmento + comércio + empresas
-  // existem de fato na cidade/estado (lidos do Google Maps agora). Com uma
-  // segunda tentativa — o Maps às vezes demora a renderizar o feed.
-  let mercado = null;
-  for (let tent = 0; tent < 2 && !mercado; tent++) {
-    try { mercado = await mercadoLocal(p); } catch (e) { mercado = null; }
-    if (!mercado && tent === 0) await new Promise((r) => setTimeout(r, 2500));
-  }
-
-  const val = (ok || mercado)
-    ? { ok: true, fontes, mercado, coletadoEm: new Date().toISOString(), motores: chromeMod && chromeMod.disponivel() ? 'chrome-headless + apis' : 'apis-abertas' }
-    : { ok: false, code: 'SEM_FONTES', fontes: [], mercado: null, coletadoEm: new Date().toISOString() };
-  cacheCenario.set(chave, { ts: Date.now(), val });
+  const val = Object.assign({}, externo, {
+    mercado: externo.mercado || mercado,
+    clima: clima || null,
+    avisos: Array.from(new Set([].concat(externo.avisos || [], (!clima && !externo.clima) ? ['Previsão do tempo indisponível no momento.'] : []))),
+  });
   return val;
+}
+
+/* Cache curto do clima (30 min): evita refetch a cada atualização */
+let climaCache = { chave: '', ts: 0, val: null };
+const _climaOriginal = cenarioMod.climaLocal;
+cenarioMod.climaLocal = async function (cidade, estado) {
+  const chave = cidade + '|' + estado;
+  if (climaCache.chave === chave && Date.now() - climaCache.ts < 1800000) return climaCache.val;
+  const v = await _climaOriginal(cidade, estado);
+  climaCache = { chave, ts: Date.now(), val: v };
+  return v;
+};
+
+/* Cache do mercado Maps (15 min): scraping é caro — mesma cidade/estado
+   reaproveita a leitura em chamadas seguintes (inclusive "Atualizar pesquisa"). */
+let mercadoCache = { chave: '', ts: 0, val: null };
+
+/** Mercado no Maps com UMA tentativa extra apenas se falhar de todo. */
+async function mercadoParalelo(p) {
+  const chave = [p.segmento, p.cidade, p.estado].join('|');
+  if (mercadoCache.chave === chave && Date.now() - mercadoCache.ts < 900000) return mercadoCache.val;
+  let mercado = null;
+  try { mercado = await mercadoLocal(p); } catch (e) { mercado = null; }
+  if (!mercado) {
+    await new Promise((r) => setTimeout(r, 800));
+    try { mercado = await mercadoLocal(p); } catch (e) { mercado = null; }
+  }
+  if (mercado) mercadoCache = { chave, ts: Date.now(), val: mercado };
+  return mercado;
 }
 
 module.exports = { json, errJson, rateLimit, ctxAgora, publicConfig, servicoPublico, criarHold, confirmarTx, cancelarTx, isAdmin, rotasAdmin, adminMutacao, adminListaAdd, adminRemove, syncCatalogo, adminStatusTx, resumoPublico, buscarWeb, analisarCenario, setCorsOrigin, publicarPortal, podarIdempotencia };

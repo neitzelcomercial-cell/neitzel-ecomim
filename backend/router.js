@@ -134,7 +134,9 @@ function handle(req, res, url, body, ip) {
       estado: url.searchParams.get('estado'),
       cidade: url.searchParams.get('cidade'),
       segmento: url.searchParams.get('segmento'),
-    }).then((v) => api.json(res, v.ok ? 200 : 502, v))
+      periodoSemanas: url.searchParams.get('periodoSemanas'),
+    }, { force: url.searchParams.get('force') === '1' })
+      .then((v) => api.json(res, v.ok ? 200 : 502, v))
       .catch((e) => api.errJson(res, 502, 'FALHA_ANALISE_CENARIO', e && e.message));
     return true;
   }

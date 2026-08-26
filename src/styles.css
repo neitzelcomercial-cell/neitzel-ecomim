@@ -1035,6 +1035,52 @@ html.no-anim .th-shine, html.no-anim .th-dot { animation: none; }
 html.no-anim .cen-palco, html.no-anim .cen-log li, html.no-anim .cen-in, html.no-anim .cs-conf-bar i { animation: none !important; }
 @media (prefers-reduced-motion: reduce) { .cen-palco, .cen-log li, .cen-in, .cs-conf-bar i { animation: none; } }
 
+/* --- Módulo reestruturado: procedência dos dados (§13) e novas seções --- */
+.cen-legendas { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin: -6px 0 12px; font-size: 11px; color: var(--text-muted); }
+.cen-badge {
+  display: inline-block; vertical-align: middle; font-size: 9.5px; font-weight: 800;
+  letter-spacing: .06em; border-radius: 6px; padding: 2px 7px; text-transform: uppercase;
+  border: 1px solid transparent; white-space: nowrap;
+}
+.cen-badge.b-real { background: var(--e-green-soft); color: var(--e-green); border-color: transparent; }        /* [DADO REAL] verde sólido */
+.cen-badge.b-ext { background: var(--e-cyan-soft); color: var(--e-cyan); }                                      /* [DADO EXTERNO] azul */
+.cen-badge.b-inf { background: var(--e-orange-soft); color: var(--e-orange); }                                  /* [INFERÊNCIA] amarelo */
+.cen-badge.b-prev { background: var(--e-violet-soft); color: var(--e-violet); border-style: dashed; }           /* [PREVISÃO] roxo tracejado */
+.cen-status-pesquisa {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  font-size: 12.5px; padding: 10px 14px; margin-bottom: 12px;
+  border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2);
+}
+.cen-status-pesquisa button { margin-left: auto; }
+.cen-clima { font-size: 12.5px; line-height: 1.55; color: var(--text-muted); margin-bottom: 12px; }
+.cen-sinais { margin-top: 10px; display: grid; gap: 5px; font-size: 12.5px; }
+.cs-pos { color: var(--e-green); }
+.cs-neg { color: var(--e-danger); }
+.cen-evento {
+  border: 1px solid var(--border); border-left: 3px solid var(--e-cyan);
+  border-radius: var(--radius); padding: 10px 13px; margin-bottom: 9px;
+  background: var(--surface); font-size: 12.5px;
+}
+.ce-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ce-meta { color: var(--text-muted); font-size: 11.5px; margin: 4px 0; line-height: 1.5; }
+.ce-just { font-size: 12px; line-height: 1.55; color: var(--text); opacity: .92; margin: 5px 0; }
+.ce-link { font-size: 11.5px; color: var(--e-cyan); text-decoration: none; }
+.cen-scenarios { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
+@media (max-width: 720px) { .cen-scenarios { grid-template-columns: 1fr; } }
+.csc { border-radius: var(--radius-lg); padding: 14px 16px; border: 1px solid var(--border); background: var(--surface); }
+.csc-base { border: 1.6px dashed var(--e-violet); background: var(--e-violet-soft); }
+.csc-tipo { font-size: 10.5px; font-weight: 800; letter-spacing: .08em; color: var(--text-muted); }
+.csc-val { font-size: 27px; font-weight: 700; letter-spacing: -.02em; margin: 3px 0; }
+.csc-base .csc-val { color: var(--e-violet); }
+.csc-cons .csc-val { color: var(--e-danger); }
+.csc-oti .csc-val { color: var(--e-green); }
+.csc-sub { font-size: 10.8px; color: var(--text-muted); line-height: 1.45; }
+.cen-explicacao ul { margin: 8px 0 4px; padding-left: 18px; font-size: 12.5px; line-height: 1.65; }
+.cx-conf { font-size: 14px; }
+.cen-recs { margin: 6px 0 2px; padding-left: 18px; font-size: 12.5px; line-height: 1.7; }
+.cen-fallback { color: var(--e-warning); }
+.cen-card .tbl-scroll table { font-size: 12px; }
+
 /* Gráfico do movimento */
 .cen-card { border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px 16px; background: var(--surface-2); margin-bottom: 12px; }
 .cen-card h4 { margin: 0 0 10px; font-size: 13.5px; }

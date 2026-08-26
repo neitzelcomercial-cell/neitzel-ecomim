@@ -91,15 +91,15 @@ async function buscarNoMaps(termo, cidade, uf, limite) {
 
     // espera o feed de resultados
     try { await pagina.waitForSelector('div[role="feed"]', { timeout: 15000 }); } catch (e) {}
-    // rola o feed para carregar mais cartões
-    for (let i = 0; i < 5; i++) {
+    // rola o feed para carregar mais cartões (3 passos bastam p/ ~40 cartões)
+    for (let i = 0; i < 3; i++) {
       const mais = await pagina.evaluate(() => {
         const feed = document.querySelector('div[role="feed"]');
         if (!feed) return false;
-        feed.scrollBy(0, 2200);
+        feed.scrollBy(0, 2600);
         return !feed.querySelector('.pFontB'); // sentinel some quando acaba
       });
-      await pausa(1100);
+      await pausa(900);
       if (!mais) break;
     }
 
