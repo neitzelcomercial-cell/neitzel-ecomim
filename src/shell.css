@@ -604,3 +604,45 @@ canvas.fundo-graficos { position: absolute; inset: 0; z-index: 0; pointer-events
   .tema-familia { flex-direction: column; align-items: stretch; }
   .tema-familia .tf-nome { min-width: 0; }
 }
+
+/* ============================================================================
+ * MOBILE EXPANSIVO — aproveita a tela inteira em aparelhos
+ * Apenas CSS (nada de lógica/JS é alterado). Respeita notch/safe-area.
+ * ========================================================================== */
+@media (max-width: 760px) {
+  html { -webkit-text-size-adjust: 100%; }
+  body { overflow-x: hidden; }
+  .ecomim-content {
+    padding: 10px 10px calc(28px + env(safe-area-inset-bottom));
+    max-width: 100% !important;
+  }
+  .card, .kpi-card { border-radius: 14px; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 8px; }
+
+  /* Palco do Possível Cenário ocupa o aparelho inteiro */
+  .cen-overlay { padding: 0 !important; align-items: stretch; }
+  .cen-palco {
+    width: 100vw !important; max-width: 100vw !important;
+    min-height: 100dvh; max-height: none;
+    border-radius: 0;
+    padding: 16px 12px calc(22px + env(safe-area-inset-bottom));
+  }
+  .cen-head h2 { font-size: 18px; }
+  .cen-legendas { gap: 5px; }
+  .cen-form { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .cen-form label { margin: 0; min-width: 0; }
+  .cen-form .input, .cen-form label:first-child .input { width: 100% !important; }
+  .cen-form button { width: 100%; margin-left: 0; margin-top: 4px; }
+  .cen-resumo { grid-template-columns: repeat(2, 1fr) !important; gap: 8px; }
+  .cen-scenarios { grid-template-columns: 1fr !important; }
+  .csc-val { font-size: 23px; }
+  .cen-mkt-grid { grid-template-columns: 1fr !important; }
+  .cen-status-pesquisa button { margin-left: 0; width: 100%; }
+  /* Gráfico largo rola dentro do próprio trilho (página nunca estoura) */
+  .cg-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+  #cg-svg { min-width: 660px; }
+  .cg-tip { display: none; } /* tooltip depende de mouse — sem ruído no toque */
+}
+@media (max-width: 420px) {
+  .cr-val { font-size: 17px; }
+}
